@@ -84,6 +84,8 @@
 - [x] Align `STATE.md`, `TASKS.md`, and `SESSION_NOTES.md` with the CitePay branch narrative.
 - [x] Review proof-pack consistency against the CitePay screenshots.
 - [x] Add `docs/lepton-submission-draft.md`.
+- [x] Add `docs/lepton-form-answers.md`.
+- [x] Add `docs/lepton-demo-video-script.md`.
 - [ ] Keep payment execution, signing, live integrations, DB/auth, and smart contracts out of scope.
 
 ## Do not start yet without explicit request

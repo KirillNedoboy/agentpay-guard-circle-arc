@@ -786,3 +786,49 @@ Pending fresh verification:
 - `pnpm build`
 
 No staging or commit before those commands pass.
+
+## 2026-06-17 - Final Lepton submission assets
+
+### Context
+
+Created the final submission-facing assets from the existing proof-pack without changing code or app behavior.
+
+Goal: produce concise copy for likely hackathon form fields and a strict under-3-minute demo voiceover that only reflects the current local CitePay demo state.
+
+### Files changed
+
+- `docs/lepton-form-answers.md`
+- `docs/lepton-demo-video-script.md`
+- `STATE.md`
+- `TASKS.md`
+- `SESSION_NOTES.md`
+
+### What changed
+
+- Added `docs/lepton-form-answers.md` with concise answers for likely hackathon form fields, including placeholders for demo, repo, video, and team/contact links.
+- Added `docs/lepton-demo-video-script.md` with the required timestamp blocks:
+  - `0:00-0:20` problem
+  - `0:20-0:45` product
+  - `0:45-1:45` demo walkthrough
+  - `1:45-2:20` Guard/audit/payment-safety angle
+  - `2:20-2:45` Lepton/RFB fit
+  - `2:45-3:00` limitations/next step
+- Updated `STATE.md`, `TASKS.md`, and this session log so the tracker files reflect the new submission assets.
+
+### Boundary kept intact
+
+- No code changes.
+- No app behavior changes.
+- No real users, real payments, real traction, prizes, grants, official partnerships, or production-readiness claims.
+- No live Circle/x402/Arc integration claims.
+
+### Validation status
+
+Pending fresh verification:
+
+- `pnpm test`
+- `pnpm lint`
+- `pnpm typecheck`
+- `pnpm build`
+
+No staging or commit before those commands pass.

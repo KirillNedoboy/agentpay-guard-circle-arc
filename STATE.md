@@ -8,7 +8,7 @@ New Lepton/CitePay direction: CitePay Agent builds on AgentPay Guard as an AI pa
 
 ## Current phase
 
-`LEPTON_SUBMISSION_DRAFT_READY`
+`LEPTON_FINAL_SUBMISSION_ASSETS_READY`
 
 ## Done
 
@@ -48,6 +48,8 @@ New Lepton/CitePay direction: CitePay Agent builds on AgentPay Guard as an AI pa
 - Project tracker docs aligned with the CitePay public narrative.
 - Proof-pack consistency review completed for the Lepton/CitePay branch docs.
 - Lepton hackathon submission draft added.
+- Lepton hackathon form-answer asset added.
+- Lepton hackathon demo-video script asset added.
 
 ## Not done
 
@@ -74,7 +76,7 @@ Each result must create an audit log record.
 
 ## Next safe implementation phase
 
-Review the submission draft and screenshot-backed proof-pack docs before publication or paste into the hackathon form.
+Review the final form answers and demo video script, then paste the placeholders into the actual hackathon submission.
 
 This phase should remain local and deterministic. It should not add live payment execution, wallet signing, custody, private key handling, DB/auth, or smart contracts.
 
