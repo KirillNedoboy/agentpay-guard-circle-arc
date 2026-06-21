@@ -152,6 +152,31 @@ p {
   align-items: center;
 }
 
+.hero-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.hero-cta,
+.hero-secondary {
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+  font-weight: 800;
+  padding: 13px 18px;
+}
+
+.hero-cta {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+.hero-secondary {
+  background: #fff;
+  color: var(--text);
+}
+
 .hero-note {
   font-size: 0.92rem;
 }
@@ -237,6 +262,53 @@ p {
 
 .summary-card.danger {
   background: var(--block-soft);
+}
+
+.outcome-band {
+  display: grid;
+  grid-template-columns: minmax(210px, 0.8fr) minmax(0, 1.4fr) minmax(200px, 0.8fr);
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.outcome-card {
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 16px;
+}
+
+.outcome-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.5rem;
+  letter-spacing: -0.04em;
+}
+
+.outcome-card p {
+  margin: 8px 0 0;
+}
+
+.outcome-card.ready {
+  background: var(--panel-soft);
+}
+
+.outcome-card.allow {
+  background: var(--allow-soft);
+  border-color: rgba(8, 116, 67, 0.28);
+}
+
+.outcome-card.review {
+  background: var(--review-soft);
+  border-color: rgba(161, 98, 7, 0.28);
+}
+
+.outcome-card.block {
+  background: var(--block-soft);
+  border-color: rgba(180, 35, 24, 0.26);
+}
+
+.outcome-card.proof strong {
+  font-size: 1rem;
 }
 
 .story-section,
@@ -492,6 +564,44 @@ input:focus {
   background: var(--panel-soft);
 }
 
+.collapse-block {
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+}
+
+.collapse-block summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  cursor: pointer;
+  list-style: none;
+  padding: 14px;
+  font-weight: 700;
+}
+
+.collapse-block summary::-webkit-details-marker {
+  display: none;
+}
+
+.collapse-content {
+  padding: 0 14px 14px;
+}
+
+.collapse-summary-strong {
+  background: #fff;
+}
+
+.proof-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.wide-proof-row {
+  grid-column: 1 / -1;
+}
+
 .meta-grid,
 dl {
   display: grid;
@@ -705,7 +815,8 @@ th {
   .hero-panel,
   .story-grid,
   .evidence-grid,
-  .validator-grid {
+  .validator-grid,
+  .outcome-band {
     grid-template-columns: 1fr;
   }
 

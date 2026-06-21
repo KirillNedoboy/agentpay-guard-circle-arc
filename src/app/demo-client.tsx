@@ -146,7 +146,6 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
 
   const decisionClass = useMemo(() => result?.decision.toLowerCase() ?? "empty", [result]);
   const demoSummary = useMemo(() => buildDemoSummary(citePaySelection, citePayEvaluations), [citePaySelection, citePayEvaluations]);
-  const latestAuditRecord = records[0] ?? null;
   const latestRules = useMemo(() => {
     const unique = new Set<string>();
     for (const evaluation of citePayEvaluations) {
@@ -161,6 +160,36 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     }
     return Array.from(unique);
   }, [citePayEvaluations, result]);
+  const primaryOutcome = useMemo(() => {
+    const rankedEvaluation =
+      citePayEvaluations.find((item) => item.result.decision === "BLOCK") ??
+      citePayEvaluations.find((item) => item.result.decision === "REVIEW") ??
+      citePayEvaluations.find((item) => item.result.decision === "ALLOW") ??
+      null;
+
+    if (!rankedEvaluation) {
+      return {
+        decision: "READY",
+        reason: "Tap Run demo to show the selected source, decision, and audit proof.",
+        auditId: "pending"
+      };
+    }
+
+    return {
+      decision: rankedEvaluation.result.decision,
+      reason: rankedEvaluation.result.reason,
+      auditId: rankedEvaluation.result.auditId ?? "pending"
+    };
+  }, [citePayEvaluations]);
+
+  function scrollToId(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function runPrimaryDemo() {
+    scrollToId("main-demo");
+    void runCitePayFlow();
+  }
 
   return (
     <main className="shell">
@@ -168,12 +197,19 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         <div className="hero-copy">
           <p className="eyebrow">AI payment safety layer</p>
           <h1>AgentPay Guard</h1>
-          <p className="hero-text">
-            Preflight policy and audit control between an AI agent and any paid API, x402 rail, Circle Gateway, or Arc-style spend flow.
-          </p>
+          <p className="hero-text">AI payment guardrail that allows, reviews, or blocks agent spend with visible audit proof.</p>
+          <div className="hero-actions">
+            <button className="hero-cta" onClick={runPrimaryDemo} type="button">
+              {citePayIsSubmitting ? "Running demo..." : "Run demo"}
+            </button>
+            <button className="hero-secondary" onClick={() => scrollToId("evidence") } type="button">
+              View proof
+            </button>
+          </div>
           <div className="hero-notes">
-            <span className="mono-chip">Agent request → paid sources → guard decisions → audit evidence</span>
-            <span className="hero-note">Built for fast reviewer understanding and phone-recorded demos.</span>
+            <span className="mono-chip">Deterministic policy</span>
+            <span className="mono-chip">Visible evidence</span>
+            <span className="mono-chip">CitePay in the loop</span>
           </div>
         </div>
 
@@ -214,7 +250,22 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         </article>
       </section>
 
-      <section className="story-section">
+      <section className="outcome-band" aria-label="Primary outcome">
+        <article className={`outcome-card ${primaryOutcome.decision.toLowerCase()}`}>
+          <span className="summary-label">Decision</span>
+          <strong>{primaryOutcome.decision}</strong>
+        </article>
+        <article className="outcome-card narrative">
+          <span className="summary-label">Because</span>
+          <p>{primaryOutcome.reason}</p>
+        </article>
+        <article className="outcome-card proof">
+          <span className="summary-label">Audit trace</span>
+          <strong className="mono-text">{primaryOutcome.auditId}</strong>
+        </article>
+      </section>
+
+      <section className="story-section" id="main-demo">
         <div className="section-heading narrative-heading">
           <div>
             <p className="eyebrow">Main demo narrative</p>
@@ -262,8 +313,8 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
               </label>
             </div>
 
-            <button className="evaluate" disabled={citePayIsSubmitting} onClick={runCitePayFlow} type="button">
-              {citePayIsSubmitting ? "Evaluating sources..." : "Run paid-source selection + Guard"}
+            <button className="evaluate demo-cta" disabled={citePayIsSubmitting} onClick={runCitePayFlow} type="button">
+              {citePayIsSubmitting ? "Running demo..." : "Run demo"}
             </button>
             {citePayError ? <p className="error">{citePayError}</p> : null}
           </article>
@@ -322,24 +373,26 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
               </div>
             )}
 
-            <div className="subsection-block">
-              <div className="subsection-heading">
-                <h4>Skipped sources</h4>
-                <span className="muted-copy">Lower-priority evidence</span>
+            <details className="collapse-block">
+              <summary>
+                <span>Skipped sources</span>
+                <span className="muted-copy">Optional details</span>
+              </summary>
+              <div className="collapse-content">
+                {citePaySelection?.skipped.length ? (
+                  <ul className="skipped-list">
+                    {citePaySelection.skipped.map((skipped) => (
+                      <li key={skipped.source.id}>
+                        <strong>{skipped.source.title}</strong>
+                        <span>{skipped.reason}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="muted-copy">No skipped sources yet.</p>
+                )}
               </div>
-              {citePaySelection?.skipped.length ? (
-                <ul className="skipped-list">
-                  {citePaySelection.skipped.map((skipped) => (
-                    <li key={skipped.source.id}>
-                      <strong>{skipped.source.title}</strong>
-                      <span>{skipped.reason}</span>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="muted-copy">No skipped sources yet.</p>
-              )}
-            </div>
+            </details>
           </article>
 
           <article className="panel stage-panel decision-stage">
@@ -391,175 +444,184 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         </div>
       </section>
 
-      <section className="evidence-section">
+      <section className="evidence-section" id="evidence">
         <div className="section-heading">
           <div>
             <p className="eyebrow">Trust + evidence</p>
-            <h2>Deterministic decisions with visible audit proof</h2>
+            <h2>Decision proof</h2>
           </div>
           <button onClick={refreshAuditLog} type="button">
-            Refresh audit log
+            Refresh proof
           </button>
         </div>
 
         <div className="evidence-grid">
-          <article className="panel evidence-card">
-            <h3>What this proves</h3>
-            <p className="section-subtitle">
-              Guard does not just return a verdict. It shows the rule path, machine-readable identifiers, and recent decision history so a reviewer can verify why the spend was gated.
-            </p>
-            <dl className="meta-grid">
+          <article className="panel evidence-card evidence-hero">
+            <h3>What just happened</h3>
+            <div className="proof-grid">
               <div>
-                <dt>Latest audit</dt>
-                <dd className="mono-text">{latestAuditRecord?.auditId ?? "none yet"}</dd>
+                <dt>Decision</dt>
+                <dd>
+                  <span className={`status-chip ${primaryOutcome.decision.toLowerCase()}`}>{primaryOutcome.decision}</span>
+                </dd>
               </div>
               <div>
-                <dt>Latest decision</dt>
-                <dd>{latestAuditRecord?.decision ?? "not run"}</dd>
+                <dt>Audit trace</dt>
+                <dd className="mono-text">{primaryOutcome.auditId}</dd>
               </div>
-              <div>
-                <dt>Recent matched rules</dt>
-                <dd className="rule-list-inline">{latestRules.length ? latestRules.join(", ") : "Run the demo or validator to populate evidence."}</dd>
+              <div className="wide-proof-row">
+                <dt>Because</dt>
+                <dd>{primaryOutcome.reason}</dd>
               </div>
-              <div>
-                <dt>Recent records</dt>
-                <dd>{records.length}</dd>
+              <div className="wide-proof-row">
+                <dt>Matched rules</dt>
+                <dd className="rule-list-inline">{latestRules.length ? latestRules.join(", ") : "Run the demo or test a policy case to populate proof."}</dd>
               </div>
-            </dl>
+            </div>
           </article>
 
           <article className="panel evidence-card validator-callout">
-            <h3>Secondary validator mode</h3>
-            <p className="section-subtitle">
-              The original ALLOW / REVIEW / BLOCK scenarios stay here as deterministic policy test cases. They still prove the engine works, but no longer steal attention from the main product demo.
-            </p>
-            <span className="mono-chip">Policy test cases below</span>
+            <h3>Advanced checks</h3>
+            <p className="section-subtitle">Full audit history and policy test cases stay below as expandable secondary proof.</p>
+            <span className="mono-chip">Details stay out of the first tap path</span>
           </article>
         </div>
 
-        <div className="panel audit-panel">
-          <div className="section-heading audit-heading">
-            <div>
-              <h3>Recent audit log</h3>
-              <p className="section-subtitle">Machine-readable history of recent decisions and spend intents.</p>
-            </div>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>Time</th>
-                  <th>Decision</th>
-                  <th>Agent</th>
-                  <th>Amount</th>
-                  <th>Recipient</th>
-                  <th>Audit ID</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((record) => (
-                  <tr key={record.auditId}>
-                    <td>{new Date(record.timestamp).toLocaleString()}</td>
-                    <td>
-                      <span className={`status-chip ${record.decision.toLowerCase()}`}>{record.decision}</span>
-                    </td>
-                    <td>{record.agentId}</td>
-                    <td>
-                      {record.amount} {record.currency}
-                    </td>
-                    <td className="mono-text">{record.recipient}</td>
-                    <td className="mono-text">{record.auditId}</td>
-                  </tr>
-                ))}
-                {records.length === 0 ? (
-                  <tr>
-                    <td colSpan={6}>No audit records yet.</td>
-                  </tr>
-                ) : null}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <section className="validator-section">
-        <div className="section-heading">
-          <div>
-            <p className="eyebrow">Validator mode</p>
-            <h2>Policy test cases</h2>
-            <p className="section-subtitle">Editable payment intents for deterministic ALLOW / REVIEW / BLOCK proofs.</p>
-          </div>
-        </div>
-
-        <div className="validator-grid">
-          <div className="panel">
-            <h3>Scenario</h3>
-            <div className="scenario-grid">
-              {scenarios.map((scenario, index) => (
-                <button
-                  className={index === selectedIndex ? "scenario active" : "scenario"}
-                  key={scenario.fileName}
-                  onClick={() => setSelectedIndex(index)}
-                  type="button"
-                >
-                  <strong>{scenario.label}</strong>
-                  <span>{scenario.expectedDecision}</span>
-                </button>
-              ))}
-            </div>
-
-            <div className="form-grid">
-              {fieldLabels.map(([field, label]) => (
-                <label className={field === "intent" ? "wide" : ""} key={field}>
-                  <span>{label}</span>
-                  <input value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} />
-                </label>
-              ))}
-            </div>
-
-            <button className="evaluate" disabled={isSubmitting} onClick={evaluate} type="button">
-              {isSubmitting ? "Evaluating..." : "Evaluate payment intent"}
-            </button>
-            {error ? <p className="error">{error}</p> : null}
-          </div>
-
-          <div className={`decision ${decisionClass}`}>
-            <h3>Decision</h3>
-            {result ? (
-              <>
-                <div className="decision-line">
-                  <strong>{result.decision}</strong>
-                  <span>Risk {result.riskScore}/100</span>
-                </div>
-                <p>{result.reason}</p>
-                <dl className="meta-grid">
-                  <div>
-                    <dt>Audit ID</dt>
-                    <dd className="mono-text">{result.auditId ?? "not written"}</dd>
-                  </div>
-                  <div>
-                    <dt>Policy</dt>
-                    <dd className="mono-text">{result.policyId}</dd>
-                  </div>
-                </dl>
-                <h4>Matched rules</h4>
-                <ul className="rule-list">
-                  {result.matchedRules.map((rule) => (
-                    <li className="mono-text" key={rule}>
-                      {rule}
-                    </li>
-                  ))}
-                </ul>
-              </>
-            ) : (
-              <div className="empty-state emphasis">
-                <strong>No validator output yet.</strong>
-                <p>Select a test case and evaluate it to show a deterministic policy result.</p>
+        <details className="panel audit-panel collapse-block">
+          <summary className="collapse-summary-strong">
+            <span>Full audit log</span>
+            <span className="muted-copy">Expand for machine-readable history</span>
+          </summary>
+          <div className="collapse-content">
+            <div className="section-heading audit-heading">
+              <div>
+                <h3>Recent audit log</h3>
+                <p className="section-subtitle">Machine-readable history of recent decisions and spend intents.</p>
               </div>
-            )}
+            </div>
+            <div className="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Decision</th>
+                    <th>Agent</th>
+                    <th>Amount</th>
+                    <th>Recipient</th>
+                    <th>Audit ID</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {records.map((record) => (
+                    <tr key={record.auditId}>
+                      <td>{new Date(record.timestamp).toLocaleString()}</td>
+                      <td>
+                        <span className={`status-chip ${record.decision.toLowerCase()}`}>{record.decision}</span>
+                      </td>
+                      <td>{record.agentId}</td>
+                      <td>
+                        {record.amount} {record.currency}
+                      </td>
+                      <td className="mono-text">{record.recipient}</td>
+                      <td className="mono-text">{record.auditId}</td>
+                    </tr>
+                  ))}
+                  {records.length === 0 ? (
+                    <tr>
+                      <td colSpan={6}>No audit records yet.</td>
+                    </tr>
+                  ) : null}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <details className="validator-section collapse-block">
+        <summary className="collapse-summary-strong">
+          <span>Policy test cases</span>
+          <span className="muted-copy">Expand validator mode</span>
+        </summary>
+        <div className="collapse-content">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Validator mode</p>
+              <h2>Policy test cases</h2>
+              <p className="section-subtitle">Editable payment intents for deterministic ALLOW / REVIEW / BLOCK proofs.</p>
+            </div>
+          </div>
+
+          <div className="validator-grid">
+            <div className="panel">
+              <h3>Scenario</h3>
+              <div className="scenario-grid">
+                {scenarios.map((scenario, index) => (
+                  <button
+                    className={index === selectedIndex ? "scenario active" : "scenario"}
+                    key={scenario.fileName}
+                    onClick={() => setSelectedIndex(index)}
+                    type="button"
+                  >
+                    <strong>{scenario.label}</strong>
+                    <span>{scenario.expectedDecision}</span>
+                  </button>
+                ))}
+              </div>
+
+              <div className="form-grid">
+                {fieldLabels.map(([field, label]) => (
+                  <label className={field === "intent" ? "wide" : ""} key={field}>
+                    <span>{label}</span>
+                    <input value={form[field]} onChange={(event) => setForm({ ...form, [field]: event.target.value })} />
+                  </label>
+                ))}
+              </div>
+
+              <button className="evaluate" disabled={isSubmitting} onClick={evaluate} type="button">
+                {isSubmitting ? "Evaluating..." : "Test decision"}
+              </button>
+              {error ? <p className="error">{error}</p> : null}
+            </div>
+
+            <div className={`decision ${decisionClass}`}>
+              <h3>Decision</h3>
+              {result ? (
+                <>
+                  <div className="decision-line">
+                    <strong>{result.decision}</strong>
+                    <span>Risk {result.riskScore}/100</span>
+                  </div>
+                  <p>{result.reason}</p>
+                  <dl className="meta-grid">
+                    <div>
+                      <dt>Audit ID</dt>
+                      <dd className="mono-text">{result.auditId ?? "not written"}</dd>
+                    </div>
+                    <div>
+                      <dt>Policy</dt>
+                      <dd className="mono-text">{result.policyId}</dd>
+                    </div>
+                  </dl>
+                  <h4>Matched rules</h4>
+                  <ul className="rule-list">
+                    {result.matchedRules.map((rule) => (
+                      <li className="mono-text" key={rule}>
+                        {rule}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              ) : (
+                <div className="empty-state emphasis">
+                  <strong>No validator output yet.</strong>
+                  <p>Select a test case and evaluate it to show a deterministic policy result.</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </section>
+      </details>
     </main>
   );
 }
