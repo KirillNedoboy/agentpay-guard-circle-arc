@@ -67,7 +67,9 @@ The project is aligned with the direction of agent payments and paid APIs, but t
 
 ## 12. Video Link Placeholder
 
-`[ADD_VIDEO_LINK]`
+`https://raw.githubusercontent.com/KirillNedoboy/citepay-agent/main/docs/videos/citepay-agent-demo.mp4`
+
+(50 sec, mobile 390x844 @2x, hardcoded English subs, h264 mp4, 0.9 MB. Captured from the live demo: load preset -> run demo -> Guard decisions ALLOW/REVIEW/BLOCK with audit trace.)
 
 ## 13. Team / Contact Placeholder
 
