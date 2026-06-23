@@ -59,11 +59,15 @@ The project is aligned with the direction of agent payments and paid APIs, but t
 
 ## 10. Demo Link Placeholder
 
-`[ADD_DEMO_LINK]`
+`http://138.124.108.146:80/` (production build, port 80 — React-hydrated)
+
+If the reviewer prefers the dev build: `http://138.124.108.146:3000/` (port 3000, Turbopack dev).
+
+For local reproduction: `pnpm dev` → `http://localhost:3000/`.
 
 ## 11. GitHub Repo Placeholder
 
-`[ADD_GITHUB_REPO_LINK]`
+`https://github.com/KirillNedoboy/citepay-agent`
 
 ## 12. Video Link Placeholder
 
@@ -73,7 +77,7 @@ The project is aligned with the direction of agent payments and paid APIs, but t
 
 ## 13. Team / Contact Placeholder
 
-`[ADD_TEAM_NAME_AND_CONTACT]`
+`KirillNedoboy / kirillnedoboy@gmail.com` (solo submitter, see GitHub profile)
 
 ## 14. Traction Answer
 
