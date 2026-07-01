@@ -1,5 +1,8 @@
 # Lepton Form Answers
 
+Legacy note: this file is retained as historical Lepton/CitePay submission copy.
+The current standalone repository is AgentPay Guard for the Agentic Stablecoin Economy.
+
 ## 1. Project Name
 
 CitePay Agent
@@ -67,13 +70,11 @@ For local reproduction: `pnpm dev` → `http://localhost:3000/`.
 
 ## 11. GitHub Repo Placeholder
 
-`https://github.com/KirillNedoboy/citepay-agent`
+`https://github.com/KirillNedoboy/agentpay-guard-circle-arc`
 
 ## 12. Video Link Placeholder
 
-`https://raw.githubusercontent.com/KirillNedoboy/citepay-agent/main/docs/videos/citepay-agent-demo-v2.mp4`
-
-(48 sec, Lepton polish with voice + ALLOW/REVIEW/BLOCK sequence.)
+No standalone AgentPay Guard video link is currently published.
 
 ## 13. Team / Contact Placeholder
 
