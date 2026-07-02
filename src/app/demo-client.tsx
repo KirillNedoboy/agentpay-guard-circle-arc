@@ -253,26 +253,47 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
 
   return (
     <main className="shell">
+      <header className="topbar" aria-label="Demo status">
+        <div>
+          <strong>AgentPay Guard</strong>
+          <span>Local policy proof for agent payment intents</span>
+        </div>
+        <div className="topbar-actions" aria-label="Execution boundary">
+          <span className="topbar-chip">Mock rails</span>
+          <span className="topbar-chip">No funds move</span>
+          <span className="topbar-chip">JSONL audit</span>
+        </div>
+      </header>
+
       <section className="hero-panel">
         <div className="hero-copy">
-          <p className="eyebrow">AI payment safety layer</p>
-          <h1>AgentPay Guard</h1>
-          <p className="hero-text">AI payment guardrail that allows, reviews, or blocks agent spend with visible audit proof.</p>
+          <p className="eyebrow">Preflight control layer</p>
+          <h1>Agent spend, checked before settlement.</h1>
+          <p className="hero-text">Run the local proof to see a paid-source request become policy decisions, audit records, and preview-only Circle / Arc rail metadata.</p>
           <div className="hero-actions">
             <button className="hero-cta-primary" onClick={runPrimaryDemo} type="button">
               {citePayIsSubmitting ? "Running demo..." : "Run demo"}
             </button>
           </div>
-          <div className="hero-notes">
-            <span className="mono-chip">Deterministic policy</span>
-            <span className="mono-chip">Visible evidence</span>
-            <span className="mono-chip">CitePay in the loop</span>
+          <div className="hero-kpis" aria-label="Proof context">
+            <div>
+              <span>Input</span>
+              <strong>Payment intent</strong>
+            </div>
+            <div>
+              <span>Decision</span>
+              <strong>ALLOW / REVIEW / BLOCK</strong>
+            </div>
+            <div>
+              <span>Evidence</span>
+              <strong>Audit ID + matched rules</strong>
+            </div>
           </div>
         </div>
 
         <aside className="trust-card">
-          <p className="eyebrow muted">Boundary</p>
-          <h2>Control first, execution later</h2>
+          <p className="eyebrow muted">Reviewer boundary</p>
+          <h2>Control first. Execution later.</h2>
           <ul className="boundary-list">
             <li>No payment execution</li>
             <li>No wallet signing</li>
@@ -443,6 +464,14 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
               <div className="empty-state">
                 <strong>No selected sources yet.</strong>
                 <p>Run the preset to show how the agent picks candidate sources before any spend is evaluated.</p>
+                <div className="catalog-preview" aria-label="Mock source catalog preview">
+                  {citePayMockSources.slice(0, 3).map((source) => (
+                    <div key={source.id}>
+                      <span>{source.title}</span>
+                      <strong>{source.price} {source.currency}</strong>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
