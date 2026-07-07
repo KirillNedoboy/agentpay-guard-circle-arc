@@ -10,13 +10,15 @@ Preflight policy and audit layer for AI-agent USDC payment intents before x402, 
 
 ## 500-character summary
 
-AgentPay Guard is a local preflight policy and audit layer for AI-agent USDC payment intents. It validates amount, currency, recipient, scenario, limits, and risk before any rail is reached, then returns ALLOW, REVIEW, or BLOCK with JSONL audit evidence and preview-only x402/Circle/Arc rail metadata. The MVP proves the control layer, not live payment execution.
+AgentPay Guard is a local preflight policy and audit layer for AI-agent USDC payment intents. It validates amount, currency, recipient, scenario, limits, and risk before any rail is reached, then returns ALLOW, REVIEW, or BLOCK with JSONL audit evidence, preview-only x402/Circle/Arc rail metadata, and an AgentPay Receipt proof artifact. The MVP proves the control layer, not live payment execution.
 
 ## Full project description
 
 AgentPay Guard is a deterministic guard layer for agentic stablecoin commerce. The demo starts with an AI agent preparing paid API, data, and telemetry requests. Each request becomes a USDC payment intent. Guard validates the intent, applies policy rules, returns `ALLOW`, `REVIEW`, or `BLOCK`, and writes or reuses an append-only audit record.
 
-The UI shows the full proof path: proposed spend, allowed spend, matched rules, reason codes, audit IDs, and preview-only rail metadata for x402, Circle Gateway-style nanopayments, Arc settlement, and local agent-wallet modes.
+The UI shows the full proof path: proposed spend, allowed spend, matched rules, reason codes, audit IDs, preview-only rail metadata for x402, Circle Gateway-style nanopayments, Arc settlement, and local agent-wallet modes, plus a human-readable and JSON AgentPay Receipt for every evaluated spend intent.
+
+Each AgentPay Receipt includes the decision, reason codes, rail preview, execution mode, audit ID, and `fundsMoved: false`. It is preview-only and does not imply live Circle, Arc, or x402 execution.
 
 This is not a live payment product. It is the decision and evidence layer that should sit before a future payment rail integration.
 
@@ -68,6 +70,7 @@ Agentic Economy
    - telemetry attestation note: `REVIEW`.
 6. The UI shows proposed spend, allowed spend, matched rules, reason codes, audit IDs, and preview-only rail metadata.
 7. The audit proof panel shows the guard decision, audit trace, matched policy rules, and reason codes.
+8. The AgentPay Receipt panel shows the human-readable receipt card and matching JSON proof artifact for the selected evaluated intent.
 
 ## What is implemented
 
@@ -81,6 +84,7 @@ Agentic Economy
 - Append-only JSONL audit log at `data/audit-log.jsonl`.
 - Idempotency by `idempotencyKey`.
 - Typed preview adapter for mock x402, mock Circle Gateway-style nanopayment, Arc settlement preview, and local agent-wallet preview modes.
+- AgentPay Receipt proof artifact for every evaluated spend intent, in both human-readable and JSON form.
 - UI demo preset with allowed, reviewed, and blocked payment intents.
 - Tests for policy behavior, invalid input, idempotency, audit payload shape, rail preview behavior, and safe failure posture.
 
@@ -133,6 +137,7 @@ https://github.com/KirillNedoboy/agentpay-guard-circle-arc
 - `docs/assets/screenshots/scenario-review.png`
 - `docs/assets/screenshots/scenario-block.png`
 - `docs/assets/screenshots/audit-preview.png`
+- `docs/assets/screenshots/agentpay-receipt.png`
 
 ## Roadmap / next milestones
 

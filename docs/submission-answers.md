@@ -30,6 +30,8 @@ AgentPay Guard evaluates each payment intent before execution. It validates the 
 
 The demo shows a research agent preparing paid-source requests. Each selected source becomes a USDC payment intent, then Guard decides whether the intent can proceed, needs operator review, or must be blocked. The response also includes preview-only rail metadata so a reviewer can see how the decision layer would sit before x402, Circle Gateway, or Arc-compatible settlement.
 
+Every evaluated spend intent also emits an AgentPay Receipt in human-readable and JSON form. The receipt includes the decision, reason codes, rail preview, execution mode, audit ID, and `fundsMoved: false`. It is preview-only and does not imply live Circle, Arc, or x402 execution.
+
 ## Why Circle / Arc
 
 Circle and Arc are relevant because agentic payments need stable, programmable money rails, but the rail is only one part of the system. Builders also need a preflight layer that decides when an agent is allowed to spend and records why.
@@ -47,7 +49,7 @@ AgentPay Guard is built around USDC payment intents and preview-only Circle / Ar
    - premium evidence bundle: `REVIEW`;
    - untrusted scrape cache: `BLOCK`;
    - telemetry attestation note: `REVIEW`.
-6. The UI shows proposed spend, allowed spend, matched rules, audit IDs, and preview-only rail metadata.
+6. The UI shows proposed spend, allowed spend, matched rules, audit IDs, preview-only rail metadata, and an AgentPay Receipt for the selected evaluated intent.
 7. The audit log shows JSONL evidence for successful evaluations.
 
 ## What Is Implemented
@@ -62,6 +64,7 @@ AgentPay Guard is built around USDC payment intents and preview-only Circle / Ar
 - JSONL audit records at `data/audit-log.jsonl`.
 - Idempotency by `idempotencyKey`.
 - Typed rail preview adapter for mock x402, mock Circle Gateway-style nanopayment, Arc settlement preview, and local agent-wallet preview modes.
+- AgentPay Receipt proof artifact for every evaluated spend intent, in both human-readable and JSON form.
 - UI preset that demonstrates allowed, reviewed, and blocked payment intents.
 - Tests for policy decisions, invalid inputs, idempotency, audit payload shape, rail preview behavior, and safe failure posture.
 
