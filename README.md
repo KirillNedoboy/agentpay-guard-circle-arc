@@ -30,6 +30,7 @@ This is not a live payment product. It is the guard and evidence layer before a 
   - `mock_agent_wallet`;
   - unknown rails as `live_disabled`.
 - JSONL audit records with idempotency by `idempotencyKey`.
+- AgentPay Receipt proof artifact for every evaluated spend intent, sourced from existing audit evidence and marked preview-only.
 - Demo preset with visible `ALLOW`, `REVIEW`, and `BLOCK` outcomes.
 
 ## Not implemented

@@ -8,6 +8,7 @@ import {
 } from "@/domain/citepay/source-selection";
 import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/citepay/types";
 import type { AuditRecord } from "@/domain/audit/types";
+import { buildAgentPayReceipt, type AgentPayReceipt } from "@/domain/payment-intent/receipt";
 import type { CircleRailPreview, PaymentIntent } from "@/domain/payment-intent/types";
 import { buildAuditPreview, buildDemoSummary, buildRailPreviewRows, buildReasonCodeRows } from "./demo-metrics";
 
@@ -58,6 +59,8 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
   const [records, setRecords] = useState<AuditRecord[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedReceiptAuditId, setSelectedReceiptAuditId] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<"idle" | "copied" | "unavailable" | "error">("idle");
   const [citePayQuery, setCitePayQuery] = useState<string>(citePayDemoPreset.query);
   const [citePayBudget, setCitePayBudget] = useState<string>(citePayDemoPreset.budget);
   const [citePaySelection, setCitePaySelection] = useState<CitePaySelectionResult | null>(null);
@@ -69,6 +72,8 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     setForm(selectedScenario.intent);
     setResult(null);
     setError(null);
+    setSelectedReceiptAuditId(null);
+    setCopyState("idle");
   }, [selectedScenario]);
 
   async function refreshAuditLog() {
@@ -81,9 +86,15 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     void refreshAuditLog();
   }, []);
 
+  function selectReceipt(auditId: string | null) {
+    setSelectedReceiptAuditId(auditId);
+    setCopyState("idle");
+  }
+
   async function evaluate() {
     setIsSubmitting(true);
     setError(null);
+    selectReceipt(null);
     try {
       const response = await fetch("/api/payment-intents/evaluate", {
         method: "POST",
@@ -92,6 +103,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
       });
       const data = (await response.json()) as EvaluationResult;
       setResult(data);
+      selectReceipt(data.auditId);
       if (!response.ok) {
         setError(data.reason);
       }
@@ -109,12 +121,14 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     setCitePaySelection(null);
     setCitePayEvaluations([]);
     setCitePayError(null);
+    selectReceipt(null);
   }
 
   async function runCitePayFlow() {
     setCitePayIsSubmitting(true);
     setCitePayError(null);
     setCitePayEvaluations([]);
+    selectReceipt(null);
 
     const selection = selectCitePaySources({
       agentId: citePayDemoPreset.agentId,
@@ -139,6 +153,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         }
       }
       setCitePayEvaluations(evaluations);
+      selectReceipt(evaluations.find((item) => item.result.auditId)?.result.auditId ?? null);
       await refreshAuditLog();
     } catch {
       setCitePayError("CitePay evaluation failed locally.");
@@ -178,6 +193,14 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     return Array.from(unique);
   }, [citePayEvaluations, result]);
   const auditPreview = useMemo(() => buildAuditPreview(records[0]), [records]);
+  const selectedAuditRecord = useMemo(
+    () => records.find((record) => record.auditId === selectedReceiptAuditId) ?? null,
+    [records, selectedReceiptAuditId]
+  );
+  const agentPayReceipt = useMemo<AgentPayReceipt | null>(
+    () => (selectedAuditRecord ? buildAgentPayReceipt(selectedAuditRecord) : null),
+    [selectedAuditRecord]
+  );
   const primaryOutcome = useMemo(() => {
     const rankedEvaluation =
       citePayEvaluations.find((item) => item.result.decision === "BLOCK") ??
@@ -207,6 +230,24 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
   function runPrimaryDemo() {
     scrollToId("main-demo");
     void runCitePayFlow();
+  }
+
+  async function copyReceiptJson() {
+    if (!agentPayReceipt) {
+      return;
+    }
+
+    if (!navigator.clipboard?.writeText) {
+      setCopyState("unavailable");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(JSON.stringify(agentPayReceipt, null, 2));
+      setCopyState("copied");
+    } catch {
+      setCopyState("error");
+    }
   }
 
   function renderRailPreview(preview: CircleRailPreview | undefined) {
@@ -509,7 +550,10 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
             {citePayEvaluations.length ? (
               <div className="decision-list">
                 {citePayEvaluations.map((evaluation) => (
-                  <article className={`decision-card ${evaluation.result.decision.toLowerCase()}`} key={evaluation.source.id}>
+                  <article
+                    className={`decision-card ${evaluation.result.decision.toLowerCase()} ${selectedReceiptAuditId === evaluation.result.auditId ? "is-selected" : ""}`}
+                    key={evaluation.source.id}
+                  >
                     <div className="decision-card-header">
                       <strong>{evaluation.source.title}</strong>
                       <span className={`status-chip ${evaluation.result.decision.toLowerCase()}`}>{evaluation.result.decision}</span>
@@ -534,6 +578,16 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
                       </div>
                       {renderReasonCodes(evaluation.result.reasonCodes)}
                     </dl>
+                    <div className="decision-card-actions">
+                      <button
+                        className={selectedReceiptAuditId === evaluation.result.auditId ? "secondary-action is-active" : "secondary-action"}
+                        disabled={!evaluation.result.auditId}
+                        onClick={() => selectReceipt(evaluation.result.auditId)}
+                        type="button"
+                      >
+                        View receipt
+                      </button>
+                    </div>
                     {renderRailPreview(evaluation.result.railPreview)}
                   </article>
                 ))}
@@ -585,6 +639,99 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
               </dd>
             </div>
           </dl>
+        </article>
+
+        <article className="panel receipt-panel" aria-label="AgentPay Receipt">
+          <div className="section-heading receipt-heading">
+            <div>
+              <p className="eyebrow">Preview artifact</p>
+              <h2>AgentPay Receipt</h2>
+              <p className="section-subtitle">Focused proof for one evaluated spend intent. Use the decision cards above or the validator to populate it.</p>
+            </div>
+            <button disabled={!agentPayReceipt} onClick={copyReceiptJson} type="button">
+              {copyState === "copied"
+                ? "Receipt copied"
+                : copyState === "unavailable"
+                  ? "Clipboard unavailable"
+                  : copyState === "error"
+                    ? "Copy failed"
+                    : "Copy receipt JSON"}
+            </button>
+          </div>
+
+          {agentPayReceipt ? (
+            <div className="receipt-layout">
+              <article className={`receipt-card ${agentPayReceipt.decision.toLowerCase()}`}>
+                <div className="receipt-card-head">
+                  <div>
+                    <span className="summary-label">Selected evaluated intent</span>
+                    <h3>AgentPay Receipt</h3>
+                  </div>
+                  <span className={`status-chip ${agentPayReceipt.decision.toLowerCase()}`}>{agentPayReceipt.decision}</span>
+                </div>
+                <dl className="receipt-grid">
+                  <div>
+                    <dt>Agent</dt>
+                    <dd className="mono-text">{agentPayReceipt.agentIdentity ?? "not provided"}</dd>
+                  </div>
+                  <div>
+                    <dt>Request</dt>
+                    <dd className="mono-text">{agentPayReceipt.requestIdentity ?? "not provided"}</dd>
+                  </div>
+                  <div>
+                    <dt>Intent ID</dt>
+                    <dd className="mono-text">{agentPayReceipt.intentId}</dd>
+                  </div>
+                  <div>
+                    <dt>Recipient</dt>
+                    <dd>{agentPayReceipt.recipientLabel}</dd>
+                  </div>
+                  <div>
+                    <dt>Amount</dt>
+                    <dd>{agentPayReceipt.amountUSDC} USDC</dd>
+                  </div>
+                  <div>
+                    <dt>Purpose</dt>
+                    <dd className="mono-text">{agentPayReceipt.purpose}</dd>
+                  </div>
+                  <div>
+                    <dt>Execution mode</dt>
+                    <dd className="mono-text">{agentPayReceipt.executionMode}</dd>
+                  </div>
+                  <div>
+                    <dt>Funds moved</dt>
+                    <dd className="mono-text">{String(agentPayReceipt.fundsMoved)}</dd>
+                  </div>
+                  <div>
+                    <dt>Audit ID</dt>
+                    <dd className="mono-text">{agentPayReceipt.auditId}</dd>
+                  </div>
+                  <div>
+                    <dt>Timestamp</dt>
+                    <dd>{new Date(agentPayReceipt.timestamp).toLocaleString()}</dd>
+                  </div>
+                  <div className="wide-proof-row">
+                    <dt>Reason codes</dt>
+                    <dd className="rule-list-inline">
+                      {agentPayReceipt.reasonCodes.length ? agentPayReceipt.reasonCodes.join(", ") : "none"}
+                    </dd>
+                  </div>
+                </dl>
+                {renderRailPreview(agentPayReceipt.railPreview)}
+                <p className="receipt-note">{agentPayReceipt.safetyNote}</p>
+              </article>
+
+              <div className="audit-json-block">
+                <h4>Structured JSON preview</h4>
+                <pre>{JSON.stringify(agentPayReceipt, null, 2)}</pre>
+              </div>
+            </div>
+          ) : (
+            <div className="empty-state">
+              <strong>No receipt selected yet.</strong>
+              <p>Run the demo or test a validator intent to show a receipt with audit-backed decision proof.</p>
+            </div>
+          )}
         </article>
 
         <details className="panel audit-panel collapse-block">

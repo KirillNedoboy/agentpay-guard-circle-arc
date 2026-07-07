@@ -1559,6 +1559,10 @@ input[readonly] {
   box-shadow: none;
 }
 
+.decision-card.is-selected {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
 .candidate-card {
   background: #fcfdfc;
 }
@@ -1589,8 +1593,96 @@ input[readonly] {
   align-items: center;
 }
 
+.decision-card-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.secondary-action {
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 9px 12px;
+}
+
+.secondary-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.secondary-action.is-active,
+.secondary-action:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .rail-preview {
   background: rgba(255, 255, 255, 0.72);
+}
+
+.receipt-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.receipt-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 14px;
+  align-items: start;
+}
+
+.receipt-card {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  padding: 16px;
+}
+
+.receipt-card.allow {
+  border-color: rgba(10, 112, 69, 0.28);
+  background: var(--allow-soft);
+}
+
+.receipt-card.review {
+  border-color: rgba(138, 90, 5, 0.3);
+  background: var(--review-soft);
+}
+
+.receipt-card.block {
+  border-color: rgba(167, 54, 44, 0.28);
+  background: var(--block-soft);
+}
+
+.receipt-card-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.receipt-card-head h3 {
+  margin: 6px 0 0;
+}
+
+.receipt-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.receipt-note {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
 .audit-json-block pre,
@@ -1694,7 +1786,9 @@ tr:hover td {
   .form-grid,
   .totals,
   .meta-grid,
-  .rail-preview-grid {
+  .rail-preview-grid,
+  .receipt-grid,
+  .receipt-layout {
     grid-template-columns: 1fr;
   }
 
