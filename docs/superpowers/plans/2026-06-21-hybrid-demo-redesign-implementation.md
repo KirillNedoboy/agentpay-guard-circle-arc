@@ -1,5 +1,7 @@
 # AgentPay Guard Hybrid Demo Redesign Implementation Plan
 
+Legacy implementation note retained for history; current standalone repo is agentpay-guard-circle-arc.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Implement the approved hybrid redesign so the first screen communicates product value, the CitePay flow becomes the primary live demo, trust evidence is clearer, and validator mode moves to a secondary role.
@@ -200,8 +202,8 @@ Expected: all three commands succeed.
 
 Run:
 ```bash
-systemctl restart citepay-agent.service
-systemctl is-active citepay-agent.service
+systemctl restart agentpay-guard-circle-arc.service
+systemctl is-active agentpay-guard-circle-arc.service
 ```
 Expected: `active`.
 

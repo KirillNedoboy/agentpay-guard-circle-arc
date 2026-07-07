@@ -60,25 +60,23 @@ The project is aligned with the direction of agent payments and paid APIs, but t
 - creator payouts;
 - production fraud, AML, or compliance claims.
 
-## 10. Demo Link Placeholder
+## 10. Demo Link
 
-`http://138.124.108.146:80/` (production build, port 80 — React-hydrated)
+Legacy / not used for current Ignyte-Circle-Arc submission.
 
-If the reviewer prefers the dev build: `http://138.124.108.146:3000/` (port 3000, Turbopack dev).
+Use the current repository README for local run instructions and screenshot references.
 
-For local reproduction: `pnpm dev` → `http://localhost:3000/`.
-
-## 11. GitHub Repo Placeholder
+## 11. GitHub Repo
 
 `https://github.com/KirillNedoboy/agentpay-guard-circle-arc`
 
-## 12. Video Link Placeholder
+## 12. Video Link
 
-No standalone AgentPay Guard video link is currently published.
+No standalone video link is published yet.
 
-## 13. Team / Contact Placeholder
+## 13. Team / Contact
 
-`KirillNedoboy / kirillnedoboy@gmail.com` (solo submitter, see GitHub profile)
+Legacy / not used for current Ignyte-Circle-Arc submission.
 
 ## 14. Traction Answer
 

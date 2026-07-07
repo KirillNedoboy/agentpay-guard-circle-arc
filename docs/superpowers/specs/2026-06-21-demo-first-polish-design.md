@@ -1,7 +1,9 @@
 # AgentPay Guard Demo-First Polish
 
+Legacy design note retained for history; current standalone repo is agentpay-guard-circle-arc.
+
 Date: 2026-06-21
-Project: `/root/projects/citepay-agent`
+Project: `/root/projects/agentpay-guard-circle-arc`
 Status: approved in chat for immediate implementation
 
 ## Goal

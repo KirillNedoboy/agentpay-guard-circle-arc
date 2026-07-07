@@ -1,7 +1,9 @@
 # AgentPay Guard / CitePay Hybrid Demo Redesign
 
+Legacy design note retained for history; current standalone repo is agentpay-guard-circle-arc.
+
 Date: 2026-06-21
-Project: `/root/projects/citepay-agent`
+Project: `/root/projects/agentpay-guard-circle-arc`
 Status: Proposed design, approved in chat, not yet implemented
 
 ## 1. Goal
