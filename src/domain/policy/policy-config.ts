@@ -41,6 +41,9 @@ export type PolicyConfig = {
     developerControlledReviewThreshold: string;
     maxTotalUsdcSpend: string;
   };
+  paymaster: {
+    maxTotalUsdcSpend: string;
+  };
   allowances: {
     reviewThreshold: string;
   };

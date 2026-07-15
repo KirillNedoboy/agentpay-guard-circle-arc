@@ -7,6 +7,10 @@ function clampRisk(score: number): number {
   return Math.max(0, Math.min(100, score));
 }
 
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
 function isToday(timestamp: string): boolean {
   return timestamp.slice(0, 10) === new Date().toISOString().slice(0, 10);
 }
@@ -171,6 +175,32 @@ export function evaluatePolicy(
     }
   }
 
+  if (routeContext?.gasPaymentMode === "usdc-paymaster-preview") {
+    if (routeContext.estimatedFee === undefined) {
+      matchedRules.push("paymaster_fee_estimate_required");
+      reasonCodes.push("PAYMASTER_FEE_ESTIMATE_REQUIRED");
+      reasonParts.push("Paymaster preview requires an estimated USDC fee.");
+      hasReview = true;
+    }
+
+    if (routeContext.walletControlModel === "developer-controlled") {
+      matchedRules.push("paymaster_developer_controlled_review_required");
+      reasonCodes.push("PAYMASTER_DEVELOPER_CONTROLLED_REVIEW_REQUIRED");
+      reasonParts.push("Developer-controlled Paymaster preview requires operator review.");
+      hasReview = true;
+    }
+
+    if (amountIsValid && routeContext.estimatedFee !== undefined) {
+      const totalProposedSpend = addDecimalStrings([intent.amount, routeContext.estimatedFee]);
+      if (totalProposedSpend && compareDecimalStrings(totalProposedSpend, policy.paymaster.maxTotalUsdcSpend) === 1) {
+        matchedRules.push("total_usdc_budget_exceeded");
+        reasonCodes.push("TOTAL_USDC_BUDGET_EXCEEDED");
+        reasonParts.push("Total proposed USDC spend exceeds the local Paymaster preview budget.");
+        hasBlock = true;
+      }
+    }
+  }
+
   if (intent.operation === "approve") {
     if (!intent.spender) {
       matchedRules.push("allowance_spender_required");
@@ -235,8 +265,8 @@ export function evaluatePolicy(
       decision,
       riskScore,
       reason: "Recipient is allowlisted, amount is below limits, and scenario is allowed.",
-      matchedRules,
-      reasonCodes,
+      matchedRules: uniqueStrings(matchedRules),
+      reasonCodes: uniqueStrings(reasonCodes),
       policyId: policy.policyId
     };
   }
@@ -245,8 +275,8 @@ export function evaluatePolicy(
     decision,
     riskScore,
     reason: reasonParts.join(" ") || "Policy requires review before payment can proceed.",
-    matchedRules,
-    reasonCodes,
+    matchedRules: uniqueStrings(matchedRules),
+    reasonCodes: uniqueStrings(reasonCodes),
     policyId: policy.policyId
   };
 }

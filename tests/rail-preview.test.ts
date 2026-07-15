@@ -17,6 +17,99 @@ function makeIntent(overrides: Partial<PaymentIntent> = {}): PaymentIntent {
 }
 
 describe("Circle and Arc rail preview", () => {
+  test("shows Paymaster preview amount, fee, total, and wallet control as proposal context", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        amount: "0.08",
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          walletControlModel: "user-controlled",
+          estimatedFee: "0.02",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      })
+    );
+    const paymasterPreview = preview as unknown as { usdcPaymasterPreview?: unknown };
+
+    expect(paymasterPreview.usdcPaymasterPreview).toEqual({
+      mode: "usdc_paymaster_preview",
+      gasPaymentMode: "usdc-paymaster-preview",
+      proposedAmountUSDC: "0.08",
+      estimatedFeeUSDC: "0.02",
+      totalProposedSpendUSDC: "0.1",
+      walletControlModel: "user-controlled",
+      explanation:
+        "Paymaster preview context only. This app does not construct a UserOperation, create a permit, contact a bundler or EntryPoint, or pay gas."
+    });
+  });
+
+  test("does not invent a Paymaster fee or total when the fee estimate is missing", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      })
+    );
+    const paymasterPreview = preview as unknown as {
+      usdcPaymasterPreview?: Record<string, unknown>;
+    };
+
+    expect(paymasterPreview.usdcPaymasterPreview).toEqual({
+      mode: "usdc_paymaster_preview",
+      gasPaymentMode: "usdc-paymaster-preview",
+      proposedAmountUSDC: "0.08",
+      explanation:
+        "Paymaster preview context only. This app does not construct a UserOperation, create a permit, contact a bundler or EntryPoint, or pay gas."
+    });
+  });
+
+  test("does not add Paymaster preview wording for native gas", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          gasPaymentMode: "native-gas"
+        }
+      })
+    );
+
+    expect(JSON.stringify(preview)).not.toMatch(/Paymaster|UserOperation|bundler|EntryPoint/i);
+    expect(preview).not.toHaveProperty("usdcPaymasterPreview");
+  });
+
+  test("states the Paymaster preview-only boundary without execution evidence", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          estimatedFee: "0.02",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      })
+    );
+    const paymasterPreview = preview as unknown as { usdcPaymasterPreview?: unknown };
+    const output = JSON.stringify(paymasterPreview.usdcPaymasterPreview);
+
+    expect(preview.explanation).toContain("Paymaster preview context only");
+    expect(output).toContain("does not construct a UserOperation");
+    expect(output).toContain("create a permit");
+    expect(output).toContain("contact a bundler or EntryPoint");
+    expect(output).toContain("pay gas");
+    expect(output).not.toMatch(/transactionHash|txHash|signature|sent|completed payment/i);
+  });
+
   test("shows ERC-20 authority as proposal context with derived and supplied base units", () => {
     const preview = buildCircleRailPreview(
       makeIntent({

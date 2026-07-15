@@ -7,7 +7,8 @@ import type {
   CircleRail,
   CircleRailPreview,
   PaymentIntent,
-  PaymentPurpose
+  PaymentPurpose,
+  UsdcPaymasterPreview
 } from "./types";
 
 const previewOnlyExplanation =
@@ -18,6 +19,9 @@ const cctpPreviewOnlyExplanation =
 
 const erc20AuthorityPreviewOnlyExplanation =
   "Authority preview only. This app did not read an allowance or balance, sign an approval, or submit an ERC-20 transaction.";
+
+const paymasterPreviewOnlyExplanation =
+  "Paymaster preview context only. This app does not construct a UserOperation, create a permit, contact a bundler or EntryPoint, or pay gas.";
 
 const railLabels: Record<CircleRail, string> = {
   mock_agent_wallet: "Circle Agent Wallet preview",
@@ -121,6 +125,33 @@ function buildErc20AuthorityPreview(intent: PaymentIntent): Erc20AuthorityPrevie
   return erc20AuthorityPreview;
 }
 
+function buildUsdcPaymasterPreview(intent: PaymentIntent): UsdcPaymasterPreview | undefined {
+  const routeContext = intent.routeContext;
+  if (routeContext?.gasPaymentMode !== "usdc-paymaster-preview") {
+    return undefined;
+  }
+
+  const usdcPaymasterPreview: UsdcPaymasterPreview = {
+    mode: "usdc_paymaster_preview",
+    gasPaymentMode: "usdc-paymaster-preview",
+    proposedAmountUSDC: intent.amount,
+    explanation: paymasterPreviewOnlyExplanation
+  };
+
+  if (routeContext.estimatedFee !== undefined) {
+    usdcPaymasterPreview.estimatedFeeUSDC = routeContext.estimatedFee;
+    const totalProposedSpend = addDecimalStrings([intent.amount, routeContext.estimatedFee]);
+    if (totalProposedSpend) {
+      usdcPaymasterPreview.totalProposedSpendUSDC = totalProposedSpend;
+    }
+  }
+  if (routeContext.walletControlModel) {
+    usdcPaymasterPreview.walletControlModel = routeContext.walletControlModel;
+  }
+
+  return usdcPaymasterPreview;
+}
+
 export function mapScenarioToPaymentPurpose(scenario: string): PaymentPurpose {
   if (scenario === "api_access") {
     return "api_data_purchase";
@@ -149,6 +180,7 @@ export function buildCircleRailPreview(intent: PaymentIntent): CircleRailPreview
 
   const cctpRoutePreview = buildCctpRoutePreview(intent);
   const erc20AuthorityPreview = buildErc20AuthorityPreview(intent);
+  const usdcPaymasterPreview = buildUsdcPaymasterPreview(intent);
 
   return {
     rail,
@@ -157,12 +189,15 @@ export function buildCircleRailPreview(intent: PaymentIntent): CircleRailPreview
     executionMode: isKnownPreviewRail ? "mock_preview" : "live_disabled",
     recipientId: intent.recipient,
     amountUSDC: intent.amount,
-    explanation: cctpRoutePreview
-      ? cctpPreviewOnlyExplanation
-      : isKnownPreviewRail
+    explanation: usdcPaymasterPreview
+      ? paymasterPreviewOnlyExplanation
+      : cctpRoutePreview
+        ? cctpPreviewOnlyExplanation
+        : isKnownPreviewRail
         ? previewOnlyExplanation
         : "Live payment rail is disabled. This response is an adapter boundary preview, not a production integration.",
     ...(cctpRoutePreview ? { cctpRoutePreview } : {}),
-    ...(erc20AuthorityPreview ? { erc20AuthorityPreview } : {})
+    ...(erc20AuthorityPreview ? { erc20AuthorityPreview } : {}),
+    ...(usdcPaymasterPreview ? { usdcPaymasterPreview } : {})
   };
 }

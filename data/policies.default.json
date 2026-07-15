@@ -67,6 +67,9 @@
     "developerControlledReviewThreshold": "5.00",
     "maxTotalUsdcSpend": "100.00"
   },
+  "paymaster": {
+    "maxTotalUsdcSpend": "100.00"
+  },
   "allowances": {
     "reviewThreshold": "5.00"
   },

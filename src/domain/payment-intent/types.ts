@@ -60,6 +60,16 @@ export type Erc20AuthorityPreview = {
   explanation: string;
 };
 
+export type UsdcPaymasterPreview = {
+  mode: "usdc_paymaster_preview";
+  gasPaymentMode: "usdc-paymaster-preview";
+  proposedAmountUSDC: string;
+  estimatedFeeUSDC?: string;
+  totalProposedSpendUSDC?: string;
+  walletControlModel?: WalletControlModel;
+  explanation: string;
+};
+
 export type CircleRailPreview = {
   rail: CircleRail;
   networkLabel: string;
@@ -70,6 +80,7 @@ export type CircleRailPreview = {
   explanation: string;
   cctpRoutePreview?: CctpRoutePreview;
   erc20AuthorityPreview?: Erc20AuthorityPreview;
+  usdcPaymasterPreview?: UsdcPaymasterPreview;
 };
 
 export type PaymentIntent = {

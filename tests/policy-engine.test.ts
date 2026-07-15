@@ -115,6 +115,172 @@ describe("policy engine", () => {
     expect(policy.allowances.reviewThreshold).toBe("5.00");
   });
 
+  test("loads a separate local Paymaster demo-policy budget", () => {
+    const paymasterPolicy = policy as unknown as { paymaster?: { maxTotalUsdcSpend?: string } };
+
+    expect(paymasterPolicy.paymaster).toEqual({
+      maxTotalUsdcSpend: "100.00"
+    });
+  });
+
+  test("reviews a Paymaster preview without an estimated fee", () => {
+    const result = evaluatePolicy(makePaymasterIntent(), policy, []);
+
+    expect(result.decision).toBe("REVIEW");
+    expect(result.reasonCodes).toContain("PAYMASTER_FEE_ESTIMATE_REQUIRED");
+    expect(result.matchedRules).toContain("paymaster_fee_estimate_required");
+  });
+
+  test("keeps a user-controlled Paymaster preview under budget at its existing decision", () => {
+    const result = evaluatePolicy(
+      makePaymasterIntent({
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          walletControlModel: "user-controlled",
+          estimatedFee: "0.02",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("ALLOW");
+    expect(result.reasonCodes).not.toEqual(
+      expect.arrayContaining(["PAYMASTER_FEE_ESTIMATE_REQUIRED", "PAYMASTER_DEVELOPER_CONTROLLED_REVIEW_REQUIRED"])
+    );
+  });
+
+  test("reviews a developer-controlled Paymaster preview", () => {
+    const result = evaluatePolicy(
+      makePaymasterIntent({
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          walletControlModel: "developer-controlled",
+          estimatedFee: "0.02",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("REVIEW");
+    expect(result.reasonCodes).toContain("PAYMASTER_DEVELOPER_CONTROLLED_REVIEW_REQUIRED");
+    expect(result.matchedRules).toContain("paymaster_developer_controlled_review_required");
+  });
+
+  test("blocks when decimal-safe Paymaster total spend exceeds its separate budget", () => {
+    const result = evaluatePolicy(
+      makePaymasterIntent({
+        amount: "0.08",
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          estimatedFee: "99.93",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toContain("TOTAL_USDC_BUDGET_EXCEEDED");
+    expect(result.matchedRules).toContain("total_usdc_budget_exceeded");
+  });
+
+  test("does not block a Paymaster preview exactly at its total budget", () => {
+    const result = evaluatePolicy(
+      makePaymasterIntent({
+        amount: "0.08",
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          estimatedFee: "99.92",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("ALLOW");
+    expect(result.reasonCodes).not.toContain("TOTAL_USDC_BUDGET_EXCEEDED");
+  });
+
+  test("retains an existing hard block with Paymaster review conditions", () => {
+    const result = evaluatePolicy(
+      makePaymasterIntent({
+        recipient: "blocked-recipient.demo",
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          walletControlModel: "developer-controlled",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toEqual(
+      expect.arrayContaining(["RECIPIENT_BLOCKED", "PAYMASTER_FEE_ESTIMATE_REQUIRED", "PAYMASTER_DEVELOPER_CONTROLLED_REVIEW_REQUIRED"])
+    );
+  });
+
+  test("does not add Paymaster rules for native gas", () => {
+    const result = evaluatePolicy(
+      makePaymasterIntent({
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          walletControlModel: "developer-controlled",
+          gasPaymentMode: "native-gas"
+        }
+      }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("ALLOW");
+    expect(result.reasonCodes).not.toEqual(expect.arrayContaining([expect.stringMatching(/^PAYMASTER_/)]));
+  });
+
+  test("deduplicates the shared CCTP and Paymaster budget evidence", () => {
+    const result = evaluatePolicy(
+      makePaymasterIntent({
+        amount: "0.08",
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          estimatedFee: "99.93",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      }),
+      policy,
+      []
+    );
+
+    expect(result.reasonCodes.filter((code) => code === "TOTAL_USDC_BUDGET_EXCEEDED")).toHaveLength(1);
+    expect(result.matchedRules.filter((rule) => rule === "total_usdc_budget_exceeded")).toHaveLength(1);
+  });
+
   test("keeps a valid standard Ethereum to Base CCTP route at its existing decision", () => {
     const result = evaluatePolicy(makeCctpIntent(), policy, []);
 
@@ -476,6 +642,26 @@ function makeCctpIntent(overrides: Record<string, unknown> = {}) {
       finalityMode: "standard",
       attestationStatus: "not_requested",
       walletControlModel: "user-controlled"
+    },
+    ...overrides
+  });
+}
+
+function makePaymasterIntent(overrides: Record<string, unknown> = {}) {
+  return validatePaymentIntent({
+    agentId: "agent_paymaster_policy_001",
+    intent: "Propose a USDC Paymaster preview for a trusted API payment",
+    amount: "0.08",
+    currency: "USDC",
+    recipient: "trusted-x402-api.demo",
+    scenario: "api_access",
+    paymentRail: "mock_x402_service",
+    idempotencyKey: "paymaster-policy-test",
+    routeContext: {
+      transferMode: "single-chain",
+      sourceChain: "ethereum",
+      destinationChain: "ethereum",
+      gasPaymentMode: "usdc-paymaster-preview"
     },
     ...overrides
   });
