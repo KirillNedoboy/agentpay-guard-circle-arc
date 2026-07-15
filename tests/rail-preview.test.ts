@@ -17,6 +17,90 @@ function makeIntent(overrides: Partial<PaymentIntent> = {}): PaymentIntent {
 }
 
 describe("Circle and Arc rail preview", () => {
+  test("creates a CCTP route preview for a standard Ethereum to Base proposal", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          finalityMode: "standard",
+          attestationStatus: "not_requested",
+          walletControlModel: "user-controlled"
+        }
+      })
+    );
+
+    expect(preview.cctpRoutePreview).toEqual({
+      mode: "cctp_route_preview",
+      sourceChain: "Ethereum",
+      destinationChain: "Base",
+      asset: "native USDC (proposed)",
+      finalityMode: "standard",
+      attestation: "not requested",
+      walletControlModel: "user-controlled",
+      proposedAmountUSDC: "0.08"
+    });
+    expect(preview.explanation).toBe(
+      "Preview only. No funds moved, no CCTP burn or mint occurred, no Iris attestation was requested, and no Circle API was called."
+    );
+  });
+
+  test("distinguishes Fast Transfer context and calculates proposed spend with decimal strings", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        amount: "99.99",
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          finalityMode: "fast-transfer",
+          estimatedFee: "0.02",
+          feeAsset: "USDC"
+        }
+      })
+    );
+
+    expect(preview.cctpRoutePreview).toMatchObject({
+      finalityMode: "fast-transfer",
+      estimatedFeeUSDC: "0.02",
+      totalProposedSpendUSDC: "100.01"
+    });
+  });
+
+  test("labels a claimed verified attestation as unverified by the app", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          attestationStatus: "verified"
+        }
+      })
+    );
+
+    expect(preview.cctpRoutePreview?.attestation).toBe("claimed verified (unverified by this app)");
+  });
+
+  test("does not fabricate execution evidence in a CCTP route preview", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          attestationStatus: "pending"
+        }
+      })
+    );
+    const output = JSON.stringify(preview);
+
+    expect(output).not.toMatch(/transactionHash|txHash|signature|burned|minted|settled|completed/i);
+    expect(preview.explanation).toContain("No funds moved");
+    expect(preview.explanation).toContain("no Circle API was called");
+  });
+
   test("generates a mock x402 paid API preview without execution data", () => {
     const preview = buildCircleRailPreview(makeIntent());
 
@@ -30,6 +114,7 @@ describe("Circle and Arc rail preview", () => {
       explanation: "Preview only. AgentPay Guard has not moved funds, signed a transaction, or called a live payment rail."
     });
     expect(Object.keys(preview)).not.toEqual(expect.arrayContaining(["transactionHash", "txHash", "signature", "privateKey"]));
+    expect(preview.cctpRoutePreview).toBeUndefined();
   });
 
   test("generates an Arc settlement preview with USDC as the settlement asset", () => {

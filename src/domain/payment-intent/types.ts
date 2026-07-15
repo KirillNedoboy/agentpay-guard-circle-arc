@@ -37,6 +37,19 @@ export type RouteContext = {
   gasPaymentMode?: GasPaymentMode;
 };
 
+export type CctpRoutePreview = {
+  mode: "cctp_route_preview";
+  sourceChain: string;
+  destinationChain: string;
+  asset: "native USDC (proposed)";
+  finalityMode: CctpFinalityMode | "not specified";
+  attestation: string;
+  walletControlModel?: WalletControlModel;
+  proposedAmountUSDC: string;
+  estimatedFeeUSDC?: string;
+  totalProposedSpendUSDC?: string;
+};
+
 export type CircleRailPreview = {
   rail: CircleRail;
   networkLabel: string;
@@ -45,6 +58,7 @@ export type CircleRailPreview = {
   recipientId: string;
   amountUSDC: string;
   explanation: string;
+  cctpRoutePreview?: CctpRoutePreview;
 };
 
 export type PaymentIntent = {
