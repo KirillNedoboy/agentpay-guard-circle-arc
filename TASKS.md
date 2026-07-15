@@ -29,6 +29,20 @@
 - [x] Run full validation: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`.
 - [x] Run final validation after tracker updates and commit if clean.
 
+## Programmable-money context foundation — Phase 1
+
+- [x] Map validation, policy, rail preview, audit, and receipt flow before editing.
+- [x] Run baseline validation at `99fbc46`.
+- [x] Add optional route, operation, spender, base-unit, and fee context types.
+- [x] Preserve legacy `PaymentIntent` callers and validator form behavior without optional context.
+- [x] Strictly validate optional route context, enums, fee asset and decimal, spender, and base units.
+- [x] Reject invalid nested context before policy evaluation or audit writing.
+- [x] Add focused validation and API fail-closed tests.
+- [x] Commit the Phase 1 types and validation changes separately.
+- [ ] Phase 2: deterministic CCTP-first route policy.
+
+Phase 1 did not change policy behavior, audit schema, receipt content, rail preview behavior, scenarios, or UI behavior.
+
 ## Do not start without explicit approval
 
 - [ ] Live Circle Gateway integration.

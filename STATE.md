@@ -8,7 +8,7 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 
 ## Current phase
 
-`IGNYTE_CIRCLE_ARC_PREVIEW_STABILIZATION`
+`PROGRAMMABLE_MONEY_CONTEXT_FOUNDATION_COMPLETE`
 
 ## Done
 
@@ -31,10 +31,12 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 - README and core docs now use AgentPay Guard / Circle / Arc positioning as primary.
 - Generated Playwright artifacts were removed from the working tree.
 - Final validation after tracker updates passed for `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
+- Optional programmable-money context types are available on `PaymentIntent`.
+- Validation accepts legacy intents unchanged and strictly validates optional route, authority, base-unit, and fee context.
 
 ## In progress
 
-- Commit is pending final diff inspection.
+- Phase 1 checkpoint documentation is pending final validation and commit.
 
 ## Boundary
 
@@ -57,7 +59,7 @@ The prior Lepton/CitePay and Mantle research-flow materials are useful narrative
 
 ## Next safe step
 
-Inspect the final diff, then commit only if the diff remains intentional:
+Begin Phase 2 only after explicit review of the Phase 1 checkpoint. The next planned scope is deterministic CCTP-first route policy; it is not implemented in this branch.
 
 ```bash
 pnpm test
@@ -65,5 +67,3 @@ pnpm lint
 pnpm typecheck
 pnpm build
 ```
-
-After commit, report the commit hash and validation results.

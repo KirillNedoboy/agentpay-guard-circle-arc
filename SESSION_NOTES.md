@@ -881,3 +881,38 @@ The safety scan matched boundary and non-goal language only, including explicit 
 ### Commit status
 
 Pending final diff inspection and commit.
+
+## 2026-07-15 — Programmable-money context foundation
+
+### Scope
+
+Completed Phase 0 and Phase 1 only on `feature/programmable-money-context-foundation`, starting from clean `main` at `99fbc46`.
+
+### Commits
+
+- `6e6fac5 feat: add optional programmable payment context types`
+- `768d9e4 feat: validate optional programmable payment context`
+
+### What changed
+
+- Added optional, typed programmable-money input context: operation, spender, USDC base units, and route context.
+- Kept legacy `PaymentIntent` fixtures valid without any added fields.
+- Added strict validation for route chains and enums, non-negative decimal fees, `USDC` fee asset, spender, base-unit strings, and unknown nested route fields.
+- Invalid optional context fails before policy evaluation and audit creation.
+- Added focused tests for the legacy path, valid CCTP context, invalid context variants, and API fail-closed behavior.
+
+### Validation
+
+- Baseline: `pnpm install --frozen-lockfile`, `pnpm test` (42 tests), `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed.
+- Final code validation: `pnpm test` (64 tests), `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Policy behavior is unchanged when optional context is absent.
+- Audit schema, receipt, rail preview, scenarios, and UI behavior are unchanged.
+- CCTP policy, ERC-20 authority policy, Paymaster policy, context persistence, and new demo scenarios were not implemented.
+- No network execution, wallets, signing, custody, RPC, database, authentication, telemetry, or new dependency was added.
+
+### Next phase
+
+Phase 2: deterministic CCTP-first route policy.
