@@ -996,3 +996,42 @@ Completed Phase 3 only on `feature/programmable-money-context-foundation` after 
 ### Next phase
 
 Phase 4: USDC Paymaster-preview total-cost policy.
+
+## 2026-07-15 — USDC Paymaster-preview total-cost policy
+
+### Scope
+
+Completed Phase 4 only on `feature/programmable-money-context-foundation` after the Phase 3 checkpoint.
+
+### Commit
+
+- `547b1d1 feat: add USDC fee budget preview policy`
+
+### What changed
+
+- Added a separate local `paymaster.maxTotalUsdcSpend` demo-policy value of `100.00`; it does not reuse the CCTP route budget and is not a Circle protocol limit.
+- Applied Paymaster rules only when `gasPaymentMode` is `usdc-paymaster-preview`:
+  - missing estimated fee -> `REVIEW` / `PAYMASTER_FEE_ESTIMATE_REQUIRED`;
+  - developer-controlled wallet -> `REVIEW` / `PAYMASTER_DEVELOPER_CONTROLLED_REVIEW_REQUIRED`;
+  - total above `100.00` -> `BLOCK` / `TOTAL_USDC_BUDGET_EXCEEDED`.
+- Reused `addDecimalStrings` for proposed total spend. Exact `100.00` is not blocked.
+- Deduplicated returned reason codes and matched rules, including combined CCTP/Paymaster total-budget evidence.
+- Added nested Paymaster preview context for the gas mode, amount, optional fee, derived total, wallet-control model, and explicit preview-only boundary.
+
+### Validation
+
+- Policy RED: 6 new Paymaster assertions failed before config and policy rules existed.
+- Policy GREEN: `pnpm test tests/policy-engine.test.ts` passed with 49 tests.
+- Preview RED: 3 new Paymaster assertions failed before nested preview details existed.
+- Preview GREEN: `pnpm test tests/rail-preview.test.ts` passed with 13 tests.
+- Full validation: `pnpm test` passed with 116 tests; `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Generic, CCTP, and ERC-20 behavior remain unchanged outside Paymaster-preview context.
+- Audit writer/schema, receipt builder, API endpoint and top-level response fields, UI, demo fixtures, README and public docs were not changed.
+- No Paymaster SDK/API, UserOperation, permit, wallet connection, signing, key, RPC/network call, bundler/EntryPoint call, gas payment, transaction hash, dependency, or environment variable was added.
+
+### Next phase
+
+Phase 5: audit, receipt, API and idempotency evidence.

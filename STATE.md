@@ -8,7 +8,7 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 
 ## Current phase
 
-`ERC20_AUTHORITY_POLICY_COMPLETE`
+`PAYMASTER_PREVIEW_TOTAL_COST_POLICY_COMPLETE`
 
 ## Done
 
@@ -38,6 +38,10 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 - CCTP route previews are attached only inside the existing `railPreview` field and state that no execution occurred.
 - ERC-20 authority policy evaluates proposed `approve` and `transferFrom` operations with separate spender lists.
 - USDC base-unit conversion uses string-only six-decimal formatting and remains informational preview data.
+- Local Paymaster preview policy has its own `100.00` USDC total-cost demo budget, separate from the CCTP route budget.
+- Only `usdc-paymaster-preview` requires an estimated fee, reviews developer-controlled wallets, and blocks totals above its local budget.
+- Paymaster totals use decimal-string addition; exact `100.00` remains non-blocking.
+- `railPreview` can include nested Paymaster proposal context without constructing a UserOperation, permit, bundler/EntryPoint call, or gas payment.
 
 ## In progress
 
@@ -64,7 +68,7 @@ The prior Lepton/CitePay and Mantle research-flow materials are useful narrative
 
 ## Next safe step
 
-Begin Phase 4 only after review of the Phase 3 checkpoint. The next planned scope is USDC Paymaster-preview total-cost policy; it is not implemented in this branch.
+Phase 5: audit, receipt, API and idempotency evidence. Do not begin it as part of this checkpoint.
 
 ```bash
 pnpm test

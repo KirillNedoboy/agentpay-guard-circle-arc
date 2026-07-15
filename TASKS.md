@@ -67,9 +67,24 @@ Phase 2 did not add an endpoint, top-level API response field, top-level audit f
 - [x] Keep decimal `amount` as the policy source of truth when supplied base units differ.
 - [x] Add focused authority, base-unit, and preview tests.
 - [x] Commit authority policy and preview/helper changes separately.
-- [ ] Phase 4: USDC Paymaster-preview total-cost policy.
+- [x] Add a separate local Paymaster total-cost demo budget.
+- [x] Apply missing-fee, developer-control, and decimal-safe total-cost rules only to `usdc-paymaster-preview`.
+- [x] Add nested Paymaster proposal preview details and the no-UserOperation/permit/bundler/gas-payment boundary.
+- [x] Preserve CCTP, ERC-20, audit, receipt, API, UI, fixtures, and public documentation behavior.
+- [x] Add focused policy and preview tests, including boundaries, precedence, isolation, and deduplication.
+- [x] Phase 4: USDC Paymaster-preview total-cost policy.
 
 Phase 3 did not add a chain read, allowance or balance query, signing, permit, transaction, endpoint, top-level API response field, top-level audit field, audit writer change, receipt builder change, UI change, fixture, dependency, or network execution.
+
+## USDC Paymaster-preview total-cost policy — Phase 4
+
+- [x] Keep a separate `paymaster.maxTotalUsdcSpend` local demo-policy budget.
+- [x] Use `addDecimalStrings` for amount-plus-fee policy and preview totals.
+- [x] Preserve hard-block precedence and deduplicate matched rules and reason codes.
+- [x] Keep Paymaster context proposal-only with no UserOperation, permit, bundler/EntryPoint call, or gas payment.
+- [ ] Phase 5: audit, receipt, API and idempotency evidence.
+
+Phase 4 did not change the audit writer or schema, receipt builder, API endpoint or top-level response fields, UI, demo fixtures, public documentation, dependencies, environment, wallet/signing, RPC/network calls, or payment execution.
 
 ## Do not start without explicit approval
 

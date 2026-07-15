@@ -4,7 +4,7 @@
 
 AgentPay Guard is a local preflight policy and audit layer for AI-agent USDC payment intents before x402, Circle Gateway, or Arc-compatible payment flows.
 
-Current direction: deterministic ERC-20 authority-aware policy and proposal-only base-unit explanation on top of the existing local builder proof.
+Current direction: deterministic ERC-20 authority-aware policy and USDC Paymaster-preview total-cost policy on top of the existing local builder proof.
 
 ## Branch and commit
 
@@ -16,6 +16,7 @@ Current direction: deterministic ERC-20 authority-aware policy and proposal-only
 - `8180f12 feat: add honest CCTP route preview`
 - `34dfc94 feat: add ERC20 authority policy context`
 - `1c8e15f feat: display ERC20 authority and USDC base units`
+- `547b1d1 feat: add USDC fee budget preview policy`
 
 ## Implementation status
 
@@ -32,7 +33,11 @@ Current direction: deterministic ERC-20 authority-aware policy and proposal-only
 - Spender policy is separate from recipients: `trusted-agent-service` is allowed and `blocked-spender` is denied.
 - The base-unit helper converts valid USDC decimal strings to six-decimal units without rounding. Decimal `amount` remains the sole policy input.
 - ERC-20 authority details are nested inside the existing `railPreview` value and explicitly state that no allowance/balance read, approval signature, or ERC-20 transaction occurred.
-- Generic intents, generic rails, unknown rails, audit writer, receipt builder, API endpoint and top-level response fields, UI, scenarios, and public documentation were not changed.
+- Paymaster preview uses a separate local `paymaster.maxTotalUsdcSpend` demo-policy budget of `100.00`; it is not a Circle protocol limit and does not reuse the CCTP route budget.
+- Only `gasPaymentMode: "usdc-paymaster-preview"` requires an estimated fee, requires review for developer-controlled wallets, and blocks a decimal-safe amount-plus-fee total above the budget.
+- Exact total-budget boundaries do not block. Existing hard blocks remain `BLOCK`, and returned reason codes and matched rules are deduplicated.
+- Paymaster details are nested inside the existing `railPreview` value and state that the app does not construct a UserOperation, create a permit, contact a bundler or EntryPoint, or pay gas.
+- Generic intents, generic rails, unknown rails, CCTP behavior, ERC-20 behavior, audit writer/schema, receipt builder, API endpoint and top-level response fields, UI, scenarios, and public documentation were not changed.
 
 ## Validation status
 
@@ -76,6 +81,16 @@ pnpm build      # passed
 git diff --check # passed
 ```
 
+Final Phase 4 validation before memory update:
+
+```bash
+pnpm test       # passed, 9 files, 116 tests
+pnpm lint       # passed
+pnpm typecheck  # passed
+pnpm build      # passed
+git diff --check # passed
+```
+
 ## Safety boundaries
 
 Do not add without explicit approval:
@@ -103,9 +118,9 @@ Do not add without explicit approval:
 
 ## Preview/mock only
 
-- No Paymaster policy, audit-context persistence, receipt expansion, new scenarios, or UI rendering was added.
+- No audit-context persistence, receipt expansion, new scenarios, or UI rendering was added.
 - No live network, wallet, signing, custody, database, authentication, telemetry, or dependency was added.
 
 ## Next recommended step
 
-Phase 4: USDC Paymaster-preview total-cost policy. Do not begin it as part of this checkpoint.
+Phase 5: audit, receipt, API and idempotency evidence. Do not begin it as part of this checkpoint.
