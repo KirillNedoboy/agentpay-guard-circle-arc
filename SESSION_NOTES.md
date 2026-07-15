@@ -955,3 +955,44 @@ Completed Phase 2 only on `feature/programmable-money-context-foundation` after 
 ### Next phase
 
 Phase 3: ERC-20 authority policy.
+
+## 2026-07-15 — ERC-20 authority-aware policy
+
+### Scope
+
+Completed Phase 3 only on `feature/programmable-money-context-foundation` after the Phase 2 checkpoint.
+
+### Commits
+
+- `34dfc94 feat: add ERC20 authority policy context`
+- `1c8e15f feat: display ERC20 authority and USDC base units`
+
+### What changed
+
+- Added separate local spender policy lists: `trusted-agent-service` is allowed and `blocked-spender` is denied.
+- Added deterministic authority rules for proposed `approve` and `transferFrom` operations. Direct `transfer` receives no authority escalation.
+- Approval amounts above `5.00` require review; missing spenders and denied `transferFrom` spenders block.
+- Added `toUsdcBaseUnits`, a string-only helper that formats valid USDC amounts into six-decimal base units without rounding.
+- Added nested authority preview context for operation, spender, derived base units, and optional supplied base units. When values differ, both are shown as proposal context.
+- The authority preview states that the app did not read allowance or balance data, sign an approval, or submit an ERC-20 transaction.
+
+### Validation
+
+- Authority RED: 7 policy tests failed before spender config and rules existed.
+- Authority GREEN: `pnpm test tests/policy-engine.test.ts` passed with 40 tests.
+- Base-unit RED: helper test failed before the module existed.
+- Base-unit GREEN: `pnpm test tests/usdc-base-units.test.ts` passed with 12 tests.
+- Preview RED: 2 authority-preview tests failed before the nested preview existed.
+- Preview GREEN: focused helper and rail-preview tests passed with 21 tests.
+- Full validation after preview: `pnpm test` passed with 103 tests; `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Decimal `amount` remains the only policy source of truth; `amountBaseUnits` is informational.
+- No chain read, allowance/balance query, wallet, signing, permit, transaction, endpoint, top-level API response field, top-level audit field, audit writer, receipt builder, UI, fixture, public documentation, dependency, or network integration changed.
+- The nested authority preview uses the existing `railPreview` field and remains proposal-only context.
+- Paymaster policy was not implemented.
+
+### Next phase
+
+Phase 4: USDC Paymaster-preview total-cost policy.

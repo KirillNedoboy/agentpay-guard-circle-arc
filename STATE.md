@@ -8,7 +8,7 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 
 ## Current phase
 
-`DETERMINISTIC_CCTP_POLICY_COMPLETE`
+`ERC20_AUTHORITY_POLICY_COMPLETE`
 
 ## Done
 
@@ -36,6 +36,8 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 - Local CCTP demo-policy supports the Ethereum-to-Base pair, review thresholds, and a decimal-safe total USDC budget.
 - CCTP proposals can deterministically `ALLOW`, `REVIEW`, or `BLOCK` without changing generic intent behavior.
 - CCTP route previews are attached only inside the existing `railPreview` field and state that no execution occurred.
+- ERC-20 authority policy evaluates proposed `approve` and `transferFrom` operations with separate spender lists.
+- USDC base-unit conversion uses string-only six-decimal formatting and remains informational preview data.
 
 ## In progress
 
@@ -62,7 +64,7 @@ The prior Lepton/CitePay and Mantle research-flow materials are useful narrative
 
 ## Next safe step
 
-Begin Phase 3 only after review of the Phase 2 checkpoint. The next planned scope is ERC-20 authority policy; it is not implemented in this branch.
+Begin Phase 4 only after review of the Phase 3 checkpoint. The next planned scope is USDC Paymaster-preview total-cost policy; it is not implemented in this branch.
 
 ```bash
 pnpm test

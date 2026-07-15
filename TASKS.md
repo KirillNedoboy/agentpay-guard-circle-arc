@@ -53,9 +53,23 @@ Phase 1 did not change policy behavior, audit schema, receipt content, rail prev
 - [x] Keep generic and unknown-rail preview behavior unchanged.
 - [x] Add policy and preview tests, including precedence, decimal boundary, and no fabricated execution evidence.
 - [x] Commit policy and preview work separately.
-- [ ] Phase 3: ERC-20 authority policy.
+- [x] Phase 3: ERC-20 authority policy.
 
 Phase 2 did not add an endpoint, top-level API response field, top-level audit field, audit writer change, receipt builder change, UI change, fixture, dependency, or network execution.
+
+## ERC-20 authority-aware policy — Phase 3
+
+- [x] Add separate local spender allow and deny lists.
+- [x] Evaluate proposal-only `approve`, `transferFrom`, and direct `transfer` authority context.
+- [x] Preserve hard-block precedence and stable, deduplicated authority reason codes.
+- [x] Add string-only USDC six-decimal base-unit conversion.
+- [x] Add nested ERC-20 authority preview inside the existing `railPreview` value.
+- [x] Keep decimal `amount` as the policy source of truth when supplied base units differ.
+- [x] Add focused authority, base-unit, and preview tests.
+- [x] Commit authority policy and preview/helper changes separately.
+- [ ] Phase 4: USDC Paymaster-preview total-cost policy.
+
+Phase 3 did not add a chain read, allowance or balance query, signing, permit, transaction, endpoint, top-level API response field, top-level audit field, audit writer change, receipt builder change, UI change, fixture, dependency, or network execution.
 
 ## Do not start without explicit approval
 
