@@ -44,6 +44,10 @@ export type PolicyConfig = {
   allowances: {
     reviewThreshold: string;
   };
+  spenders: {
+    allowed: string[];
+    denied: string[];
+  };
 };
 
 export function loadPolicyConfig(path: string): PolicyConfig {

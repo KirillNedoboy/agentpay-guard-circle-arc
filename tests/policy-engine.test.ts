@@ -18,6 +18,93 @@ function loadScenario(fileName: string) {
 }
 
 describe("policy engine", () => {
+  test("loads separate local spender policy lists", () => {
+    expect(policy.allowances.reviewThreshold).toBe("5.00");
+    expect(policy.spenders).toEqual({
+      allowed: ["trusted-agent-service"],
+      denied: ["blocked-spender"]
+    });
+  });
+
+  test("blocks an approval proposal without a spender", () => {
+    const result = evaluatePolicy(makeAuthorityIntent({ operation: "approve" }), policy, []);
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toContain("ALLOWANCE_SPENDER_REQUIRED");
+    expect(result.matchedRules).toContain("allowance_spender_required");
+  });
+
+  test("does not add an authority escalation for an approval exactly at the threshold", () => {
+    const result = evaluatePolicy(makeAuthorityIntent({ operation: "approve", spender: "trusted-agent-service", amount: "5.00" }), policy, []);
+
+    expect(result.reasonCodes).not.toContain("ALLOWANCE_REVIEW_REQUIRED");
+    expect(result.matchedRules).not.toContain("allowance_review_required");
+  });
+
+  test("reviews an approval proposal above the allowance threshold", () => {
+    const result = evaluatePolicy(makeAuthorityIntent({ operation: "approve", spender: "trusted-agent-service", amount: "5.01" }), policy, []);
+
+    expect(result.decision).toBe("REVIEW");
+    expect(result.reasonCodes).toContain("ALLOWANCE_REVIEW_REQUIRED");
+    expect(result.matchedRules).toContain("allowance_review_required");
+  });
+
+  test("blocks a transferFrom proposal without a spender", () => {
+    const result = evaluatePolicy(makeAuthorityIntent({ operation: "transferFrom" }), policy, []);
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toContain("TRANSFER_FROM_SPENDER_REQUIRED");
+    expect(result.matchedRules).toContain("transfer_from_spender_required");
+  });
+
+  test("blocks a transferFrom proposal with a denied spender", () => {
+    const result = evaluatePolicy(makeAuthorityIntent({ operation: "transferFrom", spender: "blocked-spender" }), policy, []);
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toContain("SPENDER_BLOCKED");
+    expect(result.matchedRules).toContain("spender_blocked");
+  });
+
+  test("reviews a transferFrom proposal with an unknown spender", () => {
+    const result = evaluatePolicy(makeAuthorityIntent({ operation: "transferFrom", spender: "new-spender" }), policy, []);
+
+    expect(result.decision).toBe("REVIEW");
+    expect(result.reasonCodes).toContain("SPENDER_REVIEW_REQUIRED");
+    expect(result.matchedRules).toContain("spender_review_required");
+  });
+
+  test("does not add an authority escalation for an allowed transferFrom spender", () => {
+    const result = evaluatePolicy(makeAuthorityIntent({ operation: "transferFrom", spender: "trusted-agent-service" }), policy, []);
+
+    expect(result.decision).toBe("ALLOW");
+    expect(result.reasonCodes).not.toEqual(expect.arrayContaining(["SPENDER_BLOCKED", "SPENDER_REVIEW_REQUIRED"]));
+  });
+
+  test("does not add an authority escalation for a direct transfer", () => {
+    const result = evaluatePolicy(makeAuthorityIntent({ operation: "transfer" }), policy, []);
+
+    expect(result.decision).toBe("ALLOW");
+    expect(result.reasonCodes).not.toEqual(expect.arrayContaining([expect.stringMatching(/SPENDER|ALLOWANCE/)]));
+  });
+
+  test("retains an existing hard block with an authority review condition", () => {
+    const result = evaluatePolicy(
+      makeAuthorityIntent({ recipient: "blocked-recipient.demo", operation: "transferFrom", spender: "new-spender" }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toEqual(expect.arrayContaining(["RECIPIENT_BLOCKED", "SPENDER_REVIEW_REQUIRED"]));
+  });
+
+  test("keeps authority reason codes and matched rules deduplicated", () => {
+    const result = evaluatePolicy(makeAuthorityIntent({ operation: "transferFrom", spender: "new-spender" }), policy, []);
+
+    expect(new Set(result.reasonCodes).size).toBe(result.reasonCodes.length);
+    expect(new Set(result.matchedRules).size).toBe(result.matchedRules.length);
+  });
+
   test("loads the local CCTP demo-policy configuration", () => {
     expect(policy.crossChain).toEqual({
       allowedCctpPairs: [{ sourceChain: "ethereum", destinationChain: "base" }],
@@ -390,6 +477,20 @@ function makeCctpIntent(overrides: Record<string, unknown> = {}) {
       attestationStatus: "not_requested",
       walletControlModel: "user-controlled"
     },
+    ...overrides
+  });
+}
+
+function makeAuthorityIntent(overrides: Record<string, unknown> = {}) {
+  return validatePaymentIntent({
+    agentId: "agent_authority_policy_001",
+    intent: "Propose a USDC ERC-20 authority operation for a trusted service",
+    amount: "0.08",
+    currency: "USDC",
+    recipient: "trusted-x402-api.demo",
+    scenario: "api_access",
+    paymentRail: "mock_x402_service",
+    idempotencyKey: "authority-policy-test",
     ...overrides
   });
 }

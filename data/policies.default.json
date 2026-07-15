@@ -69,5 +69,13 @@
   },
   "allowances": {
     "reviewThreshold": "5.00"
+  },
+  "spenders": {
+    "allowed": [
+      "trusted-agent-service"
+    ],
+    "denied": [
+      "blocked-spender"
+    ]
   }
 }

@@ -171,6 +171,39 @@ export function evaluatePolicy(
     }
   }
 
+  if (intent.operation === "approve") {
+    if (!intent.spender) {
+      matchedRules.push("allowance_spender_required");
+      reasonCodes.push("ALLOWANCE_SPENDER_REQUIRED");
+      reasonParts.push("Approval proposals must identify a spender.");
+      hasBlock = true;
+    } else if (amountIsValid && compareDecimalStrings(intent.amount, policy.allowances.reviewThreshold) === 1) {
+      matchedRules.push("allowance_review_required");
+      reasonCodes.push("ALLOWANCE_REVIEW_REQUIRED");
+      reasonParts.push("Approval amount exceeds the local allowance review threshold.");
+      hasReview = true;
+    }
+  }
+
+  if (intent.operation === "transferFrom") {
+    if (!intent.spender) {
+      matchedRules.push("transfer_from_spender_required");
+      reasonCodes.push("TRANSFER_FROM_SPENDER_REQUIRED");
+      reasonParts.push("TransferFrom proposals must identify a spender.");
+      hasBlock = true;
+    } else if (policy.spenders.denied.includes(intent.spender)) {
+      matchedRules.push("spender_blocked");
+      reasonCodes.push("SPENDER_BLOCKED");
+      reasonParts.push("Spender is denied by the active local policy.");
+      hasBlock = true;
+    } else if (!policy.spenders.allowed.includes(intent.spender)) {
+      matchedRules.push("spender_review_required");
+      reasonCodes.push("SPENDER_REVIEW_REQUIRED");
+      reasonParts.push("Spender is not allowlisted by the active local policy.");
+      hasReview = true;
+    }
+  }
+
   const normalizedIntent = intent.intent.toLowerCase();
   const suspiciousMatches = policy.suspiciousKeywords.filter((keyword) => normalizedIntent.includes(keyword.toLowerCase()));
   if (suspiciousMatches.length > 0) {
