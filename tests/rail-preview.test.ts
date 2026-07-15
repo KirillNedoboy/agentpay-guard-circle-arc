@@ -17,6 +17,37 @@ function makeIntent(overrides: Partial<PaymentIntent> = {}): PaymentIntent {
 }
 
 describe("Circle and Arc rail preview", () => {
+  test("shows ERC-20 authority as proposal context with derived and supplied base units", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        amount: "25.50",
+        operation: "approve",
+        spender: "trusted-agent-service",
+        amountBaseUnits: "25500001"
+      })
+    );
+
+    expect(preview.erc20AuthorityPreview).toEqual({
+      mode: "erc20_authority_preview",
+      operation: "approve",
+      spender: "trusted-agent-service",
+      derivedAmountBaseUnits: "25500000",
+      derivedAmountBaseUnitsDisplay: "25.50 USDC = 25500000 base units (6 decimals)",
+      suppliedAmountBaseUnits: "25500001",
+      explanation:
+        "Authority preview only. This app did not read an allowance or balance, sign an approval, or submit an ERC-20 transaction."
+    });
+  });
+
+  test("shows supplied base units as informational proposal context without an operation", () => {
+    const preview = buildCircleRailPreview(makeIntent({ amountBaseUnits: "80000" }));
+
+    expect(preview.erc20AuthorityPreview).toMatchObject({
+      derivedAmountBaseUnits: "80000",
+      suppliedAmountBaseUnits: "80000"
+    });
+  });
+
   test("creates a CCTP route preview for a standard Ethereum to Base proposal", () => {
     const preview = buildCircleRailPreview(
       makeIntent({
@@ -115,6 +146,7 @@ describe("Circle and Arc rail preview", () => {
     });
     expect(Object.keys(preview)).not.toEqual(expect.arrayContaining(["transactionHash", "txHash", "signature", "privateKey"]));
     expect(preview.cctpRoutePreview).toBeUndefined();
+    expect(preview.erc20AuthorityPreview).toBeUndefined();
   });
 
   test("generates an Arc settlement preview with USDC as the settlement asset", () => {

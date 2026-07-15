@@ -50,6 +50,16 @@ export type CctpRoutePreview = {
   totalProposedSpendUSDC?: string;
 };
 
+export type Erc20AuthorityPreview = {
+  mode: "erc20_authority_preview";
+  operation?: PaymentOperation;
+  spender?: string;
+  derivedAmountBaseUnits?: string;
+  derivedAmountBaseUnitsDisplay?: string;
+  suppliedAmountBaseUnits?: string;
+  explanation: string;
+};
+
 export type CircleRailPreview = {
   rail: CircleRail;
   networkLabel: string;
@@ -59,6 +69,7 @@ export type CircleRailPreview = {
   amountUSDC: string;
   explanation: string;
   cctpRoutePreview?: CctpRoutePreview;
+  erc20AuthorityPreview?: Erc20AuthorityPreview;
 };
 
 export type PaymentIntent = {

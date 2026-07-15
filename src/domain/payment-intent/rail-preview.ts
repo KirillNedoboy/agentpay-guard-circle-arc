@@ -1,7 +1,9 @@
 import { addDecimalStrings } from "@/lib/decimal";
+import { toUsdcBaseUnits } from "@/lib/usdc-base-units";
 import type {
   CctpAttestationStatus,
   CctpRoutePreview,
+  Erc20AuthorityPreview,
   CircleRail,
   CircleRailPreview,
   PaymentIntent,
@@ -13,6 +15,9 @@ const previewOnlyExplanation =
 
 const cctpPreviewOnlyExplanation =
   "Preview only. No funds moved, no CCTP burn or mint occurred, no Iris attestation was requested, and no Circle API was called.";
+
+const erc20AuthorityPreviewOnlyExplanation =
+  "Authority preview only. This app did not read an allowance or balance, sign an approval, or submit an ERC-20 transaction.";
 
 const railLabels: Record<CircleRail, string> = {
   mock_agent_wallet: "Circle Agent Wallet preview",
@@ -88,6 +93,34 @@ function buildCctpRoutePreview(intent: PaymentIntent): CctpRoutePreview | undefi
   return cctpRoutePreview;
 }
 
+function buildErc20AuthorityPreview(intent: PaymentIntent): Erc20AuthorityPreview | undefined {
+  if (!intent.operation && !intent.spender && !intent.amountBaseUnits) {
+    return undefined;
+  }
+
+  const erc20AuthorityPreview: Erc20AuthorityPreview = {
+    mode: "erc20_authority_preview",
+    explanation: erc20AuthorityPreviewOnlyExplanation
+  };
+  const derivedAmountBaseUnits = toUsdcBaseUnits(intent.amount);
+
+  if (intent.operation) {
+    erc20AuthorityPreview.operation = intent.operation;
+  }
+  if (intent.spender) {
+    erc20AuthorityPreview.spender = intent.spender;
+  }
+  if (derivedAmountBaseUnits) {
+    erc20AuthorityPreview.derivedAmountBaseUnits = derivedAmountBaseUnits;
+    erc20AuthorityPreview.derivedAmountBaseUnitsDisplay = `${intent.amount} USDC = ${derivedAmountBaseUnits} base units (6 decimals)`;
+  }
+  if (intent.amountBaseUnits) {
+    erc20AuthorityPreview.suppliedAmountBaseUnits = intent.amountBaseUnits;
+  }
+
+  return erc20AuthorityPreview;
+}
+
 export function mapScenarioToPaymentPurpose(scenario: string): PaymentPurpose {
   if (scenario === "api_access") {
     return "api_data_purchase";
@@ -115,6 +148,7 @@ export function buildCircleRailPreview(intent: PaymentIntent): CircleRailPreview
     intent.paymentRail === "mock_agent_wallet";
 
   const cctpRoutePreview = buildCctpRoutePreview(intent);
+  const erc20AuthorityPreview = buildErc20AuthorityPreview(intent);
 
   return {
     rail,
@@ -128,6 +162,7 @@ export function buildCircleRailPreview(intent: PaymentIntent): CircleRailPreview
       : isKnownPreviewRail
         ? previewOnlyExplanation
         : "Live payment rail is disabled. This response is an adapter boundary preview, not a production integration.",
-    ...(cctpRoutePreview ? { cctpRoutePreview } : {})
+    ...(cctpRoutePreview ? { cctpRoutePreview } : {}),
+    ...(erc20AuthorityPreview ? { erc20AuthorityPreview } : {})
   };
 }
