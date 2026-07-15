@@ -39,9 +39,23 @@
 - [x] Reject invalid nested context before policy evaluation or audit writing.
 - [x] Add focused validation and API fail-closed tests.
 - [x] Commit the Phase 1 types and validation changes separately.
-- [ ] Phase 2: deterministic CCTP-first route policy.
+- [x] Phase 2: deterministic CCTP-first route policy.
 
 Phase 1 did not change policy behavior, audit schema, receipt content, rail preview behavior, scenarios, or UI behavior.
+
+## CCTP-first route policy — Phase 2
+
+- [x] Add local CCTP demo-policy configuration for Ethereum to Base and local review/budget thresholds.
+- [x] Keep generic hard max `10.00`; set Fast Transfer review threshold to `5.00`.
+- [x] Apply deterministic CCTP block and review rules only to `transferMode: "cctp"`.
+- [x] Calculate amount plus optional fee with existing decimal-string arithmetic.
+- [x] Add a nested CCTP route preview inside the existing `railPreview` value.
+- [x] Keep generic and unknown-rail preview behavior unchanged.
+- [x] Add policy and preview tests, including precedence, decimal boundary, and no fabricated execution evidence.
+- [x] Commit policy and preview work separately.
+- [ ] Phase 3: ERC-20 authority policy.
+
+Phase 2 did not add an endpoint, top-level API response field, top-level audit field, audit writer change, receipt builder change, UI change, fixture, dependency, or network execution.
 
 ## Do not start without explicit approval
 

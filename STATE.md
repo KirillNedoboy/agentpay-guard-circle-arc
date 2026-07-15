@@ -8,7 +8,7 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 
 ## Current phase
 
-`PROGRAMMABLE_MONEY_CONTEXT_FOUNDATION_COMPLETE`
+`DETERMINISTIC_CCTP_POLICY_COMPLETE`
 
 ## Done
 
@@ -33,10 +33,13 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 - Final validation after tracker updates passed for `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
 - Optional programmable-money context types are available on `PaymentIntent`.
 - Validation accepts legacy intents unchanged and strictly validates optional route, authority, base-unit, and fee context.
+- Local CCTP demo-policy supports the Ethereum-to-Base pair, review thresholds, and a decimal-safe total USDC budget.
+- CCTP proposals can deterministically `ALLOW`, `REVIEW`, or `BLOCK` without changing generic intent behavior.
+- CCTP route previews are attached only inside the existing `railPreview` field and state that no execution occurred.
 
 ## In progress
 
-- Phase 1 checkpoint documentation is pending final validation and commit.
+- No implementation work is in progress.
 
 ## Boundary
 
@@ -59,7 +62,7 @@ The prior Lepton/CitePay and Mantle research-flow materials are useful narrative
 
 ## Next safe step
 
-Begin Phase 2 only after explicit review of the Phase 1 checkpoint. The next planned scope is deterministic CCTP-first route policy; it is not implemented in this branch.
+Begin Phase 3 only after review of the Phase 2 checkpoint. The next planned scope is ERC-20 authority policy; it is not implemented in this branch.
 
 ```bash
 pnpm test

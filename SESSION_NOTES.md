@@ -916,3 +916,42 @@ Completed Phase 0 and Phase 1 only on `feature/programmable-money-context-founda
 ### Next phase
 
 Phase 2: deterministic CCTP-first route policy.
+
+## 2026-07-15 — Deterministic CCTP-first route policy
+
+### Scope
+
+Completed Phase 2 only on `feature/programmable-money-context-foundation` after the Phase 1 checkpoint.
+
+### Commits
+
+- `72b11e8 feat: add deterministic CCTP route policy`
+- `8180f12 feat: add honest CCTP route preview`
+
+### What changed
+
+- Added local CCTP demo-policy for the `ethereum` to `base` pair, `5.00` Fast Transfer and developer-control review thresholds, and a `100.00` total USDC budget.
+- Preserved the existing generic `10.00` hard max. Fast Transfer amounts above `5.00` and at or below `10.00` now require review; larger amounts remain hard blocks.
+- Added deterministic block rules for same-chain and unsupported routes, plus review rules for claimed verified attestations, Fast Transfer, and developer-controlled wallets.
+- Reused `addDecimalStrings` for the amount-plus-fee budget check; no decimal helper changed.
+- Added CCTP details inside the existing rail preview: proposed native USDC, route, finality, attestation claim, optional fee, and total proposed spend.
+- The CCTP preview says no funds moved, no CCTP burn/mint occurred, no Iris attestation was requested, and no Circle API was called.
+
+### Validation
+
+- Policy RED: 10 new CCTP tests failed before configuration and policy rules existed.
+- Policy GREEN: `pnpm test tests/policy-engine.test.ts` passed with 29 tests.
+- Preview RED: 4 new preview tests failed before the nested CCTP preview existed.
+- Preview GREEN: `pnpm test tests/rail-preview.test.ts` passed with 7 tests.
+- Full validation after preview: `pnpm test` passed with 78 tests; `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Generic intents without `routeContext` retain their existing decisions.
+- No endpoint, top-level API response field, top-level audit field, audit writer, receipt builder, UI, scenario fixture, public documentation, dependency, or network integration changed.
+- The nested CCTP preview uses the existing `railPreview` field and remains proposal-only context.
+- ERC-20 authority policy and Paymaster policy were not implemented.
+
+### Next phase
+
+Phase 3: ERC-20 authority policy.
