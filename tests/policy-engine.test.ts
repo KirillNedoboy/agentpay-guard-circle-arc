@@ -18,6 +18,125 @@ function loadScenario(fileName: string) {
 }
 
 describe("policy engine", () => {
+  test("loads the local CCTP demo-policy configuration", () => {
+    expect(policy.crossChain).toEqual({
+      allowedCctpPairs: [{ sourceChain: "ethereum", destinationChain: "base" }],
+      fastTransferReviewThreshold: "5.00",
+      developerControlledReviewThreshold: "5.00",
+      maxTotalUsdcSpend: "100.00"
+    });
+    expect(policy.allowances.reviewThreshold).toBe("5.00");
+  });
+
+  test("keeps a valid standard Ethereum to Base CCTP route at its existing decision", () => {
+    const result = evaluatePolicy(makeCctpIntent(), policy, []);
+
+    expect(result.decision).toBe("ALLOW");
+    expect(result.reasonCodes).not.toEqual(expect.arrayContaining([expect.stringMatching(/^CCTP_/)]));
+    expect(result.matchedRules).not.toEqual(expect.arrayContaining([expect.stringMatching(/^cctp_/)]));
+  });
+
+  test("blocks a same-chain CCTP proposal", () => {
+    const result = evaluatePolicy(makeCctpIntent({ routeContext: { transferMode: "cctp", sourceChain: "ethereum", destinationChain: "ethereum" } }), policy, []);
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toContain("CCTP_SOURCE_EQUALS_DESTINATION");
+    expect(result.matchedRules).toContain("cctp_source_equals_destination");
+    expect(result.reasonCodes).not.toContain("CCTP_ROUTE_UNSUPPORTED");
+  });
+
+  test("blocks an unsupported CCTP route", () => {
+    const result = evaluatePolicy(makeCctpIntent({ routeContext: { transferMode: "cctp", sourceChain: "ethereum", destinationChain: "arbitrum" } }), policy, []);
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toContain("CCTP_ROUTE_UNSUPPORTED");
+    expect(result.matchedRules).toContain("cctp_route_unsupported");
+  });
+
+  test("reviews Fast Transfer proposals above the local threshold and below the hard max", () => {
+    const result = evaluatePolicy(
+      makeCctpIntent({ amount: "5.01", routeContext: { transferMode: "cctp", sourceChain: "ethereum", destinationChain: "base", finalityMode: "fast-transfer" } }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("REVIEW");
+    expect(result.reasonCodes).toContain("CCTP_FAST_TRANSFER_REVIEW_REQUIRED");
+    expect(result.matchedRules).toContain("cctp_fast_transfer_review_required");
+  });
+
+  test("reviews developer-controlled CCTP proposals above the local threshold", () => {
+    const result = evaluatePolicy(
+      makeCctpIntent({ amount: "5.01", routeContext: { transferMode: "cctp", sourceChain: "ethereum", destinationChain: "base", walletControlModel: "developer-controlled" } }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("REVIEW");
+    expect(result.reasonCodes).toContain("CCTP_DEVELOPER_CONTROLLED_REVIEW_REQUIRED");
+    expect(result.matchedRules).toContain("cctp_developer_controlled_review_required");
+  });
+
+  test("reviews a claimed verified attestation without treating it as confirmed", () => {
+    const result = evaluatePolicy(
+      makeCctpIntent({ routeContext: { transferMode: "cctp", sourceChain: "ethereum", destinationChain: "base", attestationStatus: "verified" } }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("REVIEW");
+    expect(result.reasonCodes).toContain("CCTP_ATTESTATION_UNVERIFIABLE_IN_PREVIEW");
+    expect(result.matchedRules).toContain("cctp_attestation_unverifiable_in_preview");
+    expect(result.reason).toContain("cannot verify");
+  });
+
+  test("blocks when decimal-safe proposed amount plus fee exceeds the CCTP budget", () => {
+    const result = evaluatePolicy(
+      makeCctpIntent({ amount: "99.99", routeContext: { transferMode: "cctp", sourceChain: "ethereum", destinationChain: "base", estimatedFee: "0.02", feeAsset: "USDC" } }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toContain("TOTAL_USDC_BUDGET_EXCEEDED");
+    expect(result.matchedRules).toContain("total_usdc_budget_exceeded");
+  });
+
+  test("retains an existing hard block when CCTP review conditions also apply", () => {
+    const result = evaluatePolicy(
+      makeCctpIntent({ recipient: "blocked-recipient.demo", amount: "5.01", routeContext: { transferMode: "cctp", sourceChain: "ethereum", destinationChain: "base", finalityMode: "fast-transfer", attestationStatus: "verified" } }),
+      policy,
+      []
+    );
+
+    expect(result.decision).toBe("BLOCK");
+    expect(result.reasonCodes).toEqual(expect.arrayContaining(["RECIPIENT_BLOCKED", "CCTP_FAST_TRANSFER_REVIEW_REQUIRED", "CCTP_ATTESTATION_UNVERIFIABLE_IN_PREVIEW"]));
+  });
+
+  test("keeps multiple CCTP review reason codes stable and deduplicated", () => {
+    const result = evaluatePolicy(
+      makeCctpIntent({ amount: "5.01", routeContext: { transferMode: "cctp", sourceChain: "ethereum", destinationChain: "base", finalityMode: "fast-transfer", attestationStatus: "verified", walletControlModel: "developer-controlled" } }),
+      policy,
+      []
+    );
+    const cctpReasonCodes = result.reasonCodes.filter((code) => code.startsWith("CCTP_"));
+    const cctpMatchedRules = result.matchedRules.filter((rule) => rule.startsWith("cctp_"));
+
+    expect(result.decision).toBe("REVIEW");
+    expect(cctpReasonCodes).toEqual([
+      "CCTP_ATTESTATION_UNVERIFIABLE_IN_PREVIEW",
+      "CCTP_FAST_TRANSFER_REVIEW_REQUIRED",
+      "CCTP_DEVELOPER_CONTROLLED_REVIEW_REQUIRED"
+    ]);
+    expect(cctpMatchedRules).toEqual([
+      "cctp_attestation_unverifiable_in_preview",
+      "cctp_fast_transfer_review_required",
+      "cctp_developer_controlled_review_required"
+    ]);
+    expect(new Set(result.reasonCodes).size).toBe(result.reasonCodes.length);
+    expect(new Set(result.matchedRules).size).toBe(result.matchedRules.length);
+  });
+
   test("allows trusted x402 API spend with stable AgentPay reason codes", () => {
     const intent = validatePaymentIntent({
       agentId: "agent_ignyte_demo_001",
@@ -252,6 +371,28 @@ describe("policy engine", () => {
     expect(result.matchedRules).toContain("velocity_limit_exceeded");
   });
 });
+
+function makeCctpIntent(overrides: Record<string, unknown> = {}) {
+  return validatePaymentIntent({
+    agentId: "agent_cctp_policy_001",
+    intent: "Propose a USDC CCTP route for a trusted API payment",
+    amount: "0.08",
+    currency: "USDC",
+    recipient: "trusted-x402-api.demo",
+    scenario: "api_access",
+    paymentRail: "mock_x402_service",
+    idempotencyKey: "cctp-policy-test",
+    routeContext: {
+      transferMode: "cctp",
+      sourceChain: "ethereum",
+      destinationChain: "base",
+      finalityMode: "standard",
+      attestationStatus: "not_requested",
+      walletControlModel: "user-controlled"
+    },
+    ...overrides
+  });
+}
 
 function makeAuditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
   return {

@@ -112,6 +112,65 @@ export function evaluatePolicy(
     }
   }
 
+  const routeContext = intent.routeContext;
+  if (routeContext?.transferMode === "cctp") {
+    if (routeContext.sourceChain === routeContext.destinationChain) {
+      matchedRules.push("cctp_source_equals_destination");
+      reasonCodes.push("CCTP_SOURCE_EQUALS_DESTINATION");
+      reasonParts.push("CCTP source and destination chains must differ.");
+      hasBlock = true;
+    } else {
+      const cctpRouteSupported = policy.crossChain.allowedCctpPairs.some(
+        (pair) => pair.sourceChain === routeContext.sourceChain && pair.destinationChain === routeContext.destinationChain
+      );
+      if (!cctpRouteSupported) {
+        matchedRules.push("cctp_route_unsupported");
+        reasonCodes.push("CCTP_ROUTE_UNSUPPORTED");
+        reasonParts.push("CCTP route is not allowed by the active local policy.");
+        hasBlock = true;
+      }
+    }
+
+    if (routeContext.attestationStatus === "verified") {
+      matchedRules.push("cctp_attestation_unverifiable_in_preview");
+      reasonCodes.push("CCTP_ATTESTATION_UNVERIFIABLE_IN_PREVIEW");
+      reasonParts.push("AgentPay Guard cannot verify a claimed CCTP attestation in preview.");
+      hasReview = true;
+    }
+
+    if (
+      amountIsValid &&
+      routeContext.finalityMode === "fast-transfer" &&
+      compareDecimalStrings(intent.amount, policy.crossChain.fastTransferReviewThreshold) === 1
+    ) {
+      matchedRules.push("cctp_fast_transfer_review_required");
+      reasonCodes.push("CCTP_FAST_TRANSFER_REVIEW_REQUIRED");
+      reasonParts.push("Fast Transfer amount exceeds the local CCTP review threshold.");
+      hasReview = true;
+    }
+
+    if (
+      amountIsValid &&
+      routeContext.walletControlModel === "developer-controlled" &&
+      compareDecimalStrings(intent.amount, policy.crossChain.developerControlledReviewThreshold) === 1
+    ) {
+      matchedRules.push("cctp_developer_controlled_review_required");
+      reasonCodes.push("CCTP_DEVELOPER_CONTROLLED_REVIEW_REQUIRED");
+      reasonParts.push("Developer-controlled wallet amount exceeds the local CCTP review threshold.");
+      hasReview = true;
+    }
+
+    if (amountIsValid) {
+      const totalProposedSpend = addDecimalStrings([intent.amount, routeContext.estimatedFee ?? "0"]);
+      if (totalProposedSpend && compareDecimalStrings(totalProposedSpend, policy.crossChain.maxTotalUsdcSpend) === 1) {
+        matchedRules.push("total_usdc_budget_exceeded");
+        reasonCodes.push("TOTAL_USDC_BUDGET_EXCEEDED");
+        reasonParts.push("Total proposed USDC spend exceeds the local CCTP budget.");
+        hasBlock = true;
+      }
+    }
+  }
+
   const normalizedIntent = intent.intent.toLowerCase();
   const suspiciousMatches = policy.suspiciousKeywords.filter((keyword) => normalizedIntent.includes(keyword.toLowerCase()));
   if (suspiciousMatches.length > 0) {
