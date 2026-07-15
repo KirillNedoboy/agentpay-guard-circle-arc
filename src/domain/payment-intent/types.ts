@@ -13,6 +13,30 @@ export type PaymentPurpose =
   | "verification_or_attestation"
   | "unknown";
 
+export type TransferMode = "single-chain" | "cctp" | "gateway";
+
+export type CctpFinalityMode = "standard" | "fast-transfer";
+
+export type CctpAttestationStatus = "not_requested" | "pending" | "verified";
+
+export type WalletControlModel = "user-controlled" | "developer-controlled";
+
+export type PaymentOperation = "transfer" | "approve" | "transferFrom";
+
+export type GasPaymentMode = "native-gas" | "usdc-paymaster-preview";
+
+export type RouteContext = {
+  transferMode: TransferMode;
+  sourceChain: string;
+  destinationChain: string;
+  finalityMode?: CctpFinalityMode;
+  attestationStatus?: CctpAttestationStatus;
+  walletControlModel?: WalletControlModel;
+  estimatedFee?: string;
+  feeAsset?: "USDC";
+  gasPaymentMode?: GasPaymentMode;
+};
+
 export type CircleRailPreview = {
   rail: CircleRail;
   networkLabel: string;
@@ -32,6 +56,10 @@ export type PaymentIntent = {
   scenario: string;
   paymentRail: string;
   idempotencyKey: string;
+  operation?: PaymentOperation;
+  spender?: string;
+  amountBaseUnits?: string;
+  routeContext?: RouteContext;
 };
 
 export type PolicyDecision = {

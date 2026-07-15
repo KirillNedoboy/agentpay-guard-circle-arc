@@ -1,6 +1,16 @@
 import type { PaymentIntent } from "./types";
 
-const fields: Array<keyof PaymentIntent> = [
+type RequiredPaymentIntentField =
+  | "agentId"
+  | "intent"
+  | "amount"
+  | "currency"
+  | "recipient"
+  | "scenario"
+  | "paymentRail"
+  | "idempotencyKey";
+
+const fields: RequiredPaymentIntentField[] = [
   "agentId",
   "intent",
   "amount",

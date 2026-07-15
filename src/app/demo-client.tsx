@@ -32,7 +32,15 @@ type EvaluationResult = {
   railPreview?: CircleRailPreview;
 };
 
-type FieldName = keyof PaymentIntent;
+type FieldName =
+  | "agentId"
+  | "intent"
+  | "amount"
+  | "currency"
+  | "recipient"
+  | "scenario"
+  | "paymentRail"
+  | "idempotencyKey";
 
 type CitePayEvaluatedSource = CitePaySelectedSource & {
   result: EvaluationResult;
