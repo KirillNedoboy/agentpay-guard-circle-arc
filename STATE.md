@@ -8,7 +8,7 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 
 ## Current phase
 
-`PROGRAMMABLE_PAYMENT_EVIDENCE_COMPLETE`
+`DEMO_SCENARIOS_AND_JUDGE_EVIDENCE_COMPLETE`
 
 ## Done
 
@@ -45,6 +45,10 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 - Audit JSONL records persist optional normalized programmable-payment proposal context while legacy entries remain readable and idempotent replays reuse the original line.
 - AgentPay Receipt carries the same optional proposal context and explicitly remains policy/evidence, not a payment or settlement receipt.
 - API evidence tests cover valid CCTP, ERC-20, and Paymaster-preview requests plus validation and storage fail-closed posture without changing the route.
+- Validator mode now loads the three original generic scenarios plus Fast Transfer CCTP review, standard CCTP allow, unsupported CCTP route block, and ERC-20 approval review fixtures.
+- One compact programmable-evidence renderer shows proposal-only route, authority, fee, base-unit, policy, and preview-boundary context in decisions, validator output, receipts, and audit proof.
+- CCTP evidence includes a four-step preview-only lane; it does not claim burn, Iris attestation, mint, or settlement execution.
+- Phase 6 browser verification covered desktop and a `390x844` mobile viewport; receipts continued to show `fundsMoved: false`.
 
 ## In progress
 
@@ -71,7 +75,7 @@ The prior Lepton/CitePay and Mantle research-flow materials are useful narrative
 
 ## Next safe step
 
-Phase 6: demo scenarios and judge-visible evidence. Do not begin it as part of this checkpoint.
+Phase 7: next approved incremental scope. Keep programmable-payment evidence proposal-only.
 
 ```bash
 pnpm test

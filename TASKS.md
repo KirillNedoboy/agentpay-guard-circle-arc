@@ -96,7 +96,14 @@ Phase 4 did not change the audit writer or schema, receipt builder, API endpoint
 - [x] Keep execution-only fields out of audit records and receipts.
 - [x] Extend receipt evidence with explicit policy-only safety wording and `fundsMoved: false`.
 - [x] Add isolated API tests for valid evidence and fail-closed validation/storage errors.
-- [ ] Phase 6: demo scenarios and judge-visible evidence.
+- [x] Add CCTP Fast Transfer review, standard CCTP allow, unsupported CCTP route block, and ERC-20 approval review fixtures without replacing generic scenarios.
+- [x] Load the four additive fixtures in validator mode and preserve CitePay selection behavior.
+- [x] Render programmable route, authority, fee, base-unit, matched-rule, reason-code, and preview-boundary evidence in decision, validator, receipt, and audit views.
+- [x] Show the CCTP lane as four preview-only steps with no execution/tracker claims.
+- [x] Run desktop and `390x844` mobile Playwright checks, restore `next-env.d.ts`, and remove local audit and Playwright artifacts.
+- [x] Phase 6: demo scenarios and judge-visible evidence.
+
+Phase 6 retained policy, validation, audit writer, receipt builder, API semantics, CitePay flow, visual system, generic fixtures, public docs, dependencies, and all execution boundaries.
 
 Phase 5 did not change UI, demo fixtures, README, submission/public documentation, payment execution, wallet/signing, RPC/network calls, database/authentication, dependencies, or API route behavior.
 

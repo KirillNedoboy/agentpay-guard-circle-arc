@@ -1073,3 +1073,37 @@ Completed Phase 5 only on `feature/programmable-money-context-foundation` after 
 ### Next phase
 
 Phase 6: demo scenarios and judge-visible evidence.
+
+## 2026-07-16 — Demo scenarios and judge-visible evidence
+
+### Commits
+
+- `d4143d2 feat: add CCTP policy demo scenarios`
+- `dafed46 feat: show programmable payment decision evidence`
+
+### What changed
+
+- Added four validator-only proposal fixtures: Fast Transfer CCTP `REVIEW` at `5.01`, standard CCTP `ALLOW`, unsupported CCTP route `BLOCK`, and trusted ERC-20 approval `REVIEW` with six-decimal base units.
+- Kept the three generic fixtures and the CitePay source-selection flow unchanged.
+- Added pure evidence rows from `railPreview` and `programmablePaymentContext`, including route, finality, attestation claim, wallet control, amount, fee, total, gas mode, authority, and base units when present.
+- Reused the compact evidence block in decision cards, validator results, the selected receipt, and expanded audit proof. The CCTP lane is labelled `Preview only` and says that burn, Iris attestation, and mint were not executed.
+
+### Lazyweb
+
+- Report generation failed with `image_url_fetch_failed:400` / `Image fetch failed with status 400` after the upload step. No report URL exists. The request was not retried.
+
+### Validation
+
+- `pnpm test`: passed, 10 files and 138 tests.
+- `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check`: passed before the tracker update.
+- Playwright desktop checks exercised Fast Transfer CCTP `REVIEW`, standard CCTP `ALLOW`, unsupported CCTP route `BLOCK`, and ERC-20 approval `REVIEW`; receipt evidence showed `fundsMoved: false`.
+- Playwright mobile inspection at `390x844` showed the evidence cards in a single column without horizontal overflow.
+- Restored generated `next-env.d.ts` drift and removed `.playwright-cli/` and transient local JSONL audit entries.
+
+### Scope retained
+
+- No policy, validation, audit-writer, receipt-builder, API, CitePay, generic-fixture, public-documentation, dependency, network, signing, wallet, permit, UserOperation, transaction, or settlement behavior changed.
+
+### Next phase
+
+Phase 7: next approved incremental scope.

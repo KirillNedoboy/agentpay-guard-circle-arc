@@ -141,11 +141,19 @@ Do not add without explicit approval:
 - `tests/receipt.test.ts`
 - `tests/api-safe-failure.test.ts`
 
-## Preview/mock only
+## Phase 6 checkpoint
 
-- No new scenarios or UI rendering was added.
+- Branch: `feature/programmable-money-context-foundation`
+- Fixture commit: `d4143d2 feat: add CCTP policy demo scenarios`
+- Evidence UI commit: `dafed46 feat: show programmable payment decision evidence`
+- The validator adds Fast Transfer CCTP `REVIEW`, standard CCTP `ALLOW`, unsupported CCTP route `BLOCK`, and ERC-20 approval `REVIEW`; the original generic fixtures and CitePay selection remain intact.
+- Evidence rows derive only from `railPreview` and persisted `programmablePaymentContext`; CCTP shows the proposed route plus explicit not-executed burn, Iris, and mint steps.
+- Receipt and audit evidence remain proposal-only; `fundsMoved` stays `false` and no transaction, signature, permit, UserOperation, bundler, or settlement data is created.
+- Lazyweb report generation failed with `image_url_fetch_failed:400` / `Image fetch failed with status 400`; no report URL exists and the request was not retried.
+- Desktop and `390x844` mobile Playwright checks passed after exercising the new CCTP and ERC-20 scenarios.
+- Final test suite: 10 files, 138 tests. No changes to policy, validation, audit writer, receipt builder, API semantics, public docs, or execution boundaries.
 - No live network, wallet, signing, custody, database, authentication, telemetry, or dependency was added.
 
 ## Next recommended step
 
-Phase 6: demo scenarios and judge-visible evidence. Do not begin it as part of this checkpoint.
+Phase 7: next approved incremental scope. Do not expand execution capabilities without explicit approval.
