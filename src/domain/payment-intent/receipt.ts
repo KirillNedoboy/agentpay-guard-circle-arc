@@ -1,8 +1,9 @@
 import type { AuditRecord } from "@/domain/audit/types";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "./rail-preview";
-import type { CircleRailPreview, Decision, PaymentPurpose } from "./types";
+import type { CircleRailPreview, Decision, PaymentPurpose, ProgrammablePaymentContext } from "./types";
 
-const receiptSafetyNote = "preview/mock only; no live Circle, Arc, or x402 payment executed.";
+const receiptSafetyNote =
+  "policy/evidence artifact only; not a payment receipt. No funds moved; no allowance or balance read; no CCTP burn or mint; no Iris attestation requested; no UserOperation or permit created. preview/mock only; no live Circle, Arc, or x402 payment executed.";
 
 export type AgentPayReceipt = {
   receiptType: "agentpay_receipt";
@@ -15,6 +16,7 @@ export type AgentPayReceipt = {
   purpose: PaymentPurpose;
   decision: Decision;
   reasonCodes: string[];
+  programmablePaymentContext?: ProgrammablePaymentContext;
   railPreview: CircleRailPreview;
   executionMode: CircleRailPreview["executionMode"];
   fundsMoved: false;
@@ -48,6 +50,7 @@ export function buildAgentPayReceipt(record: AuditRecord): AgentPayReceipt {
     purpose: record.purpose ?? mapScenarioToPaymentPurpose(record.scenario),
     decision: record.decision,
     reasonCodes: record.reasonCodes ?? [],
+    ...(record.programmablePaymentContext ? { programmablePaymentContext: record.programmablePaymentContext } : {}),
     railPreview,
     executionMode: record.executionMode ?? railPreview.executionMode,
     fundsMoved: false,
