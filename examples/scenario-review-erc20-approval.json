@@ -1,0 +1,14 @@
+{
+  "agentId": "agent_erc20_approval_demo_001",
+  "intent": "Propose USDC ERC-20 approval for trusted agent service",
+  "amount": "5.01",
+  "currency": "USDC",
+  "recipient": "trusted-x402-api.demo",
+  "scenario": "api_access",
+  "paymentRail": "mock_x402_service",
+  "idempotencyKey": "demo-erc20-approval-review-001",
+  "operation": "approve",
+  "spender": "trusted-agent-service",
+  "amountBaseUnits": "5010000",
+  "expectedDecision": "REVIEW"
+}

@@ -1,0 +1,22 @@
+{
+  "agentId": "agent_cctp_standard_demo_001",
+  "intent": "Propose standard USDC CCTP route for trusted API access",
+  "amount": "0.08",
+  "currency": "USDC",
+  "recipient": "trusted-x402-api.demo",
+  "scenario": "api_access",
+  "paymentRail": "mock_x402_service",
+  "idempotencyKey": "demo-cctp-standard-allow-001",
+  "routeContext": {
+    "transferMode": "cctp",
+    "sourceChain": "ethereum",
+    "destinationChain": "base",
+    "finalityMode": "standard",
+    "attestationStatus": "not_requested",
+    "walletControlModel": "user-controlled",
+    "estimatedFee": "0.01",
+    "feeAsset": "USDC",
+    "gasPaymentMode": "native-gas"
+  },
+  "expectedDecision": "ALLOW"
+}
