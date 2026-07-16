@@ -10,7 +10,14 @@ import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/cit
 import type { AuditRecord } from "@/domain/audit/types";
 import { buildAgentPayReceipt, type AgentPayReceipt } from "@/domain/payment-intent/receipt";
 import type { CircleRailPreview, PaymentIntent } from "@/domain/payment-intent/types";
-import { buildAuditPreview, buildDemoSummary, buildRailPreviewRows, buildReasonCodeRows } from "./demo-metrics";
+import {
+  buildAuditPreview,
+  buildCctpRouteExplanation,
+  buildDemoSummary,
+  buildProgrammableEvidenceRows,
+  buildRailPreviewRows,
+  buildReasonCodeRows
+} from "./demo-metrics";
 
 export type Scenario = {
   label: string;
@@ -258,7 +265,44 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     }
   }
 
-  function renderRailPreview(preview: CircleRailPreview | undefined) {
+  function renderProgrammableEvidence(preview: CircleRailPreview | undefined, context?: AuditRecord["programmablePaymentContext"]) {
+    const rows = buildProgrammableEvidenceRows(preview, context);
+    const cctpRouteExplanation = buildCctpRouteExplanation(preview);
+    if (!rows.length && !cctpRouteExplanation) {
+      return null;
+    }
+
+    return (
+      <section className="programmable-evidence" aria-label="Programmable payment evidence">
+        <div className="programmable-evidence-head">
+          <strong>Programmable payment evidence</strong>
+          <span>Preview only</span>
+        </div>
+        {rows.length ? (
+          <dl className="programmable-evidence-grid">
+            {rows.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd className={label === "Operation" || label === "Spender" || label === "Amount base units" ? "mono-text" : ""}>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+        {cctpRouteExplanation ? (
+          <div className="cctp-route-explanation">
+            <strong>{cctpRouteExplanation.label}</strong>
+            <ol>
+              {cctpRouteExplanation.steps.map((step) => (
+                <li key={step}>{step}</li>
+              ))}
+            </ol>
+          </div>
+        ) : null}
+      </section>
+    );
+  }
+
+  function renderRailPreview(preview: CircleRailPreview | undefined, context?: AuditRecord["programmablePaymentContext"]) {
     const rows = buildRailPreviewRows(preview);
     if (!rows.length) {
       return null;
@@ -280,6 +324,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
             </div>
           ))}
         </dl>
+        {renderProgrammableEvidence(preview, context)}
         <p>{preview?.explanation ?? "Live payment rail is disabled. This response is a preview, not settlement."}</p>
         <p className="rail-preview-boundary">No funds move in mock mode.</p>
       </div>
@@ -725,7 +770,11 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
                     </dd>
                   </div>
                 </dl>
-                {renderRailPreview(agentPayReceipt.railPreview)}
+                <div className="wide-proof-row">
+                  <dt>Matched rules</dt>
+                  <dd className="rule-list-inline">{selectedAuditRecord?.matchedRules.length ? selectedAuditRecord.matchedRules.join(", ") : "none"}</dd>
+                </div>
+                {renderRailPreview(agentPayReceipt.railPreview, agentPayReceipt.programmablePaymentContext)}
                 <p className="receipt-note">{agentPayReceipt.safetyNote}</p>
               </article>
 
@@ -793,6 +842,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
               <div className="audit-json-block">
                 <h4>Structured audit preview</h4>
                 <pre>{JSON.stringify(auditPreview, null, 2)}</pre>
+                {renderProgrammableEvidence(auditPreview.railPreview, auditPreview.programmablePaymentContext)}
               </div>
             ) : null}
           </div>
