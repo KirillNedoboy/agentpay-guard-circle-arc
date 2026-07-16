@@ -156,4 +156,16 @@ Do not add without explicit approval:
 
 ## Next recommended step
 
-Phase 7: next approved incremental scope. Do not expand execution capabilities without explicit approval.
+## Phase 7 checkpoint
+
+- Branch: `feature/programmable-money-context-foundation`.
+- Phase 1–6 commits remain: `6e6fac5`, `768d9e4`, `72b11e8`, `8180f12`, `34dfc94`, `1c8e15f`, `547b1d1`, `536a47b`, `bba6967`, `596ab05`, `d4143d2`, and `dafed46`.
+- Documentation now covers policy-only CCTP route preview, ERC-20 authority context, Paymaster fee-budget preview, audit persistence, idempotency, receipt evidence, and generic/CitePay compatibility.
+- Added real local screenshots `08` through `12` for CCTP review/allow/block, ERC-20 approval review, and receipt evidence.
+- Baseline validation remains 10 test files and 138 tests; documentation work does not change product behavior.
+- Manual local evidence confirms the new scenarios, reason codes, route/authority/fee fields, audit ID, and `fundsMoved: false`.
+- No live execution, wallet, signing, private keys, permits, UserOperations, transaction hashes, balance/allowance reads, CCTP burn/mint, Iris verification, settlement/finality claim, production compliance claim, or official partnership claim was added.
+
+## Next recommended step
+
+After review or merge, push the existing branch or open a PR. Do not begin a new implementation phase.

@@ -252,3 +252,42 @@ MVP is done only when:
 AgentPay Guard is the decision layer before the payment rail.
 
 It should not pretend to be the payment rail.
+
+## 16. Implemented programmable-payment policy contexts
+
+The MVP also supports optional proposal context while preserving legacy generic intents and the CitePay source-selection flow:
+
+- strict optional `operation`, `spender`, USDC base-unit, route, fee, finality, wallet-control, and gas-preview validation;
+- deterministic CCTP route policy for local demo pairs, review conditions, and a decimal-string total budget;
+- deterministic ERC-20 authority policy for proposed `approve` and `transferFrom` operations;
+- a separate local Paymaster total-cost demo policy for `usdc-paymaster-preview`;
+- nested preview-only CCTP, ERC-20 authority, and Paymaster context inside the existing rail preview;
+- append-only audit persistence and idempotent replay of optional normalized programmable-payment context;
+- AgentPay Receipt policy evidence with `fundsMoved: false`;
+- judge-visible generic, CCTP, and ERC-20 validator scenarios.
+
+These fields are policy inputs and evidence. They are not protocol confirmations or settlement results.
+
+## 17. Programmable context boundary
+
+The MVP does not execute a CCTP burn or mint, verify Iris, query an ERC-20 allowance or balance, sign an approval, construct a UserOperation, create a permit, contact a bundler or EntryPoint, pay gas, or confirm settlement or finality.
+
+The CCTP and Paymaster budgets are local demo-policy values, not Circle protocol limits.
+
+## 18. Audit and compatibility
+
+- New JSONL records may include optional `programmablePaymentContext` proposal evidence.
+- Legacy records without this section still parse and normalize.
+- Replaying an existing `idempotencyKey` returns its existing audit record without appending a line.
+- Invalid nested context is rejected before audit writing and cannot return `ALLOW`.
+
+## 19. Phase 7 documentation acceptance
+
+The submission-ready proof must document the preview boundary, include real screenshots for CCTP and ERC-20 scenarios, preserve the existing generic and CitePay path, and keep all commands below passing:
+
+```bash
+pnpm test
+pnpm lint
+pnpm typecheck
+pnpm build
+```

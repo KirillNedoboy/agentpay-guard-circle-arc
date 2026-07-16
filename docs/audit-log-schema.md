@@ -44,6 +44,18 @@ Each line is a complete JSON object. The file is append-only, except that a repe
     "AMOUNT_WITHIN_LIMIT"
   ],
   "reason": "Recipient is allowlisted, amount is below limits, and scenario is allowed.",
+  "programmablePaymentContext": {
+    "transferMode": "cctp",
+    "sourceChain": "ethereum",
+    "destinationChain": "base",
+    "finalityMode": "standard",
+    "attestationStatus": "not_requested",
+    "walletControlModel": "user-controlled",
+    "estimatedFee": "0.01",
+    "feeAsset": "USDC",
+    "gasPaymentMode": "native-gas",
+    "totalProposedSpendUSDC": "0.09"
+  },
   "executionMode": "mock_preview",
   "railPreview": {
     "rail": "mock_x402_service",
@@ -85,6 +97,19 @@ Each line is a complete JSON object. The file is append-only, except that a repe
 - `executionMode`
 - `railPreview`
 
+`programmablePaymentContext` is optional. Older JSONL lines do not contain it and remain valid.
+
+## Optional programmable-payment context
+
+When a request includes proposal context, the audit writer persists only normalized policy input/evidence:
+
+- authority: `operation`, `spender`, `amountBaseUnits`;
+- route: `transferMode`, `sourceChain`, `destinationChain`, `finalityMode`, `attestationStatus`, `walletControlModel`;
+- fee: `estimatedFee`, `feeAsset`, `gasPaymentMode`;
+- `totalProposedSpendUSDC` when an estimated fee is present, derived with decimal-string addition.
+
+This object does not record an on-chain allowance or balance, signature, permit, UserOperation, transaction hash, CCTP burn/mint, Iris attestation, gas payment, or settlement/finality result. It records the context that local policy evaluated.
+
 ## Structured audit preview
 
 The UI renders a copyable structured audit preview for the most recent audit record. It uses the stored fields directly when present and falls back to the legacy fields for older JSONL lines:
@@ -95,9 +120,11 @@ The UI renders a copyable structured audit preview for the most recent audit rec
 - `purpose` from `purpose` or deterministic scenario mapping
 - `rail` from `rail` or `railPreview.rail`
 - `decision`
+- `matchedRules`
 - `reasonCodes`
 - `executionMode`
 - `railPreview`
+- optional `programmablePaymentContext`
 
 ## Rules
 
@@ -109,3 +136,4 @@ The UI renders a copyable structured audit preview for the most recent audit rec
 - No signatures.
 - No fake transaction hashes.
 - No live payment execution evidence is written by this MVP.
+- An idempotent replay returns the existing line rather than appending another record.

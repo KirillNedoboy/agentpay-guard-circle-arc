@@ -1,20 +1,29 @@
 # Challenge demo screenshots
 
-These screenshots were captured from the local AgentPay Guard demo running in production mode.
+All PNG files are real captures from the local AgentPay Guard UI. They document policy decisions and proposal evidence only; none shows payment execution or a live protocol integration.
 
-They show the current challenge submission flow only. The screenshots do not show live Circle, Arc, x402, wallet signing, transaction execution, or real fund movement.
+## Legacy generic evidence
 
-## Screenshot index
+| File | What it shows |
+|---|---|
+| `screenshots/01-allow-decision.png` | Original trusted generic intent returning `ALLOW`. |
+| `screenshots/02-review-decision.png` | Original generic review decision. |
+| `screenshots/03-block-decision.png` | Original generic block decision. |
+| `screenshots/04-audit-log.png` | Original audit-log view. |
+| `screenshots/05-citepay-preset-loaded.png` | Existing CitePay preset selection. |
+| `screenshots/06-citepay-guard-decisions.png` | Existing CitePay Guard outcomes. |
+| `screenshots/07-citepay-spend-summary.png` | Existing CitePay spend summary. |
+
+## Programmable-payment evidence
 
 | File | What it proves |
 |---|---|
-| `docs/assets/screenshots/demo-main.png` | Shows the main demo screen before execution, including the AgentPay Guard positioning, boundary card, mock-rail labels, and initial proof state. |
-| `docs/assets/screenshots/scenario-allow.png` | Shows the trusted x402 verification API scenario returning `ALLOW`, with audit ID, matched rules, reason codes, and preview-only x402 rail metadata. |
-| `docs/assets/screenshots/scenario-review.png` | Shows the premium evidence bundle scenario returning `REVIEW`, with operator-review reasoning, amount-threshold evidence, audit ID, reason codes, and mock Circle Gateway-style preview metadata. |
-| `docs/assets/screenshots/scenario-block.png` | Shows the untrusted scrape cache scenario returning `BLOCK`, with denied-recipient reasoning, audit ID, reason codes, and mock Arc settlement preview metadata. |
-| `docs/assets/screenshots/audit-preview.png` | Shows the expanded audit log and structured audit preview visible after the demo run. |
-| `docs/assets/screenshots/agentpay-receipt.png` | Shows the AgentPay Receipt proof artifact with decision, reason codes, `fundsMoved: false`, execution mode, and preview-only rail metadata. |
+| `screenshots/08-cctp-fast-transfer-review.png` | CCTP Fast Transfer `REVIEW`, local reason codes, proposed Ethereum to Base route, finality, developer-controlled context, estimated fee, decimal-safe total, and non-execution boundary. |
+| `screenshots/09-cctp-standard-allow.png` | Standard CCTP Ethereum to Base `ALLOW` with proposal-only route and fee context. |
+| `screenshots/10-cctp-unsupported-route-block.png` | Unsupported CCTP route `BLOCK` with `CCTP_ROUTE_UNSUPPORTED`; it remains a proposed route, not a protocol attempt. |
+| `screenshots/11-erc20-approval-review.png` | ERC-20 `approve` `REVIEW`, trusted spender, and six-decimal USDC base-unit evidence. |
+| `screenshots/12-programmable-audit-receipt.png` | AgentPay Receipt with audit ID, reason codes, matched rules, programmable authority context, and `fundsMoved: false`. |
 
 ## Boundary
 
-All rail data shown in the screenshots is preview-only. AgentPay Guard does not move funds, sign transactions, connect wallets, custody assets, call live Circle or Arc services, run a live x402 buyer or seller flow, or create transaction hashes.
+The screenshots do not show live Circle, Arc, CCTP, Gateway, x402, Iris, wallet, signing, permit, UserOperation, bundler, EntryPoint, gas-payment, transaction, balance, settlement, or finality behavior. They show local deterministic policy and evidence before any future settlement adapter.

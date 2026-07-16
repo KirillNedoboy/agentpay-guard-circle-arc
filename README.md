@@ -1,113 +1,38 @@
 # AgentPay Guard
 
-> Preflight policy and audit layer for autonomous AI-agent USDC payment intents before x402, Circle Gateway, or Arc-compatible payment flows.
+> Deterministic policy and evidence layer for proposed AI-agent USDC payment intents before a future settlement adapter.
 
-## What this is
+## What it does
 
-AgentPay Guard is a local deterministic proof for the Stablecoins Commerce Stack / agentic economy track.
+AgentPay Guard accepts a proposed payment intent, validates its shape, applies local deterministic policy, returns `ALLOW`, `REVIEW`, or `BLOCK`, and writes or reuses append-only JSONL evidence by `idempotencyKey`.
 
-It shows the control point before an agent spends:
+The app is a local proof. It does not settle a payment. Its audit record and AgentPay Receipt preserve the policy decision and proposal context for review.
 
-1. an agent creates a USDC payment intent for a paid API, data source, or service;
-2. Guard validates the request and applies deterministic policy rules;
-3. Guard returns `ALLOW`, `REVIEW`, or `BLOCK`;
-4. Guard writes or reuses an append-only JSONL audit record;
-5. the UI shows a Circle/Arc rail preview without moving funds.
+## Implemented policy contexts
 
-This is not a live payment product. It is the guard and evidence layer before a future payment rail.
+- **CCTP route policy preview:** evaluates a proposed route such as Ethereum to Base. It is not a CCTP integration and does not burn or mint USDC, request Iris attestations, or call Circle.
+- **ERC-20 authority proposal context:** evaluates proposed `approve` and `transferFrom` operations with a spender and optional six-decimal USDC base units. It does not read an on-chain allowance or balance, sign an approval, or submit an ERC-20 transaction.
+- **USDC Paymaster fee-budget preview:** evaluates an estimated local USDC fee only for `usdc-paymaster-preview`. It does not create a UserOperation or permit, contact a bundler or EntryPoint, or pay gas.
+- **Audit and receipt evidence:** successful evaluations persist the optional normalized `programmablePaymentContext`; the receipt is an evidence artifact with `fundsMoved: false`.
 
-## Implemented now
-
-- Next.js / TypeScript local demo.
-- `POST /api/payment-intents/evaluate`.
-- `GET /api/audit-log`.
-- Decimal-string USDC amount handling.
-- Deterministic policy engine with trusted, review-required, unknown, and blocked recipient paths.
-- Circle/Arc rail preview adapter for:
-  - `mock_x402_service`;
-  - `mock_gateway_nanopayment`;
-  - `arc_settlement_preview`;
-  - `mock_agent_wallet`;
-  - unknown rails as `live_disabled`.
-- JSONL audit records with idempotency by `idempotencyKey`.
-- AgentPay Receipt proof artifact for every evaluated spend intent, sourced from existing audit evidence and marked preview-only.
-- Demo preset with visible `ALLOW`, `REVIEW`, and `BLOCK` outcomes.
-
-## Not implemented
-
-- no real payment execution;
-- no live Circle Gateway call;
-- no live Arc integration;
-- no live x402 buyer or seller flow;
-- no wallet signing;
-- no custody or private keys;
-- no transaction hash fabrication;
-- no DB/auth/smart contracts;
-- no AML/KYC or fraud guarantee;
-- no official Circle, Arc, or Ignyte integration claim.
-
-## Demo story
-
-A research agent needs paid evidence before publishing a thesis. It prepares USDC spend intents for:
-
-- `Trusted x402 verification API` at `0.08 USDC` -> `ALLOW`;
-- `Premium evidence bundle` at `0.25 USDC` -> `REVIEW`;
-- `Untrusted scrape cache` at `0.04 USDC` -> `BLOCK`;
-- `Telemetry attestation note` at `0.03 USDC` -> `REVIEW`.
-
-The UI shows proposed spend, allowed spend, matched policy rules, audit IDs, and the preview-only rail metadata.
-
-## Architecture
-
-```txt
-Agent workflow
-  -> paid API/data/service source
-  -> payment intent
-  -> AgentPay Guard policy evaluation
-  -> ALLOW / REVIEW / BLOCK
-  -> JSONL audit record
-  -> mock x402 / Circle Gateway / Arc rail preview
-```
-
-Payment execution remains outside this MVP.
-
-## Main API
-
-```http
-POST /api/payment-intents/evaluate
-```
-
-Typical response fields:
-
-- `decision`
-- `riskScore`
-- `reason`
-- `matchedRules`
-- `reasonCodes`
-- `policyId`
-- `auditId`
-- `createdAt`
-- `executionMode`
-- `railPreview`
-
-## Repository structure
-
-```txt
-src/                         app, UI, API, guard logic
-examples/                    sample payment-intent scenarios
-data/policies.default.json   default policy config
-data/audit-log.jsonl         local append-only audit log
-docs/                        architecture, demo, proof-pack notes
-screenshots/                 demo evidence
-```
+Generic intents remain compatible, as does the existing CitePay source-selection flow.
 
 ## Demo scenarios
 
-- `examples/scenario-allow-api.json` -> trusted x402 API purchase -> `ALLOW`
-- `examples/scenario-review-machine.json` -> premium dataset review -> `REVIEW`
-- `examples/scenario-block-risky.json` -> untrusted source block -> `BLOCK`
+The validator includes the original generic `ALLOW`, `REVIEW`, and `BLOCK` cases plus:
 
-## Run locally
+- CCTP Fast Transfer, Ethereum to Base, developer-controlled, `5.01` USDC plus `0.02` fee -> `REVIEW`.
+- Standard CCTP, Ethereum to Base -> `ALLOW`.
+- Unsupported CCTP route, Ethereum to Arbitrum -> `BLOCK`.
+- ERC-20 approval for `trusted-agent-service`, `5010000` base units -> `REVIEW`.
+
+All route, fee, authority, and receipt fields remain proposal-only evidence.
+
+## Safety boundary
+
+AgentPay Guard does not move funds, connect wallets, sign transactions, hold private keys, create permits or UserOperations, read balances or allowances, call Circle, Arc, CCTP, Gateway, x402, Iris, a bundler, or an EntryPoint, or create transaction hashes. It does not claim production compliance, AML/KYC, custody, settlement/finality confirmation, or official Circle, Arc, Encode, or Ignyte partnerships.
+
+## Run and verify
 
 ```bash
 pnpm install --frozen-lockfile
@@ -118,28 +43,16 @@ pnpm build
 pnpm dev
 ```
 
-Open:
+Open the local URL printed by Next.js, normally `http://localhost:3000`.
 
-```txt
-http://localhost:3000
-```
+The submitted baseline has 10 test files and 138 passing tests.
 
-If port 3000 is busy, Next.js will print the alternate local URL.
+## Reviewer path
 
-## Recommended reviewer path
-
-1. `README.md`
-2. `docs/ignyte-circle-arc-brief.md`
-3. `docs/architecture.md`
-4. `docs/demo-script.md`
-5. `docs/audit-log-schema.md`
+1. `docs/architecture.md`
+2. `docs/demo-script.md`
+3. `docs/audit-log-schema.md`
+4. `docs/submission-answers.md`
+5. `docs/screenshots.md`
 6. `data/policies.default.json`
-7. `tests/rail-preview.test.ts`
-
-## Roadmap
-
-- buyer-side x402/Gateway adapter after explicit approval;
-- operator review queue for `REVIEW`;
-- policy editor and audit export;
-- DB/auth/rate limiting for production hardening;
-- optional live sandbox integration only after wallet/signing/payment-execution scope is explicitly approved.
+7. `tests/`

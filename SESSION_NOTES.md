@@ -1107,3 +1107,31 @@ Phase 6: demo scenarios and judge-visible evidence.
 ### Next phase
 
 Phase 7: next approved incremental scope.
+
+## 2026-07-17 — Documentation and Submission Readiness
+
+### Scope
+
+Completed Phase 7 documentation and submission assets on `feature/programmable-money-context-foundation` from `1e3b808`.
+
+### What changed
+
+- Updated README, requirements, architecture, demo script, submission text, and audit-schema documentation to match the implemented optional programmable-payment policy context.
+- Kept CCTP route, ERC-20 authority, and Paymaster fee data explicitly proposal-only; no protocol, settlement, or production integration claim was added.
+- Added five real local screenshots for CCTP Fast Transfer `REVIEW`, standard CCTP `ALLOW`, unsupported CCTP route `BLOCK`, ERC-20 approval `REVIEW`, and AgentPay Receipt evidence.
+- Updated the screenshot index to use the repository `screenshots/` directory instead of missing asset paths.
+
+### Validation and manual demo
+
+- Baseline: `pnpm test` passed with 10 files and 138 tests; lint, typecheck, and build passed.
+- Local capture showed route/finality/wallet/fee/total evidence for Fast Transfer and authority/base-unit evidence for ERC-20 approval.
+- Receipt capture showed audit ID, reason codes, matched rules, programmable context, and `fundsMoved: false`.
+
+### Boundary retained
+
+- No policy, validation, audit, receipt, API, or UI code changed.
+- No live execution, wallet, signing, private key, permit, UserOperation, transaction, balance, settlement, finality, CCTP burn/mint, Iris verification, AML/KYC, custody, or official partnership capability or claim was added.
+
+### Next operation
+
+After review or merge, push the existing branch or open a PR. Do not begin another implementation phase.

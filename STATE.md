@@ -8,7 +8,7 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 
 ## Current phase
 
-`DEMO_SCENARIOS_AND_JUDGE_EVIDENCE_COMPLETE`
+`DOCUMENTATION_AND_SUBMISSION_READY`
 
 ## Done
 
@@ -49,6 +49,8 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 - One compact programmable-evidence renderer shows proposal-only route, authority, fee, base-unit, policy, and preview-boundary context in decisions, validator output, receipts, and audit proof.
 - CCTP evidence includes a four-step preview-only lane; it does not claim burn, Iris attestation, mint, or settlement execution.
 - Phase 6 browser verification covered desktop and a `390x844` mobile viewport; receipts continued to show `fundsMoved: false`.
+- Phase 7 documentation now describes implemented programmable-money policy as proposal-only evidence, with no live protocol or settlement claims.
+- Real local screenshots cover CCTP Fast Transfer review, standard CCTP allow, unsupported CCTP route block, ERC-20 approval review, and AgentPay Receipt context.
 
 ## In progress
 
@@ -75,7 +77,7 @@ The prior Lepton/CitePay and Mantle research-flow materials are useful narrative
 
 ## Next safe step
 
-Phase 7: next approved incremental scope. Keep programmable-payment evidence proposal-only.
+After review or merge, prepare the existing branch for push/PR. Do not start another implementation phase.
 
 ```bash
 pnpm test

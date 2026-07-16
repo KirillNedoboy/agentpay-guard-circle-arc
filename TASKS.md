@@ -105,6 +105,13 @@ Phase 4 did not change the audit writer or schema, receipt builder, API endpoint
 
 Phase 6 retained policy, validation, audit writer, receipt builder, API semantics, CitePay flow, visual system, generic fixtures, public docs, dependencies, and all execution boundaries.
 
+## Documentation and submission readiness — Phase 7
+
+- [x] Document optional programmable-money context, CCTP route policy, ERC-20 authority policy, Paymaster fee-budget preview, audit persistence, idempotency, receipt evidence, and generic/CitePay compatibility.
+- [x] Update architecture, demo narration, submission text, and audit schema without making protocol or settlement claims.
+- [x] Capture real CCTP, ERC-20, and receipt evidence screenshots and index them under `screenshots/`.
+- [x] Preserve all existing execution boundaries and list push/PR after review as the next operation.
+
 Phase 5 did not change UI, demo fixtures, README, submission/public documentation, payment execution, wallet/signing, RPC/network calls, database/authentication, dependencies, or API route behavior.
 
 ## Do not start without explicit approval

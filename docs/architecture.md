@@ -1,98 +1,50 @@
 # Architecture
 
-## MVP flow
+## Implemented flow
 
 ```txt
-Browser demo UI
-  ->
-POST /api/payment-intents/evaluate
-  ->
-Request validation
-  ->
-Policy config loader
-  ->
-Policy engine
-  ->
-Risk score + decision
-  ->
-Circle/Arc rail preview adapter
-  ->
-Audit JSONL append or idempotent reuse
-  ->
-Decision response
+Proposed payment intent
+  -> strict validation
+  -> deterministic local policy
+  -> ALLOW / REVIEW / BLOCK
+  -> preview-only route, authority, and fee explanation
+  -> append-only audit record or idempotent reuse
+  -> AgentPay Receipt evidence
+  -> future settlement adapter boundary
 ```
 
-## Payment rail boundary
+The browser demo calls `POST /api/payment-intents/evaluate`. The endpoint validates the request before policy evaluation, writes JSONL evidence only for successful evaluations, and returns the decision, matched rules, reason codes, audit ID, and existing `railPreview` field.
 
-```txt
-AI Agent / Machine Client
-  ->
-AgentPay Guard
-  ->
-ALLOW / REVIEW / BLOCK
-  ->
-mock x402 / Circle Gateway / Arc rail preview
-```
+## Implemented policy and evidence
 
-The MVP stops at the decision and preview layer. It does not call live payment rails.
+- Generic USDC policy checks currency, amount, recipient, scenario, daily limit, velocity, and suspicious terms.
+- CCTP route policy handles only proposal context. The local allowlist permits Ethereum to Base; same-chain and unsupported routes block. Fast Transfer, developer-controlled wallet context, and claimed verified attestation can require review.
+- ERC-20 authority policy handles proposal-only `approve` and `transferFrom` details. Decimal `amount` remains the policy amount; base units are informational evidence.
+- Paymaster policy handles only `usdc-paymaster-preview`. A missing estimated fee or developer-controlled context requires review; amount plus fee above the separate local demo budget blocks.
+- `programmablePaymentContext` is optional audit and receipt evidence. Legacy generic JSONL lines remain readable, and repeated `idempotencyKey` values reuse the existing line.
 
-## Rail preview adapter
+Decimal sums use string arithmetic. None of these contexts proves an on-chain protocol result.
 
-`src/domain/payment-intent/rail-preview.ts` maps a validated `PaymentIntent` to a typed `CircleRailPreview`.
+## Preview-only protocol context
 
-The preview includes:
+`railPreview` can contain nested CCTP route, ERC-20 authority, or Paymaster fee details. They describe what the policy evaluated:
 
-- rail label;
-- settlement asset `USDC`;
-- execution mode: `mock_preview` or `live_disabled`;
-- recipient;
-- amount;
-- explanation of the no-execution boundary.
+- a proposed native-USDC CCTP route, not a burn, Iris request, attestation verification, or mint;
+- a proposed authority operation, not an allowance/balance read or signed ERC-20 action;
+- a proposed USDC fee budget, not a UserOperation, permit, bundler/EntryPoint request, or gas payment.
 
-It intentionally does not include transaction hashes, signatures, private keys, network calls, or payment execution semantics.
+The AgentPay Receipt has `fundsMoved: false` and remains policy/evidence output, not a payment receipt or settlement result.
+
+## Future integration boundary
+
+Any settlement adapter is future, separately approved work. This repository has no live Circle, Arc, CCTP, Gateway, x402, Iris, wallet, signing, private-key, transaction, balance, finality, or custody capability.
 
 ## Main modules
 
 ```txt
-src/domain/payment-intent
-  types
-  validation
-  evaluate
-  rail-preview
-
-src/domain/policy
-  policy-config
-  engine
-
-src/domain/audit
-  types
-  audit-log
-
-src/domain/citepay
-  source-selection
-  types
-
-src/lib
-  decimal
-  paths
+src/domain/payment-intent  types, validation, evaluation, preview, receipt
+src/domain/policy          policy config and deterministic engine
+src/domain/audit           append-only JSONL records and idempotency
+src/domain/citepay         local source selection
+src/app                    demo UI and API routes
 ```
-
-## Persistence
-
-MVP uses files:
-
-- `data/policies.default.json`
-- `data/audit-log.jsonl`
-
-No DB is required for this slice.
-
-## Failure posture
-
-Internal error must not result in `ALLOW`.
-
-Expected behavior:
-
-- validation error -> structured 400 with `BLOCK`;
-- policy/audit internal error -> non-ALLOW safe failure;
-- unknown future rail -> `executionMode: "live_disabled"`;
-- no hidden payment execution path.
