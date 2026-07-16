@@ -1035,3 +1035,41 @@ Completed Phase 4 only on `feature/programmable-money-context-foundation` after 
 ### Next phase
 
 Phase 5: audit, receipt, API and idempotency evidence.
+
+## 2026-07-16 — Audit, Receipt, API and Idempotency Evidence
+
+### Scope
+
+Completed Phase 5 only on `feature/programmable-money-context-foundation` after the Paymaster-preview checkpoint.
+
+### Commits
+
+- `536a47b feat: audit programmable payment policy context`
+- `bba6967 feat: extend receipt with programmable payment evidence`
+- `596ab05 test: preserve programmable payment API safety`
+
+### What changed
+
+- Added optional nested `programmablePaymentContext` to audit JSONL records for operation, spender, base units, route details, fee details, and decimal-safe total proposed USDC spend.
+- Preserved legacy audit records without optional context and existing idempotency behavior: a replay returns the original record without adding another JSONL line.
+- Extended AgentPay Receipt with the same optional context, existing reason codes/execution mode/audit ID, and `fundsMoved: false`.
+- Reworded the receipt boundary to state it is a policy/evidence artifact, not a payment receipt; it does not report funds moved, allowance/balance reads, CCTP burn/mint, Iris attestations, UserOperations, or permits.
+- Added isolated API coverage for valid CCTP, ERC-20, and Paymaster-preview evidence plus validation and storage failure responses.
+
+### Validation
+
+- Audit RED: 3 context persistence tests failed before the audit schema/writer changes.
+- Audit GREEN: `pnpm test tests/audit-log.test.ts` passed with 7 tests.
+- Receipt RED: 4 context/boundary tests failed before receipt evidence changes.
+- Receipt GREEN: `pnpm test tests/receipt.test.ts` passed with 6 tests.
+- API safety coverage: `pnpm test tests/api-safe-failure.test.ts` passed with 5 tests without changing the route.
+- Full validation: `pnpm test` passed with 128 tests; `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Generic policy behavior plus CCTP, ERC-20, and Paymaster policy behavior are unchanged.
+- UI, demo fixtures, README, submission/public documentation, API route behavior, dependencies, live payment execution, RPC/network calls, wallets, signing, private keys, permits, UserOperations, transaction hashes, balances, attestation proofs, settlement state, database, and authentication were not added or changed.
+
+### Next phase
+
+Phase 6: demo scenarios and judge-visible evidence.

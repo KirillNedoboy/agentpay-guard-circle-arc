@@ -8,7 +8,7 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 
 ## Current phase
 
-`PAYMASTER_PREVIEW_TOTAL_COST_POLICY_COMPLETE`
+`PROGRAMMABLE_PAYMENT_EVIDENCE_COMPLETE`
 
 ## Done
 
@@ -42,6 +42,9 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 - Only `usdc-paymaster-preview` requires an estimated fee, reviews developer-controlled wallets, and blocks totals above its local budget.
 - Paymaster totals use decimal-string addition; exact `100.00` remains non-blocking.
 - `railPreview` can include nested Paymaster proposal context without constructing a UserOperation, permit, bundler/EntryPoint call, or gas payment.
+- Audit JSONL records persist optional normalized programmable-payment proposal context while legacy entries remain readable and idempotent replays reuse the original line.
+- AgentPay Receipt carries the same optional proposal context and explicitly remains policy/evidence, not a payment or settlement receipt.
+- API evidence tests cover valid CCTP, ERC-20, and Paymaster-preview requests plus validation and storage fail-closed posture without changing the route.
 
 ## In progress
 
@@ -68,7 +71,7 @@ The prior Lepton/CitePay and Mantle research-flow materials are useful narrative
 
 ## Next safe step
 
-Phase 5: audit, receipt, API and idempotency evidence. Do not begin it as part of this checkpoint.
+Phase 6: demo scenarios and judge-visible evidence. Do not begin it as part of this checkpoint.
 
 ```bash
 pnpm test

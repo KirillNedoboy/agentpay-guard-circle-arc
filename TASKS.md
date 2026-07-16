@@ -82,9 +82,23 @@ Phase 3 did not add a chain read, allowance or balance query, signing, permit, t
 - [x] Use `addDecimalStrings` for amount-plus-fee policy and preview totals.
 - [x] Preserve hard-block precedence and deduplicate matched rules and reason codes.
 - [x] Keep Paymaster context proposal-only with no UserOperation, permit, bundler/EntryPoint call, or gas payment.
-- [ ] Phase 5: audit, receipt, API and idempotency evidence.
+- [x] Persist normalized programmable-payment proposal context in JSONL without breaking legacy records or idempotency.
+- [x] Extend AgentPay Receipt with proposal context and explicit non-payment evidence boundaries.
+- [x] Prove valid programmable API evidence and validation/storage fail-closed responses without changing the route.
+- [x] Phase 5: audit, receipt, API and idempotency evidence.
 
 Phase 4 did not change the audit writer or schema, receipt builder, API endpoint or top-level response fields, UI, demo fixtures, public documentation, dependencies, environment, wallet/signing, RPC/network calls, or payment execution.
+
+## Audit, Receipt, API and Idempotency Evidence — Phase 5
+
+- [x] Persist CCTP, ERC-20, and Paymaster proposal context in append-only audit JSONL.
+- [x] Preserve legacy reader compatibility and idempotency replay behavior.
+- [x] Keep execution-only fields out of audit records and receipts.
+- [x] Extend receipt evidence with explicit policy-only safety wording and `fundsMoved: false`.
+- [x] Add isolated API tests for valid evidence and fail-closed validation/storage errors.
+- [ ] Phase 6: demo scenarios and judge-visible evidence.
+
+Phase 5 did not change UI, demo fixtures, README, submission/public documentation, payment execution, wallet/signing, RPC/network calls, database/authentication, dependencies, or API route behavior.
 
 ## Do not start without explicit approval
 

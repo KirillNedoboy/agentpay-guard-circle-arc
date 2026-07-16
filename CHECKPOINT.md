@@ -4,7 +4,7 @@
 
 AgentPay Guard is a local preflight policy and audit layer for AI-agent USDC payment intents before x402, Circle Gateway, or Arc-compatible payment flows.
 
-Current direction: deterministic ERC-20 authority-aware policy and USDC Paymaster-preview total-cost policy on top of the existing local builder proof.
+Current direction: deterministic programmable-payment policy, audit evidence, and receipt evidence on top of the existing local builder proof.
 
 ## Branch and commit
 
@@ -17,6 +17,9 @@ Current direction: deterministic ERC-20 authority-aware policy and USDC Paymaste
 - `34dfc94 feat: add ERC20 authority policy context`
 - `1c8e15f feat: display ERC20 authority and USDC base units`
 - `547b1d1 feat: add USDC fee budget preview policy`
+- `536a47b feat: audit programmable payment policy context`
+- `bba6967 feat: extend receipt with programmable payment evidence`
+- `596ab05 test: preserve programmable payment API safety`
 
 ## Implementation status
 
@@ -37,7 +40,12 @@ Current direction: deterministic ERC-20 authority-aware policy and USDC Paymaste
 - Only `gasPaymentMode: "usdc-paymaster-preview"` requires an estimated fee, requires review for developer-controlled wallets, and blocks a decimal-safe amount-plus-fee total above the budget.
 - Exact total-budget boundaries do not block. Existing hard blocks remain `BLOCK`, and returned reason codes and matched rules are deduplicated.
 - Paymaster details are nested inside the existing `railPreview` value and state that the app does not construct a UserOperation, create a permit, contact a bundler or EntryPoint, or pay gas.
-- Generic intents, generic rails, unknown rails, CCTP behavior, ERC-20 behavior, audit writer/schema, receipt builder, API endpoint and top-level response fields, UI, scenarios, and public documentation were not changed.
+- Generic intents, generic rails, unknown rails, CCTP behavior, ERC-20 behavior, API endpoint and top-level response fields, UI, scenarios, and public documentation were not changed.
+- Audit records now store optional nested `programmablePaymentContext` proposal/policy input: operation, spender, base units, route context, fee context, and decimal-safe total proposed USDC spend when available.
+- Legacy JSONL records without the optional context continue to normalize and read; same idempotency keys still reuse the original JSONL record without appending a second line.
+- AgentPay Receipt carries optional programmable context, existing reason codes/execution mode/audit ID, `fundsMoved: false`, and explicit wording that it is evidence rather than a payment or settlement receipt.
+- API tests prove valid CCTP/ERC-20/Paymaster previews retain decision, reason codes, audit ID, and rail preview evidence; validation and storage errors stay fail-closed with no partial audit evidence or internal paths.
+- UI, demo fixtures, README, submission/public documentation, API route behavior, dependencies, live execution, wallets, signing, network calls, database, and authentication were not changed.
 
 ## Validation status
 
@@ -91,6 +99,16 @@ pnpm build      # passed
 git diff --check # passed
 ```
 
+Final Phase 5 validation before memory update:
+
+```bash
+pnpm test       # passed, 9 files, 128 tests
+pnpm lint       # passed
+pnpm typecheck  # passed
+pnpm build      # passed
+git diff --check # passed
+```
+
 ## Safety boundaries
 
 Do not add without explicit approval:
@@ -115,12 +133,19 @@ Do not add without explicit approval:
 - `tests/rail-preview.test.ts`
 - `src/lib/usdc-base-units.ts`
 - `tests/usdc-base-units.test.ts`
+- `src/domain/payment-intent/programmable-payment-context.ts`
+- `src/domain/audit/types.ts`
+- `src/domain/audit/audit-log.ts`
+- `tests/audit-log.test.ts`
+- `src/domain/payment-intent/receipt.ts`
+- `tests/receipt.test.ts`
+- `tests/api-safe-failure.test.ts`
 
 ## Preview/mock only
 
-- No audit-context persistence, receipt expansion, new scenarios, or UI rendering was added.
+- No new scenarios or UI rendering was added.
 - No live network, wallet, signing, custody, database, authentication, telemetry, or dependency was added.
 
 ## Next recommended step
 
-Phase 5: audit, receipt, API and idempotency evidence. Do not begin it as part of this checkpoint.
+Phase 6: demo scenarios and judge-visible evidence. Do not begin it as part of this checkpoint.
