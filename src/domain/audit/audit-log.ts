@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
+import { buildProgrammablePaymentContext } from "@/domain/payment-intent/programmable-payment-context";
 import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/types";
 import type { AuditRecord } from "./types";
 
@@ -90,6 +91,7 @@ export async function createOrReuseAuditRecord(
 
     const timestamp = new Date().toISOString();
     const railPreview = buildCircleRailPreview(intent);
+    const programmablePaymentContext = buildProgrammablePaymentContext(intent);
     const record: AuditRecord = {
       eventType: "agent_payment_guard_evaluated",
       auditId: makeAuditId(records.length, timestamp),
@@ -114,6 +116,7 @@ export async function createOrReuseAuditRecord(
       matchedRules: decision.matchedRules,
       reasonCodes: decision.reasonCodes,
       reason: decision.reason,
+      ...(programmablePaymentContext ? { programmablePaymentContext } : {}),
       executionMode: railPreview.executionMode,
       railPreview
     };

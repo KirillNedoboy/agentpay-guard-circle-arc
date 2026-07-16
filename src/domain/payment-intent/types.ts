@@ -70,6 +70,22 @@ export type UsdcPaymasterPreview = {
   explanation: string;
 };
 
+export type ProgrammablePaymentContext = {
+  operation?: PaymentOperation;
+  spender?: string;
+  amountBaseUnits?: string;
+  transferMode?: TransferMode;
+  sourceChain?: string;
+  destinationChain?: string;
+  finalityMode?: CctpFinalityMode;
+  attestationStatus?: CctpAttestationStatus;
+  walletControlModel?: WalletControlModel;
+  estimatedFee?: string;
+  feeAsset?: "USDC";
+  gasPaymentMode?: GasPaymentMode;
+  totalProposedSpendUSDC?: string;
+};
+
 export type CircleRailPreview = {
   rail: CircleRail;
   networkLabel: string;

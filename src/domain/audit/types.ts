@@ -1,4 +1,4 @@
-import type { CircleRail, CircleRailPreview, Decision, PaymentPurpose } from "@/domain/payment-intent/types";
+import type { CircleRail, CircleRailPreview, Decision, PaymentPurpose, ProgrammablePaymentContext } from "@/domain/payment-intent/types";
 
 export type AuditRecord = {
   eventType: "agent_payment_guard_evaluated";
@@ -24,6 +24,7 @@ export type AuditRecord = {
   matchedRules: string[];
   reasonCodes: string[];
   reason: string;
+  programmablePaymentContext?: ProgrammablePaymentContext;
   executionMode: CircleRailPreview["executionMode"];
   railPreview: CircleRailPreview;
 };

@@ -23,6 +23,113 @@ afterEach(() => {
 });
 
 describe("audit log", () => {
+  test("persists normalized CCTP proposal context through a JSONL write and read", async () => {
+    const auditPath = makeTempAuditPath();
+    const intent = validatePaymentIntent({
+      agentId: "agent_audit_cctp_001",
+      intent: "Propose a USDC CCTP route for a trusted API payment",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      idempotencyKey: "audit-cctp-context",
+      routeContext: {
+        transferMode: "cctp",
+        sourceChain: "ethereum",
+        destinationChain: "base",
+        finalityMode: "standard",
+        attestationStatus: "not_requested",
+        walletControlModel: "user-controlled",
+        estimatedFee: "0.02",
+        feeAsset: "USDC",
+        gasPaymentMode: "native-gas"
+      }
+    });
+
+    await createOrReuseAuditRecord(auditPath, intent, evaluatePolicy(intent, policy, []));
+
+    const [record] = readRecentAuditRecords(auditPath, 10) as Array<{
+      programmablePaymentContext?: Record<string, unknown>;
+    }>;
+    expect(record.programmablePaymentContext).toEqual({
+      transferMode: "cctp",
+      sourceChain: "ethereum",
+      destinationChain: "base",
+      finalityMode: "standard",
+      attestationStatus: "not_requested",
+      walletControlModel: "user-controlled",
+      estimatedFee: "0.02",
+      feeAsset: "USDC",
+      gasPaymentMode: "native-gas",
+      totalProposedSpendUSDC: "0.1"
+    });
+  });
+
+  test("persists ERC-20 operation, spender, and base-unit proposal context", async () => {
+    const auditPath = makeTempAuditPath();
+    const intent = validatePaymentIntent({
+      agentId: "agent_audit_erc20_001",
+      intent: "Propose a USDC ERC-20 approval for a trusted service",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      idempotencyKey: "audit-erc20-context",
+      operation: "approve",
+      spender: "trusted-agent-service",
+      amountBaseUnits: "80000"
+    });
+
+    await createOrReuseAuditRecord(auditPath, intent, evaluatePolicy(intent, policy, []));
+
+    const [record] = readRecentAuditRecords(auditPath, 10) as Array<{
+      programmablePaymentContext?: Record<string, unknown>;
+    }>;
+    expect(record.programmablePaymentContext).toEqual({
+      operation: "approve",
+      spender: "trusted-agent-service",
+      amountBaseUnits: "80000"
+    });
+  });
+
+  test("persists Paymaster fee proposal context without execution-only fields", async () => {
+    const auditPath = makeTempAuditPath();
+    const intent = validatePaymentIntent({
+      agentId: "agent_audit_paymaster_001",
+      intent: "Propose a USDC Paymaster preview for a trusted API payment",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      idempotencyKey: "audit-paymaster-context",
+      routeContext: {
+        transferMode: "single-chain",
+        sourceChain: "ethereum",
+        destinationChain: "ethereum",
+        walletControlModel: "user-controlled",
+        estimatedFee: "0.02",
+        feeAsset: "USDC",
+        gasPaymentMode: "usdc-paymaster-preview"
+      }
+    });
+
+    await createOrReuseAuditRecord(auditPath, intent, evaluatePolicy(intent, policy, []));
+
+    const [record] = readRecentAuditRecords(auditPath, 10) as Array<{
+      programmablePaymentContext?: Record<string, unknown>;
+    }>;
+    expect(record.programmablePaymentContext).toMatchObject({
+      transferMode: "single-chain",
+      estimatedFee: "0.02",
+      gasPaymentMode: "usdc-paymaster-preview",
+      totalProposedSpendUSDC: "0.1"
+    });
+    expect(JSON.stringify(record)).not.toMatch(/transactionHash|txHash|signature|privateKey|balance|attestationProof|settlementStatus/i);
+  });
+
   test("reuses an existing audit record for the same idempotency key", async () => {
     const auditPath = makeTempAuditPath();
     const intent = validatePaymentIntent({
@@ -134,5 +241,29 @@ describe("audit log", () => {
       }
     });
     expect(readFileSync(auditPath, "utf8").trim().split("\n")).toHaveLength(1);
+  });
+
+  test("rejects malformed nested context before an audit line can be created", () => {
+    const auditPath = makeTempAuditPath();
+
+    expect(() =>
+      validatePaymentIntent({
+        agentId: "agent_invalid_context_001",
+        intent: "Invalid route context must not reach audit storage",
+        amount: "0.08",
+        currency: "USDC",
+        recipient: "trusted-x402-api.demo",
+        scenario: "api_access",
+        paymentRail: "mock_x402_service",
+        idempotencyKey: "audit-invalid-context",
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          providerId: "forbidden"
+        }
+      })
+    ).toThrow("routeContext contains an unsupported field: providerId.");
+    expect(readRecentAuditRecords(auditPath, 10)).toEqual([]);
   });
 });
