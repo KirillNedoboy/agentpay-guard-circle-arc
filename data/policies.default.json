@@ -55,5 +55,30 @@
   "decisionThresholds": {
     "reviewAt": 30,
     "blockAt": 70
+  },
+  "crossChain": {
+    "allowedCctpPairs": [
+      {
+        "sourceChain": "ethereum",
+        "destinationChain": "base"
+      }
+    ],
+    "fastTransferReviewThreshold": "5.00",
+    "developerControlledReviewThreshold": "5.00",
+    "maxTotalUsdcSpend": "100.00"
+  },
+  "paymaster": {
+    "maxTotalUsdcSpend": "100.00"
+  },
+  "allowances": {
+    "reviewThreshold": "5.00"
+  },
+  "spenders": {
+    "allowed": [
+      "trusted-agent-service"
+    ],
+    "denied": [
+      "blocked-spender"
+    ]
   }
 }

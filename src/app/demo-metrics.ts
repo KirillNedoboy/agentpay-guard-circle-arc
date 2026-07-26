@@ -1,7 +1,7 @@
 import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/citepay/types";
 import type { AuditRecord } from "@/domain/audit/types";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
-import type { CircleRailPreview } from "@/domain/payment-intent/types";
+import type { CircleRailPreview, ProgrammablePaymentContext } from "@/domain/payment-intent/types";
 import { addDecimalStrings } from "@/lib/decimal";
 
 export type DemoEvaluationResult = {
@@ -23,7 +23,12 @@ export type DemoSummary = {
 };
 
 export type RailPreviewRow = [label: string, value: string];
+export type ProgrammableEvidenceRow = [label: string, value: string];
 export type ReasonCodeRow = [label: "Reason codes", value: string];
+export type CctpRouteExplanation = {
+  label: "Preview only";
+  steps: string[];
+};
 export type StructuredAuditPreview = {
   intentId: string;
   recipientLabel: string;
@@ -31,9 +36,11 @@ export type StructuredAuditPreview = {
   purpose: string;
   rail: string;
   decision: string;
+  matchedRules: string[];
   reasonCodes: string[];
   executionMode: string;
   railPreview: CircleRailPreview;
+  programmablePaymentContext?: ProgrammablePaymentContext;
 };
 
 export function buildDemoSummary(
@@ -70,6 +77,89 @@ export function buildRailPreviewRows(preview: CircleRailPreview | undefined): Ra
   ];
 }
 
+export function buildProgrammableEvidenceRows(
+  preview: CircleRailPreview | undefined,
+  context?: ProgrammablePaymentContext
+): ProgrammableEvidenceRow[] {
+  if (!preview && !context) {
+    return [];
+  }
+
+  const cctp = preview?.cctpRoutePreview;
+  const authority = preview?.erc20AuthorityPreview;
+  const paymaster = preview?.usdcPaymasterPreview;
+  const rows: ProgrammableEvidenceRow[] = [];
+  const operation = context?.operation ?? authority?.operation;
+  const spender = context?.spender ?? authority?.spender;
+  const amountBaseUnits = context?.amountBaseUnits ?? authority?.suppliedAmountBaseUnits ?? authority?.derivedAmountBaseUnits;
+  const transferMode = context?.transferMode ?? (cctp ? "cctp" : undefined);
+  const sourceChain = cctp?.sourceChain ?? context?.sourceChain;
+  const destinationChain = cctp?.destinationChain ?? context?.destinationChain;
+  const finalityMode = cctp?.finalityMode ?? context?.finalityMode;
+  const attestation = cctp?.attestation ?? context?.attestationStatus?.replaceAll("_", " ");
+  const walletControlModel = cctp?.walletControlModel ?? paymaster?.walletControlModel ?? context?.walletControlModel;
+  const proposedAmount = cctp?.proposedAmountUSDC ?? paymaster?.proposedAmountUSDC;
+  const estimatedFee = cctp?.estimatedFeeUSDC ?? paymaster?.estimatedFeeUSDC ?? context?.estimatedFee;
+  const totalProposedSpend = cctp?.totalProposedSpendUSDC ?? paymaster?.totalProposedSpendUSDC ?? context?.totalProposedSpendUSDC;
+  const gasPaymentMode = context?.gasPaymentMode ?? paymaster?.gasPaymentMode;
+
+  if (operation) {
+    rows.push(["Operation", operation]);
+  }
+  if (spender) {
+    rows.push(["Spender", spender]);
+  }
+  if (amountBaseUnits) {
+    rows.push(["Amount base units", amountBaseUnits]);
+  }
+  if (transferMode) {
+    rows.push(["Transfer mode", transferMode]);
+  }
+  if (sourceChain && destinationChain) {
+    rows.push(["Route", `${sourceChain} → ${destinationChain}`]);
+  }
+  if (finalityMode && finalityMode !== "not specified") {
+    rows.push(["Finality", finalityMode]);
+  }
+  if (attestation) {
+    rows.push(["Attestation", attestation]);
+  }
+  if (walletControlModel) {
+    rows.push(["Wallet control", walletControlModel]);
+  }
+  if (proposedAmount) {
+    rows.push(["Proposed amount", `${proposedAmount} USDC`]);
+  }
+  if (estimatedFee) {
+    rows.push(["Estimated fee", `${estimatedFee} USDC`]);
+  }
+  if (totalProposedSpend) {
+    rows.push(["Total proposed spend", `${totalProposedSpend} USDC`]);
+  }
+  if (gasPaymentMode) {
+    rows.push(["Gas payment", gasPaymentMode]);
+  }
+
+  return rows;
+}
+
+export function buildCctpRouteExplanation(preview: CircleRailPreview | undefined): CctpRouteExplanation | null {
+  const cctp = preview?.cctpRoutePreview;
+  if (!cctp) {
+    return null;
+  }
+
+  return {
+    label: "Preview only",
+    steps: [
+      `Proposed ${cctp.sourceChain} USDC`,
+      "CCTP burn — not executed",
+      "Iris attestation — not requested / not verified here",
+      `Proposed ${cctp.destinationChain} USDC mint — not executed`
+    ]
+  };
+}
+
 export function buildReasonCodeRows(reasonCodes: string[] | undefined): ReasonCodeRow[] {
   if (!reasonCodes?.length) {
     return [];
@@ -103,8 +193,10 @@ export function buildAuditPreview(record: AuditRecord | undefined): StructuredAu
     purpose: record.purpose ?? mapScenarioToPaymentPurpose(record.scenario),
     rail: record.rail ?? railPreview.rail,
     decision: record.decision,
+    matchedRules: record.matchedRules ?? [],
     reasonCodes: record.reasonCodes ?? [],
     executionMode: record.executionMode ?? railPreview.executionMode,
-    railPreview
+    railPreview,
+    ...(record.programmablePaymentContext ? { programmablePaymentContext: record.programmablePaymentContext } : {})
   };
 }

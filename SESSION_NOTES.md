@@ -881,3 +881,257 @@ The safety scan matched boundary and non-goal language only, including explicit 
 ### Commit status
 
 Pending final diff inspection and commit.
+
+## 2026-07-15 — Programmable-money context foundation
+
+### Scope
+
+Completed Phase 0 and Phase 1 only on `feature/programmable-money-context-foundation`, starting from clean `main` at `99fbc46`.
+
+### Commits
+
+- `6e6fac5 feat: add optional programmable payment context types`
+- `768d9e4 feat: validate optional programmable payment context`
+
+### What changed
+
+- Added optional, typed programmable-money input context: operation, spender, USDC base units, and route context.
+- Kept legacy `PaymentIntent` fixtures valid without any added fields.
+- Added strict validation for route chains and enums, non-negative decimal fees, `USDC` fee asset, spender, base-unit strings, and unknown nested route fields.
+- Invalid optional context fails before policy evaluation and audit creation.
+- Added focused tests for the legacy path, valid CCTP context, invalid context variants, and API fail-closed behavior.
+
+### Validation
+
+- Baseline: `pnpm install --frozen-lockfile`, `pnpm test` (42 tests), `pnpm lint`, `pnpm typecheck`, and `pnpm build` passed.
+- Final code validation: `pnpm test` (64 tests), `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Policy behavior is unchanged when optional context is absent.
+- Audit schema, receipt, rail preview, scenarios, and UI behavior are unchanged.
+- CCTP policy, ERC-20 authority policy, Paymaster policy, context persistence, and new demo scenarios were not implemented.
+- No network execution, wallets, signing, custody, RPC, database, authentication, telemetry, or new dependency was added.
+
+### Next phase
+
+Phase 2: deterministic CCTP-first route policy.
+
+## 2026-07-15 — Deterministic CCTP-first route policy
+
+### Scope
+
+Completed Phase 2 only on `feature/programmable-money-context-foundation` after the Phase 1 checkpoint.
+
+### Commits
+
+- `72b11e8 feat: add deterministic CCTP route policy`
+- `8180f12 feat: add honest CCTP route preview`
+
+### What changed
+
+- Added local CCTP demo-policy for the `ethereum` to `base` pair, `5.00` Fast Transfer and developer-control review thresholds, and a `100.00` total USDC budget.
+- Preserved the existing generic `10.00` hard max. Fast Transfer amounts above `5.00` and at or below `10.00` now require review; larger amounts remain hard blocks.
+- Added deterministic block rules for same-chain and unsupported routes, plus review rules for claimed verified attestations, Fast Transfer, and developer-controlled wallets.
+- Reused `addDecimalStrings` for the amount-plus-fee budget check; no decimal helper changed.
+- Added CCTP details inside the existing rail preview: proposed native USDC, route, finality, attestation claim, optional fee, and total proposed spend.
+- The CCTP preview says no funds moved, no CCTP burn/mint occurred, no Iris attestation was requested, and no Circle API was called.
+
+### Validation
+
+- Policy RED: 10 new CCTP tests failed before configuration and policy rules existed.
+- Policy GREEN: `pnpm test tests/policy-engine.test.ts` passed with 29 tests.
+- Preview RED: 4 new preview tests failed before the nested CCTP preview existed.
+- Preview GREEN: `pnpm test tests/rail-preview.test.ts` passed with 7 tests.
+- Full validation after preview: `pnpm test` passed with 78 tests; `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Generic intents without `routeContext` retain their existing decisions.
+- No endpoint, top-level API response field, top-level audit field, audit writer, receipt builder, UI, scenario fixture, public documentation, dependency, or network integration changed.
+- The nested CCTP preview uses the existing `railPreview` field and remains proposal-only context.
+- ERC-20 authority policy and Paymaster policy were not implemented.
+
+### Next phase
+
+Phase 3: ERC-20 authority policy.
+
+## 2026-07-15 — ERC-20 authority-aware policy
+
+### Scope
+
+Completed Phase 3 only on `feature/programmable-money-context-foundation` after the Phase 2 checkpoint.
+
+### Commits
+
+- `34dfc94 feat: add ERC20 authority policy context`
+- `1c8e15f feat: display ERC20 authority and USDC base units`
+
+### What changed
+
+- Added separate local spender policy lists: `trusted-agent-service` is allowed and `blocked-spender` is denied.
+- Added deterministic authority rules for proposed `approve` and `transferFrom` operations. Direct `transfer` receives no authority escalation.
+- Approval amounts above `5.00` require review; missing spenders and denied `transferFrom` spenders block.
+- Added `toUsdcBaseUnits`, a string-only helper that formats valid USDC amounts into six-decimal base units without rounding.
+- Added nested authority preview context for operation, spender, derived base units, and optional supplied base units. When values differ, both are shown as proposal context.
+- The authority preview states that the app did not read allowance or balance data, sign an approval, or submit an ERC-20 transaction.
+
+### Validation
+
+- Authority RED: 7 policy tests failed before spender config and rules existed.
+- Authority GREEN: `pnpm test tests/policy-engine.test.ts` passed with 40 tests.
+- Base-unit RED: helper test failed before the module existed.
+- Base-unit GREEN: `pnpm test tests/usdc-base-units.test.ts` passed with 12 tests.
+- Preview RED: 2 authority-preview tests failed before the nested preview existed.
+- Preview GREEN: focused helper and rail-preview tests passed with 21 tests.
+- Full validation after preview: `pnpm test` passed with 103 tests; `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Decimal `amount` remains the only policy source of truth; `amountBaseUnits` is informational.
+- No chain read, allowance/balance query, wallet, signing, permit, transaction, endpoint, top-level API response field, top-level audit field, audit writer, receipt builder, UI, fixture, public documentation, dependency, or network integration changed.
+- The nested authority preview uses the existing `railPreview` field and remains proposal-only context.
+- Paymaster policy was not implemented.
+
+### Next phase
+
+Phase 4: USDC Paymaster-preview total-cost policy.
+
+## 2026-07-15 — USDC Paymaster-preview total-cost policy
+
+### Scope
+
+Completed Phase 4 only on `feature/programmable-money-context-foundation` after the Phase 3 checkpoint.
+
+### Commit
+
+- `547b1d1 feat: add USDC fee budget preview policy`
+
+### What changed
+
+- Added a separate local `paymaster.maxTotalUsdcSpend` demo-policy value of `100.00`; it does not reuse the CCTP route budget and is not a Circle protocol limit.
+- Applied Paymaster rules only when `gasPaymentMode` is `usdc-paymaster-preview`:
+  - missing estimated fee -> `REVIEW` / `PAYMASTER_FEE_ESTIMATE_REQUIRED`;
+  - developer-controlled wallet -> `REVIEW` / `PAYMASTER_DEVELOPER_CONTROLLED_REVIEW_REQUIRED`;
+  - total above `100.00` -> `BLOCK` / `TOTAL_USDC_BUDGET_EXCEEDED`.
+- Reused `addDecimalStrings` for proposed total spend. Exact `100.00` is not blocked.
+- Deduplicated returned reason codes and matched rules, including combined CCTP/Paymaster total-budget evidence.
+- Added nested Paymaster preview context for the gas mode, amount, optional fee, derived total, wallet-control model, and explicit preview-only boundary.
+
+### Validation
+
+- Policy RED: 6 new Paymaster assertions failed before config and policy rules existed.
+- Policy GREEN: `pnpm test tests/policy-engine.test.ts` passed with 49 tests.
+- Preview RED: 3 new Paymaster assertions failed before nested preview details existed.
+- Preview GREEN: `pnpm test tests/rail-preview.test.ts` passed with 13 tests.
+- Full validation: `pnpm test` passed with 116 tests; `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Generic, CCTP, and ERC-20 behavior remain unchanged outside Paymaster-preview context.
+- Audit writer/schema, receipt builder, API endpoint and top-level response fields, UI, demo fixtures, README and public docs were not changed.
+- No Paymaster SDK/API, UserOperation, permit, wallet connection, signing, key, RPC/network call, bundler/EntryPoint call, gas payment, transaction hash, dependency, or environment variable was added.
+
+### Next phase
+
+Phase 5: audit, receipt, API and idempotency evidence.
+
+## 2026-07-16 — Audit, Receipt, API and Idempotency Evidence
+
+### Scope
+
+Completed Phase 5 only on `feature/programmable-money-context-foundation` after the Paymaster-preview checkpoint.
+
+### Commits
+
+- `536a47b feat: audit programmable payment policy context`
+- `bba6967 feat: extend receipt with programmable payment evidence`
+- `596ab05 test: preserve programmable payment API safety`
+
+### What changed
+
+- Added optional nested `programmablePaymentContext` to audit JSONL records for operation, spender, base units, route details, fee details, and decimal-safe total proposed USDC spend.
+- Preserved legacy audit records without optional context and existing idempotency behavior: a replay returns the original record without adding another JSONL line.
+- Extended AgentPay Receipt with the same optional context, existing reason codes/execution mode/audit ID, and `fundsMoved: false`.
+- Reworded the receipt boundary to state it is a policy/evidence artifact, not a payment receipt; it does not report funds moved, allowance/balance reads, CCTP burn/mint, Iris attestations, UserOperations, or permits.
+- Added isolated API coverage for valid CCTP, ERC-20, and Paymaster-preview evidence plus validation and storage failure responses.
+
+### Validation
+
+- Audit RED: 3 context persistence tests failed before the audit schema/writer changes.
+- Audit GREEN: `pnpm test tests/audit-log.test.ts` passed with 7 tests.
+- Receipt RED: 4 context/boundary tests failed before receipt evidence changes.
+- Receipt GREEN: `pnpm test tests/receipt.test.ts` passed with 6 tests.
+- API safety coverage: `pnpm test tests/api-safe-failure.test.ts` passed with 5 tests without changing the route.
+- Full validation: `pnpm test` passed with 128 tests; `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check` passed.
+
+### Scope retained
+
+- Generic policy behavior plus CCTP, ERC-20, and Paymaster policy behavior are unchanged.
+- UI, demo fixtures, README, submission/public documentation, API route behavior, dependencies, live payment execution, RPC/network calls, wallets, signing, private keys, permits, UserOperations, transaction hashes, balances, attestation proofs, settlement state, database, and authentication were not added or changed.
+
+### Next phase
+
+Phase 6: demo scenarios and judge-visible evidence.
+
+## 2026-07-16 — Demo scenarios and judge-visible evidence
+
+### Commits
+
+- `d4143d2 feat: add CCTP policy demo scenarios`
+- `dafed46 feat: show programmable payment decision evidence`
+
+### What changed
+
+- Added four validator-only proposal fixtures: Fast Transfer CCTP `REVIEW` at `5.01`, standard CCTP `ALLOW`, unsupported CCTP route `BLOCK`, and trusted ERC-20 approval `REVIEW` with six-decimal base units.
+- Kept the three generic fixtures and the CitePay source-selection flow unchanged.
+- Added pure evidence rows from `railPreview` and `programmablePaymentContext`, including route, finality, attestation claim, wallet control, amount, fee, total, gas mode, authority, and base units when present.
+- Reused the compact evidence block in decision cards, validator results, the selected receipt, and expanded audit proof. The CCTP lane is labelled `Preview only` and says that burn, Iris attestation, and mint were not executed.
+
+### Lazyweb
+
+- Report generation failed with `image_url_fetch_failed:400` / `Image fetch failed with status 400` after the upload step. No report URL exists. The request was not retried.
+
+### Validation
+
+- `pnpm test`: passed, 10 files and 138 tests.
+- `pnpm lint`, `pnpm typecheck`, `pnpm build`, and `git diff --check`: passed before the tracker update.
+- Playwright desktop checks exercised Fast Transfer CCTP `REVIEW`, standard CCTP `ALLOW`, unsupported CCTP route `BLOCK`, and ERC-20 approval `REVIEW`; receipt evidence showed `fundsMoved: false`.
+- Playwright mobile inspection at `390x844` showed the evidence cards in a single column without horizontal overflow.
+- Restored generated `next-env.d.ts` drift and removed `.playwright-cli/` and transient local JSONL audit entries.
+
+### Scope retained
+
+- No policy, validation, audit-writer, receipt-builder, API, CitePay, generic-fixture, public-documentation, dependency, network, signing, wallet, permit, UserOperation, transaction, or settlement behavior changed.
+
+### Next phase
+
+Phase 7: next approved incremental scope.
+
+## 2026-07-17 — Documentation and Submission Readiness
+
+### Scope
+
+Completed Phase 7 documentation and submission assets on `feature/programmable-money-context-foundation` from `1e3b808`.
+
+### What changed
+
+- Updated README, requirements, architecture, demo script, submission text, and audit-schema documentation to match the implemented optional programmable-payment policy context.
+- Kept CCTP route, ERC-20 authority, and Paymaster fee data explicitly proposal-only; no protocol, settlement, or production integration claim was added.
+- Added five real local screenshots for CCTP Fast Transfer `REVIEW`, standard CCTP `ALLOW`, unsupported CCTP route `BLOCK`, ERC-20 approval `REVIEW`, and AgentPay Receipt evidence.
+- Updated the screenshot index to use the repository `screenshots/` directory instead of missing asset paths.
+
+### Validation and manual demo
+
+- Baseline: `pnpm test` passed with 10 files and 138 tests; lint, typecheck, and build passed.
+- Local capture showed route/finality/wallet/fee/total evidence for Fast Transfer and authority/base-unit evidence for ERC-20 approval.
+- Receipt capture showed audit ID, reason codes, matched rules, programmable context, and `fundsMoved: false`.
+
+### Boundary retained
+
+- No policy, validation, audit, receipt, API, or UI code changed.
+- No live execution, wallet, signing, private key, permit, UserOperation, transaction, balance, settlement, finality, CCTP burn/mint, Iris verification, AML/KYC, custody, or official partnership capability or claim was added.
+
+### Next operation
+
+After review or merge, push the existing branch or open a PR. Do not begin another implementation phase.

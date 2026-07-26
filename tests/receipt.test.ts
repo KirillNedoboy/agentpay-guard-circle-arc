@@ -42,6 +42,92 @@ function makeAuditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
 }
 
 describe("AgentPay Receipt", () => {
+  test("includes CCTP proposal context and its derived total", () => {
+    const receipt = buildAgentPayReceipt(
+      makeAuditRecord({
+        programmablePaymentContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          finalityMode: "standard",
+          attestationStatus: "not_requested",
+          walletControlModel: "user-controlled",
+          estimatedFee: "0.02",
+          feeAsset: "USDC",
+          gasPaymentMode: "native-gas",
+          totalProposedSpendUSDC: "0.1"
+        }
+      })
+    ) as unknown as { programmablePaymentContext?: Record<string, unknown> };
+
+    expect(receipt.programmablePaymentContext).toEqual({
+      transferMode: "cctp",
+      sourceChain: "ethereum",
+      destinationChain: "base",
+      finalityMode: "standard",
+      attestationStatus: "not_requested",
+      walletControlModel: "user-controlled",
+      estimatedFee: "0.02",
+      feeAsset: "USDC",
+      gasPaymentMode: "native-gas",
+      totalProposedSpendUSDC: "0.1"
+    });
+  });
+
+  test("includes ERC-20 authority proposal context", () => {
+    const receipt = buildAgentPayReceipt(
+      makeAuditRecord({
+        programmablePaymentContext: {
+          operation: "approve",
+          spender: "trusted-agent-service",
+          amountBaseUnits: "80000"
+        }
+      })
+    ) as unknown as { programmablePaymentContext?: Record<string, unknown> };
+
+    expect(receipt.programmablePaymentContext).toEqual({
+      operation: "approve",
+      spender: "trusted-agent-service",
+      amountBaseUnits: "80000"
+    });
+  });
+
+  test("includes Paymaster proposal context without inventing execution evidence", () => {
+    const receipt = buildAgentPayReceipt(
+      makeAuditRecord({
+        programmablePaymentContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          estimatedFee: "0.02",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview",
+          totalProposedSpendUSDC: "0.1"
+        }
+      })
+    ) as unknown as { programmablePaymentContext?: Record<string, unknown> };
+
+    expect(receipt.programmablePaymentContext).toMatchObject({
+      gasPaymentMode: "usdc-paymaster-preview",
+      estimatedFee: "0.02",
+      totalProposedSpendUSDC: "0.1"
+    });
+  });
+
+  test("states that receipt evidence is not a payment or settlement result", () => {
+    const receipt = buildAgentPayReceipt(makeAuditRecord());
+    const output = JSON.stringify(receipt);
+
+    expect(receipt.safetyNote).toContain("policy/evidence artifact");
+    expect(receipt.safetyNote).toContain("not a payment receipt");
+    expect(receipt.safetyNote).toContain("No funds moved");
+    expect(receipt.safetyNote).toContain("no allowance or balance read");
+    expect(receipt.safetyNote).toContain("no CCTP burn or mint");
+    expect(receipt.safetyNote).toContain("no Iris attestation requested");
+    expect(receipt.safetyNote).toContain("no UserOperation or permit created");
+    expect(output).not.toMatch(/transactionHash|txHash|signature|privateKey|seedPhrase|payment completed|settlement completed/i);
+  });
+
   test("builds a preview-only receipt with required proof fields and no execution artifacts", () => {
     const receipt = buildAgentPayReceipt(makeAuditRecord());
 

@@ -7,6 +7,10 @@ function clampRisk(score: number): number {
   return Math.max(0, Math.min(100, score));
 }
 
+function uniqueStrings(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
 function isToday(timestamp: string): boolean {
   return timestamp.slice(0, 10) === new Date().toISOString().slice(0, 10);
 }
@@ -112,6 +116,124 @@ export function evaluatePolicy(
     }
   }
 
+  const routeContext = intent.routeContext;
+  if (routeContext?.transferMode === "cctp") {
+    if (routeContext.sourceChain === routeContext.destinationChain) {
+      matchedRules.push("cctp_source_equals_destination");
+      reasonCodes.push("CCTP_SOURCE_EQUALS_DESTINATION");
+      reasonParts.push("CCTP source and destination chains must differ.");
+      hasBlock = true;
+    } else {
+      const cctpRouteSupported = policy.crossChain.allowedCctpPairs.some(
+        (pair) => pair.sourceChain === routeContext.sourceChain && pair.destinationChain === routeContext.destinationChain
+      );
+      if (!cctpRouteSupported) {
+        matchedRules.push("cctp_route_unsupported");
+        reasonCodes.push("CCTP_ROUTE_UNSUPPORTED");
+        reasonParts.push("CCTP route is not allowed by the active local policy.");
+        hasBlock = true;
+      }
+    }
+
+    if (routeContext.attestationStatus === "verified") {
+      matchedRules.push("cctp_attestation_unverifiable_in_preview");
+      reasonCodes.push("CCTP_ATTESTATION_UNVERIFIABLE_IN_PREVIEW");
+      reasonParts.push("AgentPay Guard cannot verify a claimed CCTP attestation in preview.");
+      hasReview = true;
+    }
+
+    if (
+      amountIsValid &&
+      routeContext.finalityMode === "fast-transfer" &&
+      compareDecimalStrings(intent.amount, policy.crossChain.fastTransferReviewThreshold) === 1
+    ) {
+      matchedRules.push("cctp_fast_transfer_review_required");
+      reasonCodes.push("CCTP_FAST_TRANSFER_REVIEW_REQUIRED");
+      reasonParts.push("Fast Transfer amount exceeds the local CCTP review threshold.");
+      hasReview = true;
+    }
+
+    if (
+      amountIsValid &&
+      routeContext.walletControlModel === "developer-controlled" &&
+      compareDecimalStrings(intent.amount, policy.crossChain.developerControlledReviewThreshold) === 1
+    ) {
+      matchedRules.push("cctp_developer_controlled_review_required");
+      reasonCodes.push("CCTP_DEVELOPER_CONTROLLED_REVIEW_REQUIRED");
+      reasonParts.push("Developer-controlled wallet amount exceeds the local CCTP review threshold.");
+      hasReview = true;
+    }
+
+    if (amountIsValid) {
+      const totalProposedSpend = addDecimalStrings([intent.amount, routeContext.estimatedFee ?? "0"]);
+      if (totalProposedSpend && compareDecimalStrings(totalProposedSpend, policy.crossChain.maxTotalUsdcSpend) === 1) {
+        matchedRules.push("total_usdc_budget_exceeded");
+        reasonCodes.push("TOTAL_USDC_BUDGET_EXCEEDED");
+        reasonParts.push("Total proposed USDC spend exceeds the local CCTP budget.");
+        hasBlock = true;
+      }
+    }
+  }
+
+  if (routeContext?.gasPaymentMode === "usdc-paymaster-preview") {
+    if (routeContext.estimatedFee === undefined) {
+      matchedRules.push("paymaster_fee_estimate_required");
+      reasonCodes.push("PAYMASTER_FEE_ESTIMATE_REQUIRED");
+      reasonParts.push("Paymaster preview requires an estimated USDC fee.");
+      hasReview = true;
+    }
+
+    if (routeContext.walletControlModel === "developer-controlled") {
+      matchedRules.push("paymaster_developer_controlled_review_required");
+      reasonCodes.push("PAYMASTER_DEVELOPER_CONTROLLED_REVIEW_REQUIRED");
+      reasonParts.push("Developer-controlled Paymaster preview requires operator review.");
+      hasReview = true;
+    }
+
+    if (amountIsValid && routeContext.estimatedFee !== undefined) {
+      const totalProposedSpend = addDecimalStrings([intent.amount, routeContext.estimatedFee]);
+      if (totalProposedSpend && compareDecimalStrings(totalProposedSpend, policy.paymaster.maxTotalUsdcSpend) === 1) {
+        matchedRules.push("total_usdc_budget_exceeded");
+        reasonCodes.push("TOTAL_USDC_BUDGET_EXCEEDED");
+        reasonParts.push("Total proposed USDC spend exceeds the local Paymaster preview budget.");
+        hasBlock = true;
+      }
+    }
+  }
+
+  if (intent.operation === "approve") {
+    if (!intent.spender) {
+      matchedRules.push("allowance_spender_required");
+      reasonCodes.push("ALLOWANCE_SPENDER_REQUIRED");
+      reasonParts.push("Approval proposals must identify a spender.");
+      hasBlock = true;
+    } else if (amountIsValid && compareDecimalStrings(intent.amount, policy.allowances.reviewThreshold) === 1) {
+      matchedRules.push("allowance_review_required");
+      reasonCodes.push("ALLOWANCE_REVIEW_REQUIRED");
+      reasonParts.push("Approval amount exceeds the local allowance review threshold.");
+      hasReview = true;
+    }
+  }
+
+  if (intent.operation === "transferFrom") {
+    if (!intent.spender) {
+      matchedRules.push("transfer_from_spender_required");
+      reasonCodes.push("TRANSFER_FROM_SPENDER_REQUIRED");
+      reasonParts.push("TransferFrom proposals must identify a spender.");
+      hasBlock = true;
+    } else if (policy.spenders.denied.includes(intent.spender)) {
+      matchedRules.push("spender_blocked");
+      reasonCodes.push("SPENDER_BLOCKED");
+      reasonParts.push("Spender is denied by the active local policy.");
+      hasBlock = true;
+    } else if (!policy.spenders.allowed.includes(intent.spender)) {
+      matchedRules.push("spender_review_required");
+      reasonCodes.push("SPENDER_REVIEW_REQUIRED");
+      reasonParts.push("Spender is not allowlisted by the active local policy.");
+      hasReview = true;
+    }
+  }
+
   const normalizedIntent = intent.intent.toLowerCase();
   const suspiciousMatches = policy.suspiciousKeywords.filter((keyword) => normalizedIntent.includes(keyword.toLowerCase()));
   if (suspiciousMatches.length > 0) {
@@ -143,8 +265,8 @@ export function evaluatePolicy(
       decision,
       riskScore,
       reason: "Recipient is allowlisted, amount is below limits, and scenario is allowed.",
-      matchedRules,
-      reasonCodes,
+      matchedRules: uniqueStrings(matchedRules),
+      reasonCodes: uniqueStrings(reasonCodes),
       policyId: policy.policyId
     };
   }
@@ -153,8 +275,8 @@ export function evaluatePolicy(
     decision,
     riskScore,
     reason: reasonParts.join(" ") || "Policy requires review before payment can proceed.",
-    matchedRules,
-    reasonCodes,
+    matchedRules: uniqueStrings(matchedRules),
+    reasonCodes: uniqueStrings(reasonCodes),
     policyId: policy.policyId
   };
 }

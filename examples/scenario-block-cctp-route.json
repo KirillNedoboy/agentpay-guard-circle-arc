@@ -1,0 +1,20 @@
+{
+  "agentId": "agent_cctp_route_demo_001",
+  "intent": "Propose unsupported USDC CCTP route for trusted API access",
+  "amount": "0.08",
+  "currency": "USDC",
+  "recipient": "trusted-x402-api.demo",
+  "scenario": "api_access",
+  "paymentRail": "mock_x402_service",
+  "idempotencyKey": "demo-cctp-route-block-001",
+  "routeContext": {
+    "transferMode": "cctp",
+    "sourceChain": "ethereum",
+    "destinationChain": "arbitrum",
+    "finalityMode": "standard",
+    "attestationStatus": "not_requested",
+    "walletControlModel": "user-controlled",
+    "gasPaymentMode": "native-gas"
+  },
+  "expectedDecision": "BLOCK"
+}

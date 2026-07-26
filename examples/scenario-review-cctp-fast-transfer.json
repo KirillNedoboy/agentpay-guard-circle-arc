@@ -1,0 +1,22 @@
+{
+  "agentId": "agent_cctp_fast_transfer_demo_001",
+  "intent": "Propose 5.01 USDC Fast Transfer for trusted API access with developer-controlled wallet context",
+  "amount": "5.01",
+  "currency": "USDC",
+  "recipient": "trusted-x402-api.demo",
+  "scenario": "api_access",
+  "paymentRail": "mock_x402_service",
+  "idempotencyKey": "demo-cctp-fast-transfer-review-001",
+  "routeContext": {
+    "transferMode": "cctp",
+    "sourceChain": "ethereum",
+    "destinationChain": "base",
+    "finalityMode": "fast-transfer",
+    "attestationStatus": "not_requested",
+    "walletControlModel": "developer-controlled",
+    "estimatedFee": "0.02",
+    "feeAsset": "USDC",
+    "gasPaymentMode": "native-gas"
+  },
+  "expectedDecision": "REVIEW"
+}

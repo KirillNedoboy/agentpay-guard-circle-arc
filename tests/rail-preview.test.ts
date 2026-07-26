@@ -17,6 +17,214 @@ function makeIntent(overrides: Partial<PaymentIntent> = {}): PaymentIntent {
 }
 
 describe("Circle and Arc rail preview", () => {
+  test("shows Paymaster preview amount, fee, total, and wallet control as proposal context", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        amount: "0.08",
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          walletControlModel: "user-controlled",
+          estimatedFee: "0.02",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      })
+    );
+    const paymasterPreview = preview as unknown as { usdcPaymasterPreview?: unknown };
+
+    expect(paymasterPreview.usdcPaymasterPreview).toEqual({
+      mode: "usdc_paymaster_preview",
+      gasPaymentMode: "usdc-paymaster-preview",
+      proposedAmountUSDC: "0.08",
+      estimatedFeeUSDC: "0.02",
+      totalProposedSpendUSDC: "0.1",
+      walletControlModel: "user-controlled",
+      explanation:
+        "Paymaster preview context only. This app does not construct a UserOperation, create a permit, contact a bundler or EntryPoint, or pay gas."
+    });
+  });
+
+  test("does not invent a Paymaster fee or total when the fee estimate is missing", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      })
+    );
+    const paymasterPreview = preview as unknown as {
+      usdcPaymasterPreview?: Record<string, unknown>;
+    };
+
+    expect(paymasterPreview.usdcPaymasterPreview).toEqual({
+      mode: "usdc_paymaster_preview",
+      gasPaymentMode: "usdc-paymaster-preview",
+      proposedAmountUSDC: "0.08",
+      explanation:
+        "Paymaster preview context only. This app does not construct a UserOperation, create a permit, contact a bundler or EntryPoint, or pay gas."
+    });
+  });
+
+  test("does not add Paymaster preview wording for native gas", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          gasPaymentMode: "native-gas"
+        }
+      })
+    );
+
+    expect(JSON.stringify(preview)).not.toMatch(/Paymaster|UserOperation|bundler|EntryPoint/i);
+    expect(preview).not.toHaveProperty("usdcPaymasterPreview");
+  });
+
+  test("states the Paymaster preview-only boundary without execution evidence", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "single-chain",
+          sourceChain: "ethereum",
+          destinationChain: "ethereum",
+          estimatedFee: "0.02",
+          feeAsset: "USDC",
+          gasPaymentMode: "usdc-paymaster-preview"
+        }
+      })
+    );
+    const paymasterPreview = preview as unknown as { usdcPaymasterPreview?: unknown };
+    const output = JSON.stringify(paymasterPreview.usdcPaymasterPreview);
+
+    expect(preview.explanation).toContain("Paymaster preview context only");
+    expect(output).toContain("does not construct a UserOperation");
+    expect(output).toContain("create a permit");
+    expect(output).toContain("contact a bundler or EntryPoint");
+    expect(output).toContain("pay gas");
+    expect(output).not.toMatch(/transactionHash|txHash|signature|sent|completed payment/i);
+  });
+
+  test("shows ERC-20 authority as proposal context with derived and supplied base units", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        amount: "25.50",
+        operation: "approve",
+        spender: "trusted-agent-service",
+        amountBaseUnits: "25500001"
+      })
+    );
+
+    expect(preview.erc20AuthorityPreview).toEqual({
+      mode: "erc20_authority_preview",
+      operation: "approve",
+      spender: "trusted-agent-service",
+      derivedAmountBaseUnits: "25500000",
+      derivedAmountBaseUnitsDisplay: "25.50 USDC = 25500000 base units (6 decimals)",
+      suppliedAmountBaseUnits: "25500001",
+      explanation:
+        "Authority preview only. This app did not read an allowance or balance, sign an approval, or submit an ERC-20 transaction."
+    });
+  });
+
+  test("shows supplied base units as informational proposal context without an operation", () => {
+    const preview = buildCircleRailPreview(makeIntent({ amountBaseUnits: "80000" }));
+
+    expect(preview.erc20AuthorityPreview).toMatchObject({
+      derivedAmountBaseUnits: "80000",
+      suppliedAmountBaseUnits: "80000"
+    });
+  });
+
+  test("creates a CCTP route preview for a standard Ethereum to Base proposal", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          finalityMode: "standard",
+          attestationStatus: "not_requested",
+          walletControlModel: "user-controlled"
+        }
+      })
+    );
+
+    expect(preview.cctpRoutePreview).toEqual({
+      mode: "cctp_route_preview",
+      sourceChain: "Ethereum",
+      destinationChain: "Base",
+      asset: "native USDC (proposed)",
+      finalityMode: "standard",
+      attestation: "not requested",
+      walletControlModel: "user-controlled",
+      proposedAmountUSDC: "0.08"
+    });
+    expect(preview.explanation).toBe(
+      "Preview only. No funds moved, no CCTP burn or mint occurred, no Iris attestation was requested, and no Circle API was called."
+    );
+  });
+
+  test("distinguishes Fast Transfer context and calculates proposed spend with decimal strings", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        amount: "99.99",
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          finalityMode: "fast-transfer",
+          estimatedFee: "0.02",
+          feeAsset: "USDC"
+        }
+      })
+    );
+
+    expect(preview.cctpRoutePreview).toMatchObject({
+      finalityMode: "fast-transfer",
+      estimatedFeeUSDC: "0.02",
+      totalProposedSpendUSDC: "100.01"
+    });
+  });
+
+  test("labels a claimed verified attestation as unverified by the app", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          attestationStatus: "verified"
+        }
+      })
+    );
+
+    expect(preview.cctpRoutePreview?.attestation).toBe("claimed verified (unverified by this app)");
+  });
+
+  test("does not fabricate execution evidence in a CCTP route preview", () => {
+    const preview = buildCircleRailPreview(
+      makeIntent({
+        routeContext: {
+          transferMode: "cctp",
+          sourceChain: "ethereum",
+          destinationChain: "base",
+          attestationStatus: "pending"
+        }
+      })
+    );
+    const output = JSON.stringify(preview);
+
+    expect(output).not.toMatch(/transactionHash|txHash|signature|burned|minted|settled|completed/i);
+    expect(preview.explanation).toContain("No funds moved");
+    expect(preview.explanation).toContain("no Circle API was called");
+  });
+
   test("generates a mock x402 paid API preview without execution data", () => {
     const preview = buildCircleRailPreview(makeIntent());
 
@@ -30,6 +238,8 @@ describe("Circle and Arc rail preview", () => {
       explanation: "Preview only. AgentPay Guard has not moved funds, signed a transaction, or called a live payment rail."
     });
     expect(Object.keys(preview)).not.toEqual(expect.arrayContaining(["transactionHash", "txHash", "signature", "privateKey"]));
+    expect(preview.cctpRoutePreview).toBeUndefined();
+    expect(preview.erc20AuthorityPreview).toBeUndefined();
   });
 
   test("generates an Arc settlement preview with USDC as the settlement asset", () => {

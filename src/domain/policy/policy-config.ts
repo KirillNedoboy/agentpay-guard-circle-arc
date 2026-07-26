@@ -32,6 +32,25 @@ export type PolicyConfig = {
     reviewAt: number;
     blockAt: number;
   };
+  crossChain: {
+    allowedCctpPairs: Array<{
+      sourceChain: string;
+      destinationChain: string;
+    }>;
+    fastTransferReviewThreshold: string;
+    developerControlledReviewThreshold: string;
+    maxTotalUsdcSpend: string;
+  };
+  paymaster: {
+    maxTotalUsdcSpend: string;
+  };
+  allowances: {
+    reviewThreshold: string;
+  };
+  spenders: {
+    allowed: string[];
+    denied: string[];
+  };
 };
 
 export function loadPolicyConfig(path: string): PolicyConfig {

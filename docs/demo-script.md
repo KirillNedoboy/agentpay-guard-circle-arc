@@ -1,8 +1,6 @@
-# Demo Script - AgentPay Guard Ignyte / Circle / Arc
+# AgentPay Guard demo script
 
-## Goal
-
-Show in under two minutes that AgentPay Guard evaluates an agent's USDC payment intents before any x402, Circle Gateway, or Arc-compatible payment rail is used.
+Target duration: 60–90 seconds.
 
 ## Setup
 
@@ -10,90 +8,44 @@ Show in under two minutes that AgentPay Guard evaluates an agent's USDC payment 
 pnpm dev
 ```
 
-Open the local URL printed by Next.js, usually:
+Open the local URL printed by Next.js, normally `http://localhost:3000`. Expand **Policy test cases**.
 
-```txt
-http://localhost:3000
-```
-
-## 0:00-0:20 - Opening
-
-Show the title, live summary, and boundary card.
+## 0:00–0:15 — Problem
 
 Say:
 
-> AgentPay Guard is a preflight policy and audit layer for AI-agent stablecoin payments. It decides whether a USDC spend intent is allowed, needs review, or must be blocked before any payment rail is reached.
+> Autonomous agents need spend controls before programmable USDC execution. AgentPay Guard evaluates a proposed intent and records why it is allowed, reviewed, or blocked.
 
-Point out the boundary:
+Point to the boundary card: no payment execution, wallet signing, or private keys.
 
-- no payment execution;
-- no wallet signing;
-- no private keys;
-- no fake transaction hash.
+## 0:15–0:35 — Fast Transfer review
 
-## 0:20-0:55 - Run the preset
+Select **CCTP Fast Transfer review** and click **Test decision**.
 
-Use the built-in `Ignyte/Circle/Arc demo preset`.
-
-Click:
-
-```txt
-Run demo
-```
-
-Expected selected sources:
-
-- `Trusted x402 verification API`
-- `Premium evidence bundle`
-- `Untrusted scrape cache`
-- `Telemetry attestation note`
-
-Expected skipped source:
-
-- `Market data note` -> `not_relevant`
-
-## 0:55-1:25 - Explain decisions
-
-Point at the Guard decisions.
-
-Expected outcomes:
-
-- `Trusted x402 verification API` -> `ALLOW`
-- `Premium evidence bundle` -> `REVIEW`
-- `Untrusted scrape cache` -> `BLOCK`
-- `Telemetry attestation note` -> `REVIEW`
+Show `REVIEW`, matched rules, and reason codes. Point out the proposed Ethereum to Base route, `fast-transfer` finality, developer-controlled wallet context, `5.01 USDC` amount, `0.02 USDC` estimated fee, and `5.03 USDC` decimal-derived total.
 
 Say:
 
-> The same agent workflow produces different decisions because policy looks at recipient trust, purpose, amount thresholds, and blocked recipients. Only the trusted low-value API request is allowed.
+> This is a CCTP policy preview. The evidence says the proposed route needs review; it does not burn or mint USDC or request or verify an Iris attestation.
 
-## 1:25-1:45 - Show rail preview
+## 0:35–0:50 — Audit and receipt
 
-Point at the rail preview fields for evaluated sources or validator output.
-
-Expected fields:
-
-- rail label;
-- settlement asset `USDC`;
-- execution mode `mock_preview` or `live_disabled`;
-- recipient;
-- amount;
-- preview-only explanation.
+Show the selected AgentPay Receipt and expand the audit proof. Point out the optional programmable context, audit ID, reason codes, and `fundsMoved: false`.
 
 Say:
 
-> This is a preview adapter, not settlement. It shows how the allowed intent could be prepared for an x402, Circle Gateway, or Arc-compatible flow later, but this demo does not move funds or call live payment APIs.
+> The audit and receipt preserve policy evidence. They are not settlement records.
 
-## 1:45-2:00 - Show audit proof
+## 0:50–1:10 — Allow and block
 
-Expand or point at the audit log.
+Select **CCTP standard route allow** and show `ALLOW`. Then select **CCTP unsupported route block** and show `BLOCK` with `CCTP_ROUTE_UNSUPPORTED`.
 
-Say:
+## 1:10–1:20 — Authority context
 
-> Each successful evaluation writes or reuses a JSONL audit record. The record includes policy evidence and rail preview metadata, but no secrets, signatures, or transaction hashes.
+Select **ERC-20 approval review**. Show the proposed `approve` operation, trusted spender, and `5010000` six-decimal base units. State that the app did not read an allowance or sign an approval.
 
-Mention:
+## Closing
 
-```txt
-data/audit-log.jsonl
-```
+Say exactly:
+
+> No funds moved. AgentPay Guard is the deterministic policy and evidence layer before settlement.
