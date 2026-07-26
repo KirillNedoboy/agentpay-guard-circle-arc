@@ -6,6 +6,7 @@ import {
   buildProposedIntentRows,
   buildProgrammableEvidenceRows,
   buildQuickCaseDefinitions,
+  buildQuickCaseTransition,
   buildRailPreviewRows,
   buildReasonCodeRows,
   buildSettlementBoundary
@@ -104,6 +105,35 @@ describe("narrative evidence helpers", () => {
       { id: "review", label: "CitePay REVIEW", intent: scenarios[1].intent },
       { id: "block", label: "Hard BLOCK", intent: scenarios[2].intent }
     ]);
+  });
+
+  test("invalidates stale CitePay evidence before every quick case", () => {
+    const quickCases = buildQuickCaseDefinitions(scenarios);
+
+    for (const quickCase of quickCases) {
+      const nextState = Object.assign(
+        {
+          citePaySelection: { selected: [{ source: { id: "stale-citepay-source" } }] },
+          citePayEvaluations: [
+            {
+              paymentIntent: scenarios[1].intent,
+              result: { decision: "REVIEW", auditId: "audit_stale_citepay" }
+            }
+          ],
+          selectedReceiptAuditId: "audit_stale_citepay"
+        },
+        buildQuickCaseTransition(quickCase)
+      );
+
+      expect(nextState).toEqual({
+        activeQuickCaseId: quickCase.id,
+        form: quickCase.intent,
+        result: null,
+        citePaySelection: null,
+        citePayEvaluations: [],
+        selectedReceiptAuditId: null
+      });
+    }
   });
 
   test("maps proposed intent fields in reviewer order", () => {

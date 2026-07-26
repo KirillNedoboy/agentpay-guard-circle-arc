@@ -17,6 +17,7 @@ import {
   buildProposedIntentRows,
   buildProgrammableEvidenceRows,
   buildQuickCaseDefinitions,
+  buildQuickCaseTransition,
   buildRailPreviewRows,
   buildReasonCodeRows,
   buildSettlementBoundary,
@@ -142,9 +143,13 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
   }
 
   async function runQuickCase(quickCase: QuickCaseDefinition) {
-    setActiveQuickCaseId(quickCase.id);
-    setForm(quickCase.intent);
-    setResult(null);
+    const transition = buildQuickCaseTransition(quickCase);
+    setCitePaySelection(transition.citePaySelection);
+    setCitePayEvaluations(transition.citePayEvaluations);
+    selectReceipt(transition.selectedReceiptAuditId);
+    setActiveQuickCaseId(transition.activeQuickCaseId);
+    setForm(transition.form);
+    setResult(transition.result);
     await evaluateIntent(quickCase.intent);
     scrollToId("evidence");
   }

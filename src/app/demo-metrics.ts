@@ -41,6 +41,14 @@ export type QuickCaseDefinition = {
   description: string;
   intent: PaymentIntent;
 };
+export type QuickCaseTransition = {
+  activeQuickCaseId: QuickCaseDefinition["id"];
+  form: PaymentIntent;
+  result: null;
+  citePaySelection: null;
+  citePayEvaluations: [];
+  selectedReceiptAuditId: null;
+};
 export type SettlementBoundary = {
   label: "Future / not executed in MVP";
   stages: ["Guard decision", "Future settlement adapter", "Arc / Circle Gateway / x402"];
@@ -108,6 +116,17 @@ export function buildQuickCaseDefinitions(scenarios: readonly ScenarioInput[]): 
       intent: block?.intent ?? fallbackIntent
     }
   ];
+}
+
+export function buildQuickCaseTransition(quickCase: QuickCaseDefinition): QuickCaseTransition {
+  return {
+    activeQuickCaseId: quickCase.id,
+    form: quickCase.intent,
+    result: null,
+    citePaySelection: null,
+    citePayEvaluations: [],
+    selectedReceiptAuditId: null
+  };
 }
 
 export function buildProposedIntentRows(intent: PaymentIntent | null | undefined): ProposedIntentRow[] {
