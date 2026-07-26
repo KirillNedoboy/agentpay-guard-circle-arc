@@ -3,9 +3,13 @@ import {
   buildAuditPreview,
   buildCctpRouteExplanation,
   buildDemoSummary,
+  buildProposedIntentRows,
   buildProgrammableEvidenceRows,
+  buildQuickCaseDefinitions,
+  buildQuickCaseTransition,
   buildRailPreviewRows,
-  buildReasonCodeRows
+  buildReasonCodeRows,
+  buildSettlementBoundary
 } from "@/app/demo-metrics";
 import type { AuditRecord } from "@/domain/audit/types";
 
@@ -42,6 +46,122 @@ describe("buildDemoSummary", () => {
       blockedCount: 1,
       approvedCount: 1,
       selectedCount: 3
+    });
+  });
+});
+
+describe("narrative evidence helpers", () => {
+  const scenarios = [
+    {
+      label: "Trusted API",
+      fileName: "scenario-allow-api.json",
+      expectedDecision: "ALLOW",
+      intent: {
+        agentId: "agent_demo",
+        intent: "Pay for trusted API",
+        amount: "0.08",
+        currency: "USDC",
+        recipient: "trusted-x402-api.demo",
+        scenario: "api_access",
+        paymentRail: "mock_x402_service",
+        idempotencyKey: "allow-001"
+      }
+    },
+    {
+      label: "Premium bundle",
+      fileName: "scenario-review-machine.json",
+      expectedDecision: "REVIEW",
+      intent: {
+        agentId: "agent_demo",
+        intent: "Pay for premium bundle",
+        amount: "0.25",
+        currency: "USDC",
+        recipient: "premium-evidence-bundle.demo",
+        scenario: "data_access",
+        paymentRail: "mock_gateway_nanopayment",
+        idempotencyKey: "review-001"
+      }
+    },
+    {
+      label: "Blocked source",
+      fileName: "scenario-block-risky.json",
+      expectedDecision: "BLOCK",
+      intent: {
+        agentId: "agent_demo",
+        intent: "Pay blocked source",
+        amount: "0.04",
+        currency: "USDC",
+        recipient: "blocked-recipient.demo",
+        scenario: "data_access",
+        paymentRail: "arc_settlement_preview",
+        idempotencyKey: "block-001"
+      }
+    }
+  ] as const;
+
+  test("defines generic ALLOW, CitePay REVIEW, and hard BLOCK quick cases", () => {
+    expect(buildQuickCaseDefinitions(scenarios)).toMatchObject([
+      { id: "allow", label: "Generic ALLOW", intent: scenarios[0].intent },
+      { id: "review", label: "CitePay REVIEW", intent: scenarios[1].intent },
+      { id: "block", label: "Hard BLOCK", intent: scenarios[2].intent }
+    ]);
+  });
+
+  test("invalidates stale CitePay evidence before every quick case", () => {
+    const quickCases = buildQuickCaseDefinitions(scenarios);
+
+    for (const quickCase of quickCases) {
+      const nextState = Object.assign(
+        {
+          citePaySelection: { selected: [{ source: { id: "stale-citepay-source" } }] },
+          citePayEvaluations: [
+            {
+              paymentIntent: scenarios[1].intent,
+              result: { decision: "REVIEW", auditId: "audit_stale_citepay" }
+            }
+          ],
+          selectedReceiptAuditId: "audit_stale_citepay"
+        },
+        buildQuickCaseTransition(quickCase)
+      );
+
+      expect(nextState).toEqual({
+        activeQuickCaseId: quickCase.id,
+        form: quickCase.intent,
+        result: null,
+        citePaySelection: null,
+        citePayEvaluations: [],
+        selectedReceiptAuditId: null
+      });
+    }
+  });
+
+  test("maps proposed intent fields in reviewer order", () => {
+    expect(
+      buildProposedIntentRows({
+        agentId: "agent_demo",
+        intent: "Pay for trusted API",
+        amount: "0.08",
+        currency: "USDC",
+        recipient: "trusted-x402-api.demo",
+        scenario: "api_access",
+        paymentRail: "mock_x402_service",
+        idempotencyKey: "allow-001"
+      })
+    ).toEqual([
+      ["Agent ID", "agent_demo"],
+      ["Amount", "0.08 USDC"],
+      ["Recipient", "trusted-x402-api.demo"],
+      ["Scenario", "api_access"],
+      ["Payment rail", "mock_x402_service"],
+      ["Idempotency key", "allow-001"]
+    ]);
+  });
+
+  test("returns a static future settlement boundary", () => {
+    expect(buildSettlementBoundary()).toEqual({
+      label: "Future / not executed in MVP",
+      stages: ["Guard decision", "Future settlement adapter", "Arc / Circle Gateway / x402"]
     });
   });
 });

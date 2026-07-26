@@ -1,6 +1,6 @@
 # AgentPay Guard demo script
 
-Target duration: 60–90 seconds.
+Target duration: 60-90 seconds.
 
 ## Setup
 
@@ -8,43 +8,45 @@ Target duration: 60–90 seconds.
 pnpm dev
 ```
 
-Open the local URL printed by Next.js, normally `http://localhost:3000`. Expand **Policy test cases**.
+Open the local URL, normally `http://localhost:3000`.
 
-## 0:00–0:15 — Problem
-
-Say:
-
-> Autonomous agents need spend controls before programmable USDC execution. AgentPay Guard evaluates a proposed intent and records why it is allowed, reviewed, or blocked.
-
-Point to the boundary card: no payment execution, wallet signing, or private keys.
-
-## 0:15–0:35 — Fast Transfer review
-
-Select **CCTP Fast Transfer review** and click **Test decision**.
-
-Show `REVIEW`, matched rules, and reason codes. Point out the proposed Ethereum to Base route, `fast-transfer` finality, developer-controlled wallet context, `5.01 USDC` amount, `0.02 USDC` estimated fee, and `5.03 USDC` decimal-derived total.
+## 0:00-0:12 | CitePay request
 
 Say:
 
-> This is a CCTP policy preview. The evidence says the proposed route needs review; it does not burn or mint USDC or request or verify an Iris attestation.
+> An AI agent needs a paid source. CitePay is the illustrative request story: the source selection becomes a proposed USDC payment intent, not a live purchase.
 
-## 0:35–0:50 — Audit and receipt
+Click **Run CitePay demo**. Point to the proposed intent fields: agent ID, amount/currency, recipient, scenario, payment rail, and idempotency key.
 
-Show the selected AgentPay Receipt and expand the audit proof. Point out the optional programmable context, audit ID, reason codes, and `fundsMoved: false`.
+## 0:12-0:32 | Guard preflight
+
+Show the selected sources and their decisions. Point out that AgentPay Guard sends each existing intent through the same local evaluation API and records matched rules, reason codes, risk, and an audit ID.
+
+Use the quick cases for a fast proof:
+
+- **Generic ALLOW**: a known recipient within policy;
+- **CitePay REVIEW**: the premium paid-source request;
+- **Hard BLOCK**: the existing denylisted recipient case.
+
+## 0:32-0:52 | AgentPay Receipt evidence
+
+Select **View receipt** and show the AgentPay Receipt. Point to `fundsMoved: false`, the proposal-only safety note, reason codes, matched rules, audit ID, and the optional programmable context when a programmable fixture is evaluated.
 
 Say:
 
-> The audit and receipt preserve policy evidence. They are not settlement records.
+> The receipt and JSONL audit preserve why the policy decided. They are evidence artifacts, not payment or settlement receipts. Replaying an idempotency key reuses the existing audit line.
 
-## 0:50–1:10 — Allow and block
+## 0:52-1:10 | Secondary proof
 
-Select **CCTP standard route allow** and show `ALLOW`. Then select **CCTP unsupported route block** and show `BLOCK` with `CCTP_ROUTE_UNSUPPORTED`.
+Expand **Policy test cases** to show the existing CCTP Fast Transfer `REVIEW`, standard CCTP `ALLOW`, unsupported-route `BLOCK`, and ERC-20 approval `REVIEW` fixtures. These previews remain local policy context: no CCTP burn/mint, Iris verification, allowance read, signing, UserOperation, or permit.
 
-## 1:10–1:20 — Authority context
+## Close
 
-Select **ERC-20 approval review**. Show the proposed `approve` operation, trusted spender, and `5010000` six-decimal base units. State that the app did not read an allowance or sign an approval.
+Point to the compact boundary:
 
-## Closing
+```txt
+Guard decision -> Future settlement adapter -> Arc / Circle Gateway / x402
+```
 
 Say exactly:
 

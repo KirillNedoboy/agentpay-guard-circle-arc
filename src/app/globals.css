@@ -1767,6 +1767,207 @@ tr:hover td {
   display: block;
 }
 
+.evidence-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.evidence-section > .section-heading {
+  order: 0;
+}
+
+.evidence-section > .receipt-panel {
+  order: 1;
+}
+
+.evidence-section > .proof-card {
+  order: 2;
+}
+
+.evidence-section > .audit-panel {
+  order: 3;
+}
+
+.evidence-section > .settlement-boundary {
+  order: 4;
+}
+
+.quick-case-bar {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfc;
+}
+
+.quick-case-bar > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.quick-case-bar > div:first-child span {
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.quick-case-actions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quick-case {
+  display: grid;
+  gap: 5px;
+  min-height: 72px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--text);
+  padding: 11px 12px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quick-case span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.3;
+}
+
+.quick-case.allow.is-active,
+.quick-case.allow:hover:not(:disabled) {
+  border-color: rgba(10, 112, 69, 0.45);
+  background: var(--allow-soft);
+}
+
+.quick-case.review.is-active,
+.quick-case.review:hover:not(:disabled) {
+  border-color: rgba(138, 90, 5, 0.45);
+  background: var(--review-soft);
+}
+
+.quick-case.block.is-active,
+.quick-case.block:hover:not(:disabled) {
+  border-color: rgba(167, 54, 44, 0.45);
+  background: var(--block-soft);
+}
+
+.quick-case:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.proposed-intent-panel {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.proposed-intent-head,
+.settlement-boundary-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.proposed-intent-head h3,
+.settlement-boundary-head h3 {
+  margin: 4px 0 0;
+}
+
+.proposed-intent-copy {
+  margin: 0;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  padding: 11px 12px;
+  color: var(--text);
+}
+
+.proposed-intent-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.proposed-intent-grid > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: #fbfcfc;
+  padding: 9px 10px;
+}
+
+.proposed-intent-grid dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.proposed-intent-grid dd {
+  margin: 4px 0 0;
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+}
+
+.settlement-boundary {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+  border: 1px solid #233330;
+  border-radius: 8px;
+  background: var(--ink-panel);
+  color: #f7fbfa;
+  padding: 16px;
+}
+
+.settlement-boundary .eyebrow {
+  color: #76d8cb;
+}
+
+.settlement-boundary-head > span {
+  border: 1px solid rgba(118, 216, 203, 0.35);
+  border-radius: 8px;
+  color: #c8d7d3;
+  padding: 7px 9px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.settlement-boundary-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.settlement-boundary-stage {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 56px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.055);
+  padding: 11px 12px;
+}
+
+.settlement-boundary-stage strong {
+  font-size: 0.9rem;
+}
+
+.settlement-boundary-stage span {
+  color: #76d8cb;
+  font-size: 1.1rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -1857,6 +2058,9 @@ tr:hover td {
   .meta-grid,
   .rail-preview-grid,
   .programmable-evidence-grid,
+  .quick-case-actions,
+  .proposed-intent-grid,
+  .settlement-boundary-flow,
   .receipt-grid,
   .receipt-layout {
     grid-template-columns: 1fr;
@@ -1903,8 +2107,15 @@ tr:hover td {
   .decision-card-header,
   .decision-line,
   .subsection-heading,
+  .proposed-intent-head,
+  .settlement-boundary-head,
   .proof-card-head {
     display: grid;
+  }
+
+  .settlement-boundary-head > span {
+    width: fit-content;
+    white-space: normal;
   }
 
   .hero-notes,

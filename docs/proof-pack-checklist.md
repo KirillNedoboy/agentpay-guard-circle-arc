@@ -6,7 +6,7 @@
 - [x] README complete
 - [x] local demo runs
 - [x] tests pass
-- [x] 3 scenarios verified
+- [x] CitePay flow and quick `ALLOW` / `REVIEW` / `BLOCK` cases verified
 - [x] audit-log.jsonl exists
 - [x] repo hygiene verified
 
@@ -28,5 +28,9 @@
 ## Scenario Files
 
 - [x] `examples/scenario-allow-api.json` -> `ALLOW`
-- [x] `examples/scenario-review-machine.json` -> `REVIEW`
-- [x] `examples/scenario-block-risky.json` -> `BLOCK`
+- [x] `examples/scenario-review-machine.json` -> CitePay `REVIEW`
+- [x] `examples/scenario-block-risky.json` -> hard `BLOCK`
+- [x] `examples/scenario-review-cctp-fast-transfer.json` -> programmable `REVIEW`
+- [x] `examples/scenario-allow-cctp-standard.json` -> programmable `ALLOW`
+- [x] `examples/scenario-block-cctp-route.json` -> programmable `BLOCK`
+- [x] `examples/scenario-review-erc20-approval.json` -> authority `REVIEW`

@@ -25,7 +25,7 @@ AgentPay Guard evaluates a payment intent before payment execution.
 
 It validates required fields, applies deterministic policy rules, computes a risk score, returns `ALLOW`, `REVIEW`, or `BLOCK`, and writes a JSONL audit record.
 
-The MVP includes a local web demo with three scenarios and a recent audit log view.
+The MVP includes a local web demo where a CitePay paid-source request becomes a proposed USDC intent, then produces `ALLOW`, `REVIEW`, or `BLOCK` evidence and an AgentPay Receipt. CitePay is an illustrative entry story, not a marketplace or payment executor.
 
 ## Why Arc / Circle
 
@@ -43,6 +43,9 @@ AgentPay Guard does not compete with those rails and does not execute payments. 
 - JSONL audit log at `data/audit-log.jsonl`.
 - Idempotency by `idempotencyKey`.
 - Demo UI with `ALLOW`, `REVIEW`, and `BLOCK` scenarios.
+- CitePay source selection mapped to the existing Guard API.
+- Proposal-only CCTP route, ERC-20 authority, and Paymaster fee previews.
+- AgentPay Receipt evidence with `fundsMoved: false`.
 - Test suite covering policy rules, money edge cases, idempotency, JSONL validity, and invalid input safe failure.
 
 Verified scenarios:
@@ -50,8 +53,9 @@ Verified scenarios:
 | Scenario | File | Expected |
 |---|---|---|
 | API nanopayment | `examples/scenario-allow-api.json` | `ALLOW` |
-| Machine-to-machine payment | `examples/scenario-review-machine.json` | `REVIEW` |
-| Risky autonomous spend | `examples/scenario-block-risky.json` | `BLOCK` |
+| CitePay premium evidence | `examples/scenario-review-machine.json` | `REVIEW` |
+| Denylisted source | `examples/scenario-block-risky.json` | `BLOCK` |
+| CCTP Fast Transfer | `examples/scenario-review-cctp-fast-transfer.json` | `REVIEW` |
 
 ## What Grant Support Would Enable
 
@@ -69,7 +73,7 @@ Verified scenarios:
 
 - Deterministic payment-intent evaluation.
 - JSONL audit trail.
-- Demo UI with three scenarios.
+- Reviewer-ready CitePay narrative with quick `ALLOW`, `REVIEW`, and `BLOCK` cases.
 - Test, lint, typecheck, and build verification.
 
 Status: complete.
@@ -82,7 +86,7 @@ Status: complete.
 - Screenshot checklist and captured screenshots.
 - GitHub repository publication.
 
-Status: documentation prepared; screenshots and publication pending.
+Status: complete for the local proof; live settlement remains future work.
 
 ### Milestone 3 - Rail Adapter Prototype
 

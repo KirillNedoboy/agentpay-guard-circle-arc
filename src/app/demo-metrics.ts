@@ -1,7 +1,12 @@
+import {
+  citePayDemoPreset,
+  citePayMockSources,
+  selectCitePaySources
+} from "@/domain/citepay/source-selection";
 import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/citepay/types";
 import type { AuditRecord } from "@/domain/audit/types";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
-import type { CircleRailPreview, ProgrammablePaymentContext } from "@/domain/payment-intent/types";
+import type { CircleRailPreview, PaymentIntent, ProgrammablePaymentContext } from "@/domain/payment-intent/types";
 import { addDecimalStrings } from "@/lib/decimal";
 
 export type DemoEvaluationResult = {
@@ -29,6 +34,25 @@ export type CctpRouteExplanation = {
   label: "Preview only";
   steps: string[];
 };
+export type ProposedIntentRow = [label: string, value: string];
+export type QuickCaseDefinition = {
+  id: "allow" | "review" | "block";
+  label: string;
+  description: string;
+  intent: PaymentIntent;
+};
+export type QuickCaseTransition = {
+  activeQuickCaseId: QuickCaseDefinition["id"];
+  form: PaymentIntent;
+  result: null;
+  citePaySelection: null;
+  citePayEvaluations: [];
+  selectedReceiptAuditId: null;
+};
+export type SettlementBoundary = {
+  label: "Future / not executed in MVP";
+  stages: ["Guard decision", "Future settlement adapter", "Arc / Circle Gateway / x402"];
+};
 export type StructuredAuditPreview = {
   intentId: string;
   recipientLabel: string;
@@ -42,6 +66,90 @@ export type StructuredAuditPreview = {
   railPreview: CircleRailPreview;
   programmablePaymentContext?: ProgrammablePaymentContext;
 };
+
+type ScenarioInput = {
+  expectedDecision: string;
+  intent: PaymentIntent;
+};
+
+export function buildQuickCaseDefinitions(scenarios: readonly ScenarioInput[]): QuickCaseDefinition[] {
+  if (!scenarios.length) {
+    return [];
+  }
+
+  const citePaySelection = selectCitePaySources({
+    agentId: citePayDemoPreset.agentId,
+    query: citePayDemoPreset.query,
+    budget: citePayDemoPreset.budget,
+    sources: citePayMockSources
+  });
+  const citePayReviewRecipient = citePaySelection.selected.find(
+    (item) => item.source.id === "premium-evidence-bundle"
+  )?.source.recipient;
+  const allow = scenarios.find((scenario) => scenario.expectedDecision === "ALLOW" && !scenario.intent.routeContext)
+    ?? scenarios.find((scenario) => scenario.expectedDecision === "ALLOW");
+  const review = scenarios.find(
+    (scenario) =>
+      scenario.expectedDecision === "REVIEW" &&
+      (!citePayReviewRecipient || scenario.intent.recipient === citePayReviewRecipient)
+  ) ?? scenarios.find((scenario) => scenario.expectedDecision === "REVIEW");
+  const block = scenarios.find((scenario) => scenario.expectedDecision === "BLOCK");
+  const fallbackIntent = scenarios[0].intent;
+
+  return [
+    {
+      id: "allow",
+      label: "Generic ALLOW",
+      description: "Known recipient and amount within policy.",
+      intent: allow?.intent ?? fallbackIntent
+    },
+    {
+      id: "review",
+      label: "CitePay REVIEW",
+      description: "Premium paid-source request held for review.",
+      intent: review?.intent ?? fallbackIntent
+    },
+    {
+      id: "block",
+      label: "Hard BLOCK",
+      description: "Existing denylisted recipient case.",
+      intent: block?.intent ?? fallbackIntent
+    }
+  ];
+}
+
+export function buildQuickCaseTransition(quickCase: QuickCaseDefinition): QuickCaseTransition {
+  return {
+    activeQuickCaseId: quickCase.id,
+    form: quickCase.intent,
+    result: null,
+    citePaySelection: null,
+    citePayEvaluations: [],
+    selectedReceiptAuditId: null
+  };
+}
+
+export function buildProposedIntentRows(intent: PaymentIntent | null | undefined): ProposedIntentRow[] {
+  if (!intent) {
+    return [];
+  }
+
+  return [
+    ["Agent ID", intent.agentId],
+    ["Amount", `${intent.amount} ${intent.currency}`],
+    ["Recipient", intent.recipient],
+    ["Scenario", intent.scenario],
+    ["Payment rail", intent.paymentRail],
+    ...(intent.idempotencyKey ? ([["Idempotency key", intent.idempotencyKey]] as ProposedIntentRow[]) : [])
+  ];
+}
+
+export function buildSettlementBoundary(): SettlementBoundary {
+  return {
+    label: "Future / not executed in MVP",
+    stages: ["Guard decision", "Future settlement adapter", "Arc / Circle Gateway / x402"]
+  };
+}
 
 export function buildDemoSummary(
   selection: CitePaySelectionResult | null,

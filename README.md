@@ -17,6 +17,12 @@ The app is a local proof. It does not settle a payment. Its audit record and Age
 
 Generic intents remain compatible, as does the existing CitePay source-selection flow.
 
+## Reviewer narrative
+
+The local demo starts with a CitePay paid-source request. It becomes a proposed USDC payment intent, passes AgentPay Guard preflight, and produces an explainable `ALLOW`, `REVIEW`, or `BLOCK` result. The same screen links the proposed intent to matched rules, an audit ID, an AgentPay Receipt, and a compact future settlement boundary for Arc / Circle Gateway / x402.
+
+CitePay is an illustrative local entry story, not a marketplace or payment product. The quick cases reuse the existing generic `ALLOW`, CitePay premium-source `REVIEW`, and denylisted-recipient `BLOCK` intents.
+
 ## Demo scenarios
 
 The validator includes the original generic `ALLOW`, `REVIEW`, and `BLOCK` cases plus:
