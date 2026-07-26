@@ -2,48 +2,35 @@
 
 ## What is AgentPay Guard?
 
-A preflight policy and audit layer for AI-agent payments.
+AgentPay Guard is a deterministic policy and evidence layer for proposed AI-agent USDC payments.
 
-## What does it do?
+## Reviewer path
 
-It receives a payment intent and returns:
+```txt
+CitePay request -> proposed payment intent -> Guard preflight
+-> ALLOW / REVIEW / BLOCK -> explanation -> audit / AgentPay Receipt
+-> future settlement adapter
+```
 
-- `ALLOW`;
-- `REVIEW`;
-- `BLOCK`.
+CitePay is the illustrative local entry story. It reuses the existing Guard API and does not execute a purchase.
 
-It records every decision in an audit log.
+## What the MVP shows
 
-## Why does it matter?
-
-Autonomous agents can pay for APIs, compute, data and services. Before they spend stablecoins, builders need explainable controls.
+- strict validation and deterministic policy precedence;
+- risk score, reason, matched rules, reason codes, and audit ID;
+- append-only JSONL evidence with idempotent replay;
+- AgentPay Receipt with `fundsMoved: false`;
+- generic quick `ALLOW`, CitePay premium-source `REVIEW`, and hard `BLOCK` cases;
+- proposal-only CCTP, ERC-20 authority, and Paymaster previews.
 
 ## Why Arc/Circle?
 
-The product is built around the idea of USDC-based agentic payments, x402-style paid APIs, Circle Gateway/Nanopayments and Arc ecosystem machine-to-machine settlement.
+The product demonstrates the control point before future USDC settlement paths such as x402, Circle Gateway, or Arc. The current app does not call those services.
 
-## What is built in the MVP?
+## Safety boundary
 
-- deterministic policy engine;
-- local API;
-- demo UI;
-- 3 scenarios;
-- audit log;
-- grant/post documentation.
+No live payment, RPC, wallet, private key, signing, permit, UserOperation, CCTP burn/mint, Iris verification, transaction hash, balance/allowance read, or settlement confirmation is produced.
 
-## What is not built?
+## Future work
 
-- real payment execution;
-- custody;
-- signing;
-- AML/KYC;
-- fraud guarantee;
-- production admin system.
-
-## What comes next?
-
-- x402/Gateway adapter;
-- policy management UI;
-- review queue;
-- webhook integrations;
-- audit export/attestation.
+Settlement adapters, review queues, policy management, and integrations require separate scope.

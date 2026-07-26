@@ -3,13 +3,15 @@
 ## Implemented flow
 
 ```txt
-Proposed payment intent
+CitePay request / source selection
+  -> proposed USDC payment intent
   -> strict validation
   -> deterministic local policy
   -> ALLOW / REVIEW / BLOCK
-  -> preview-only route, authority, and fee explanation
+  -> explanation and matched rules
   -> append-only audit record or idempotent reuse
   -> AgentPay Receipt evidence
+  -> preview-only route, authority, and fee explanation
   -> future settlement adapter boundary
 ```
 

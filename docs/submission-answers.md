@@ -25,6 +25,10 @@ AgentPay Guard strictly validates a proposed intent, applies deterministic local
 - Append-only JSONL audit records, idempotent replay, optional `programmablePaymentContext`, and AgentPay Receipt evidence.
 - Validator scenarios for generic `ALLOW`/`REVIEW`/`BLOCK`, CCTP Fast Transfer `REVIEW`, standard CCTP `ALLOW`, unsupported CCTP `BLOCK`, and ERC-20 approval `REVIEW`.
 
+## Demo story
+
+CitePay is the illustrative entry point: a paid-source request becomes a proposed USDC payment intent, Guard returns `ALLOW`, `REVIEW`, or `BLOCK`, and the AgentPay Receipt plus append-only JSONL audit preserve the explanation. The compact boundary then points to a future Arc / Circle Gateway / x402 settlement adapter that is not executed in this MVP.
+
 ## Preview-only boundary
 
 CCTP data is policy preview, not CCTP integration. ERC-20 operation/spender data is proposal context, not an allowance or balance read. Paymaster data is fee-budget preview, not a UserOperation. The app does not move funds, connect wallets, sign, hold keys, create permits or transactions, verify Iris, read balances, or confirm settlement/finality.

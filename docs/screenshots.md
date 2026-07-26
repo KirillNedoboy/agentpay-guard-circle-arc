@@ -2,6 +2,8 @@
 
 All PNG files are real captures from the local AgentPay Guard UI. They document policy decisions and proposal evidence only; none shows payment execution or a live protocol integration.
 
+The current reviewer path is CitePay first, then the proposed payment intent, Guard decision, receipt/audit evidence, and the future settlement boundary. The older generic captures remain preserved for compatibility.
+
 ## Legacy generic evidence
 
 | File | What it shows |

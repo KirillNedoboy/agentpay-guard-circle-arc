@@ -1,107 +1,41 @@
-# CitePay Local Demo Script
+# CitePay local demo script
 
 ## Status
 
-Legacy reference only. This script documents the earlier Lepton/CitePay branch flow and is not the current Ignyte / Circle / Arc reviewer path.
+Current additive local flow. Use this as the CitePay-specific companion to `docs/demo-script.md`.
 
-For the current demo, use:
-
-- `docs/demo-script.md`
-- `docs/ignyte-circle-arc-brief.md`
-- `README.md`
-
-The old values below, including `0.24 USDC`, `Weather risk brief`, `Climate claims dataset`, and `Blocked scrape cache`, are kept only as historical context for the earlier paid-citation experiment.
-
-## Legacy goal
-
-Show the deterministic Lepton/CitePay paid-citation flow in under 3 minutes without inventing a query.
-
-## Local Run Command
+## Run
 
 ```bash
 pnpm dev
 ```
 
-Open:
+Open the local URL, normally `http://localhost:3000`, and click **Run CitePay demo**.
 
-```txt
-http://localhost:3000
-```
+## Click path
 
-## Demo Preset
-
-Use the built-in `Lepton/CitePay demo preset`.
-
-Exact query:
-
-```txt
-Need weather risk, climate claims, telemetry attestation, and private scrape cache context for an insurance answer
-```
-
-Exact budget:
-
-```txt
-0.24 USDC
-```
-
-## Click Path
-
-1. Open the local app.
-2. Scroll to `CitePay Agent local flow`.
-3. Confirm the query and budget match the preset above.
-4. If needed, click `Load preset`.
-5. Click `Select paid sources and evaluate Guard`.
-6. Review `Selected sources`, `Skipped sources`, `Proposed spend`, `Allowed spend`, and `Recent audit log`.
-
-## What The Viewer Should See
-
-Selected paid source cards:
-
-- `Weather risk brief` from `Weather Desk`: Guard decision `ALLOW`.
-- `Climate claims dataset` from `Creator Lab`: Guard decision `REVIEW` because the recipient is not allowlisted.
-- `Blocked scrape cache` from `Blocked Source`: Guard decision `BLOCK` because the recipient is denylisted.
-- `Telemetry attestation note` from `Telemetry Attestation`: Guard decision `REVIEW` because the recipient requires review.
-
-Skipped source:
-
-- `Market data note`: skipped as `not_relevant`.
-
-Spend summary:
-
-- Proposed spend: `0.24 USDC`.
-- Allowed spend: `0.08 USDC`.
-
-Audit behavior:
-
-- Each selected source becomes a normal AgentPay Guard payment intent.
-- Each selected source is evaluated through `POST /api/payment-intents/evaluate`.
-- Each successful evaluation writes or reuses a JSONL audit record in `data/audit-log.jsonl`.
-- Re-running the same preset should reuse deterministic idempotency keys instead of duplicating audit entries for those keys.
+1. Review the CitePay request, budget, and proposed payment intent fields.
+2. Run the full source-selection flow.
+3. Inspect selected and skipped sources, proposed spend, and each Guard decision.
+4. Select a decision to view its AgentPay Receipt and audit-backed evidence.
+5. Use **Generic ALLOW**, **CitePay REVIEW**, and **Hard BLOCK** for a compact three-case proof.
+6. Expand the validator for CCTP and ERC-20 proposal previews.
 
 ## Narration
 
-Say:
+> CitePay is the user story, not a marketplace. The agent asks for paid evidence, local selection maps each source to a proposed USDC payment intent, and AgentPay Guard decides whether it is allowed, reviewed, or blocked before settlement.
 
-> CitePay uses AgentPay Guard as the preflight layer before paid citations. The agent selects paid source cards locally, turns each selection into a payment intent, and Guard decides whether that intent is allowed, requires review, or must be blocked.
+Point to the receipt and audit evidence:
 
-Then point to the selected source decisions:
-
-> The same local preset shows the full policy range. A known weather source is allowed, unknown or review-required sources are held for review, and a denylisted source is blocked. The allowed spend only counts sources that Guard allowed.
+> The decision, reason codes, matched rules, audit ID, and `fundsMoved: false` are preserved as proposal-only evidence. No wallet or payment rail is called.
 
 Close with:
 
-> This is a deterministic local demo. No real payment rail is called and no funds move.
+> No funds moved. AgentPay Guard is the deterministic policy and evidence layer before settlement.
 
-## Intentionally Not Implemented Yet
+## Not implemented
 
-- Real payments.
-- Wallet signing.
-- Live Circle Gateway calls.
-- Live x402 buyer/seller flow.
-- Live Arc integration.
-- Creator payouts.
-- Source licensing enforcement.
-- Secrets or environment variables.
-- Database, auth, or accounts.
-- Smart contracts.
-- External services.
+- live payments or creator payouts;
+- wallet custody, signing, permits, or UserOperations;
+- live Circle Gateway, Arc, x402, CCTP, Iris, RPC, bundler, or EntryPoint calls;
+- accounts, marketplace behavior, database, or policy editing UI.

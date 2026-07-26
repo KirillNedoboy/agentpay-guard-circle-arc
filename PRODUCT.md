@@ -22,11 +22,21 @@ Do not make it look like a generic payment button, wallet app, trading console, 
 
 ## Design Principles
 
-- Show the decision path before showing any payment rail preview.
+- Start the reviewer path with the CitePay request and proposed payment intent, then show the Guard decision and evidence before any payment rail preview.
 - Keep policy, rail, and audit evidence visible without decorative distraction.
 - Make the local/mock boundary obvious wherever payment execution could be inferred.
 - Use familiar dashboard controls and dense but readable evidence panels.
 - Prefer deterministic labels and machine-readable proof over marketing copy.
+
+## Reviewer path
+
+```txt
+CitePay request -> proposed USDC payment intent -> Guard preflight
+-> ALLOW / REVIEW / BLOCK -> explanation -> audit / AgentPay Receipt
+-> Future settlement adapter (not executed in MVP)
+```
+
+CitePay is only the local illustrative entry story. Generic validator cases and programmable CCTP, ERC-20, and Paymaster previews remain available as secondary proof.
 
 ## Accessibility & Inclusion
 

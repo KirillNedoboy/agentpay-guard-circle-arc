@@ -10,7 +10,9 @@ AgentPay Guard is a local deterministic policy and evidence layer for proposed A
 
 ## Full description
 
-The project adds a control point before a future settlement adapter. It evaluates generic USDC intents and optional programmable-money context: CCTP route policy, ERC-20 authority proposal context, and a Paymaster fee-budget preview. The UI shows matched rules, reason codes, proposal route/authority/fee fields, audit evidence, and AgentPay Receipt output.
+The project adds a control point before a future settlement adapter. The reviewer path starts with a CitePay paid-source request, turns it into a proposed USDC payment intent, and shows AgentPay Guard's `ALLOW`, `REVIEW`, or `BLOCK` decision with matched rules, reason codes, audit evidence, and AgentPay Receipt output. CitePay is an illustrative local flow, not a marketplace or live payment product.
+
+The app also evaluates generic USDC intents and optional programmable-money context: CCTP route policy, ERC-20 authority proposal context, and a Paymaster fee-budget preview.
 
 The validator demonstrates CCTP Fast Transfer `REVIEW`, standard CCTP `ALLOW`, unsupported CCTP `BLOCK`, and ERC-20 approval `REVIEW`, alongside the existing generic and CitePay flows. Amount-plus-fee totals use decimal-string arithmetic; audit records retain optional normalized proposal context and replay the same idempotency key without a duplicate line.
 

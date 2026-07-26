@@ -14,9 +14,13 @@ import {
   buildAuditPreview,
   buildCctpRouteExplanation,
   buildDemoSummary,
+  buildProposedIntentRows,
   buildProgrammableEvidenceRows,
+  buildQuickCaseDefinitions,
   buildRailPreviewRows,
-  buildReasonCodeRows
+  buildReasonCodeRows,
+  buildSettlementBoundary,
+  type QuickCaseDefinition
 } from "./demo-metrics";
 
 export type Scenario = {
@@ -82,6 +86,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
   const [citePayEvaluations, setCitePayEvaluations] = useState<CitePayEvaluatedSource[]>([]);
   const [citePayIsSubmitting, setCitePayIsSubmitting] = useState(false);
   const [citePayError, setCitePayError] = useState<string | null>(null);
+  const [activeQuickCaseId, setActiveQuickCaseId] = useState<QuickCaseDefinition["id"] | null>(null);
 
   useEffect(() => {
     setForm(selectedScenario.intent);
@@ -89,6 +94,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     setError(null);
     setSelectedReceiptAuditId(null);
     setCopyState("idle");
+    setActiveQuickCaseId(null);
   }, [selectedScenario]);
 
   async function refreshAuditLog() {
@@ -106,7 +112,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     setCopyState("idle");
   }
 
-  async function evaluate() {
+  async function evaluateIntent(intent: PaymentIntent) {
     setIsSubmitting(true);
     setError(null);
     selectReceipt(null);
@@ -114,7 +120,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
       const response = await fetch("/api/payment-intents/evaluate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form)
+        body: JSON.stringify(intent)
       });
       const data = (await response.json()) as EvaluationResult;
       setResult(data);
@@ -130,6 +136,19 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     }
   }
 
+  async function evaluate() {
+    setActiveQuickCaseId(null);
+    await evaluateIntent(form);
+  }
+
+  async function runQuickCase(quickCase: QuickCaseDefinition) {
+    setActiveQuickCaseId(quickCase.id);
+    setForm(quickCase.intent);
+    setResult(null);
+    await evaluateIntent(quickCase.intent);
+    scrollToId("evidence");
+  }
+
   function loadCitePayDemoPreset() {
     setCitePayQuery(citePayDemoPreset.query);
     setCitePayBudget(citePayDemoPreset.budget);
@@ -143,6 +162,8 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     setCitePayIsSubmitting(true);
     setCitePayError(null);
     setCitePayEvaluations([]);
+    setResult(null);
+    setActiveQuickCaseId(null);
     selectReceipt(null);
 
     const selection = selectCitePaySources({
@@ -168,7 +189,12 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         }
       }
       setCitePayEvaluations(evaluations);
-      selectReceipt(evaluations.find((item) => item.result.auditId)?.result.auditId ?? null);
+      const primaryEvaluation =
+        evaluations.find((item) => item.result.decision === "BLOCK") ??
+        evaluations.find((item) => item.result.decision === "REVIEW") ??
+        evaluations.find((item) => item.result.decision === "ALLOW") ??
+        null;
+      selectReceipt(primaryEvaluation?.result.auditId ?? null);
       await refreshAuditLog();
     } catch {
       setCitePayError("CitePay evaluation failed locally.");
@@ -178,35 +204,9 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
   }
 
   const decisionClass = useMemo(() => result?.decision.toLowerCase() ?? "empty", [result]);
+  const quickCases = useMemo(() => buildQuickCaseDefinitions(scenarios), [scenarios]);
+  const settlementBoundary = useMemo(() => buildSettlementBoundary(), []);
   const demoSummary = useMemo(() => buildDemoSummary(citePaySelection, citePayEvaluations), [citePaySelection, citePayEvaluations]);
-  const latestRules = useMemo(() => {
-    const unique = new Set<string>();
-    for (const evaluation of citePayEvaluations) {
-      for (const rule of evaluation.result.matchedRules) {
-        unique.add(rule);
-      }
-    }
-    if (result) {
-      for (const rule of result.matchedRules) {
-        unique.add(rule);
-      }
-    }
-    return Array.from(unique);
-  }, [citePayEvaluations, result]);
-  const latestReasonCodes = useMemo(() => {
-    const unique = new Set<string>();
-    for (const evaluation of citePayEvaluations) {
-      for (const code of evaluation.result.reasonCodes ?? []) {
-        unique.add(code);
-      }
-    }
-    if (result) {
-      for (const code of result.reasonCodes ?? []) {
-        unique.add(code);
-      }
-    }
-    return Array.from(unique);
-  }, [citePayEvaluations, result]);
   const auditPreview = useMemo(() => buildAuditPreview(records[0]), [records]);
   const selectedAuditRecord = useMemo(
     () => records.find((record) => record.auditId === selectedReceiptAuditId) ?? null,
@@ -216,27 +216,38 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     () => (selectedAuditRecord ? buildAgentPayReceipt(selectedAuditRecord) : null),
     [selectedAuditRecord]
   );
-  const primaryOutcome = useMemo(() => {
-    const rankedEvaluation =
+  const primaryEvaluation = useMemo(() => {
+    const selectedEvaluation = citePayEvaluations.find(
+      (item) => item.result.auditId === selectedReceiptAuditId
+    );
+    return selectedEvaluation ??
       citePayEvaluations.find((item) => item.result.decision === "BLOCK") ??
       citePayEvaluations.find((item) => item.result.decision === "REVIEW") ??
       citePayEvaluations.find((item) => item.result.decision === "ALLOW") ??
       null;
-
-    if (!rankedEvaluation) {
+  }, [citePayEvaluations, selectedReceiptAuditId]);
+  const primaryResult = result ?? primaryEvaluation?.result ?? null;
+  const proposedIntent = primaryEvaluation?.paymentIntent ?? (result ? form : quickCases.find((item) => item.id === "review")?.intent ?? null);
+  const proposedIntentRows = useMemo(() => buildProposedIntentRows(proposedIntent), [proposedIntent]);
+  const latestRules = primaryResult?.matchedRules ?? [];
+  const latestReasonCodes = primaryResult?.reasonCodes ?? [];
+  const primaryOutcome = useMemo(() => {
+    if (!primaryResult) {
       return {
         decision: "READY",
-        reason: "Tap Run demo to show the selected source, decision, and audit proof.",
+        riskScore: null,
+        reason: "Run the CitePay flow or a quick case to produce an explainable policy decision.",
         auditId: "pending"
       };
     }
 
     return {
-      decision: rankedEvaluation.result.decision,
-      reason: rankedEvaluation.result.reason,
-      auditId: rankedEvaluation.result.auditId ?? "pending"
+      decision: primaryResult.decision,
+      riskScore: primaryResult.riskScore,
+      reason: primaryResult.reason,
+      auditId: primaryResult.auditId ?? "pending"
     };
-  }, [citePayEvaluations]);
+  }, [primaryResult]);
 
   function scrollToId(id: string) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -362,11 +373,11 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
       <section className="hero-panel">
         <div className="hero-copy">
           <p className="eyebrow">Preflight control layer</p>
-          <h1>Agent spend, checked before settlement.</h1>
-          <p className="hero-text">Run the local proof to see a paid-source request become policy decisions, audit records, and preview-only Circle / Arc rail metadata.</p>
+          <h1>CitePay request, checked before settlement.</h1>
+          <p className="hero-text">Turn a paid-source request into a proposed USDC payment intent, run AgentPay Guard preflight, and inspect an explainable decision with append-only evidence.</p>
           <div className="hero-actions">
             <button className="hero-cta-primary" onClick={runPrimaryDemo} type="button">
-              {citePayIsSubmitting ? "Running demo..." : "Run demo"}
+              {citePayIsSubmitting ? "Running CitePay..." : "Run CitePay demo"}
             </button>
           </div>
           <div className="hero-kpis" aria-label="Proof context">
@@ -425,46 +436,59 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         </div>
       </section>
 
-      <article className={`proof-card ${primaryOutcome.decision.toLowerCase()}`} aria-label="Guard decision">
-        <div className="proof-card-head">
-          <span className="summary-label">Guard decision</span>
-          <span className={`status-chip large ${primaryOutcome.decision.toLowerCase()}`}>
-            {primaryOutcome.decision}
-          </span>
-        </div>
-        <p className="proof-reason">{primaryOutcome.reason}</p>
-        <dl className="proof-meta">
-          <div>
-            <dt>Audit trace</dt>
-            <dd className="mono-text">{primaryOutcome.auditId}</dd>
-          </div>
-          <div>
-            <dt>Matched rules</dt>
-            <dd className="rule-list-inline">
-              {latestRules.length ? latestRules.join(", ") : "Run the demo to populate proof."}
-            </dd>
-          </div>
-          <div>
-            <dt>Reason codes</dt>
-            <dd className="rule-list-inline">
-              {latestReasonCodes.length ? latestReasonCodes.join(", ") : "Run the demo to populate evidence codes."}
-            </dd>
-          </div>
-        </dl>
-      </article>
-
       <section className="story-section" id="main-demo">
         <div className="section-heading narrative-heading">
           <div>
             <p className="eyebrow">Main demo narrative</p>
-            <h2>CitePay flow with Guard in the loop</h2>
-            <p className="section-subtitle">Run one query, inspect the paid-source candidates, and show how every spend request is allowed, reviewed, or blocked with audit evidence.</p>
+            <h2>Paid source to proposed payment intent</h2>
+            <p className="section-subtitle">CitePay is the illustrative entry story. AgentPay Guard validates each proposed USDC intent before any future settlement adapter.</p>
           </div>
           <div className="micro-proof">
             <span className="mono-chip">{demoSummary.selectedCount} selected</span>
             <span className="mono-chip">{demoSummary.approvedCount} approved</span>
           </div>
         </div>
+
+        <div className="quick-case-bar" aria-label="Quick policy cases">
+          <div>
+            <strong>Quick cases</strong>
+            <span>Reuse existing intents for a compact policy proof.</span>
+          </div>
+          <div className="quick-case-actions">
+            {quickCases.map((quickCase) => (
+              <button
+                className={`quick-case ${quickCase.id} ${activeQuickCaseId === quickCase.id ? "is-active" : ""}`}
+                disabled={isSubmitting || citePayIsSubmitting}
+                key={quickCase.id}
+                onClick={() => void runQuickCase(quickCase)}
+                type="button"
+              >
+                <strong>{quickCase.label}</strong>
+                <span>{quickCase.description}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <article className="proposed-intent-panel" aria-label="Proposed payment intent">
+          <div className="proposed-intent-head">
+            <div>
+              <p className="eyebrow">Policy input</p>
+              <h3>Proposed payment intent</h3>
+              <p className="section-subtitle">The request below is proposal context only. No wallet signing or transaction submission occurs.</p>
+            </div>
+            <span className="mono-chip">USDC / local preflight</span>
+          </div>
+          {proposedIntent ? <p className="proposed-intent-copy">{proposedIntent.intent}</p> : null}
+          <dl className="proposed-intent-grid">
+            {proposedIntentRows.map(([label, value]) => (
+              <div key={label}>
+                <dt>{label}</dt>
+                <dd className={label === "Agent ID" || label === "Recipient" || label === "Idempotency key" || label === "Payment rail" ? "mono-text" : ""}>{value}</dd>
+              </div>
+            ))}
+          </dl>
+        </article>
 
         <div className="story-grid">
           <article className="panel stage-panel">
@@ -659,7 +683,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         <div className="section-heading">
           <div>
             <p className="eyebrow">Trust + evidence</p>
-            <h2>Decision proof</h2>
+            <h2>AgentPay Receipt and decision proof</h2>
           </div>
           <button onClick={refreshAuditLog} type="button">
             Refresh proof
@@ -675,6 +699,22 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
           </div>
           <p className="proof-reason">{primaryOutcome.reason}</p>
           <dl className="proof-meta">
+            <div>
+              <dt>Risk score</dt>
+              <dd>{primaryOutcome.riskScore === null ? "pending" : `${primaryOutcome.riskScore}/100`}</dd>
+            </div>
+            <div>
+              <dt>Amount</dt>
+              <dd>{proposedIntent ? `${proposedIntent.amount} ${proposedIntent.currency}` : "pending"}</dd>
+            </div>
+            <div>
+              <dt>Recipient</dt>
+              <dd className="mono-text">{proposedIntent?.recipient ?? "pending"}</dd>
+            </div>
+            <div>
+              <dt>Scenario</dt>
+              <dd className="mono-text">{proposedIntent?.scenario ?? "pending"}</dd>
+            </div>
             <div>
               <dt>Audit trace</dt>
               <dd className="mono-text">{primaryOutcome.auditId}</dd>
@@ -847,6 +887,24 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
             ) : null}
           </div>
         </details>
+
+        <section className="settlement-boundary" aria-label="Future settlement boundary">
+          <div className="settlement-boundary-head">
+            <div>
+              <p className="eyebrow">After evidence</p>
+              <h3>Future settlement boundary</h3>
+            </div>
+            <span>{settlementBoundary.label}</span>
+          </div>
+          <div className="settlement-boundary-flow">
+            {settlementBoundary.stages.map((stage, index) => (
+              <div className="settlement-boundary-stage" key={stage}>
+                <strong>{stage}</strong>
+                {index < settlementBoundary.stages.length - 1 ? <span aria-hidden="true">-&gt;</span> : null}
+              </div>
+            ))}
+          </div>
+        </section>
       </section>
 
       <details className="validator-section collapse-block">
