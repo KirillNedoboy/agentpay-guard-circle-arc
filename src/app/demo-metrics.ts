@@ -1,7 +1,7 @@
 import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/citepay/types";
 import type { AuditRecord } from "@/domain/audit/types";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
-import type { CircleRailPreview } from "@/domain/payment-intent/types";
+import type { ArcTestnetSimulation, CircleRailPreview } from "@/domain/payment-intent/types";
 import { addDecimalStrings } from "@/lib/decimal";
 
 export type DemoEvaluationResult = {
@@ -24,6 +24,7 @@ export type DemoSummary = {
 
 export type RailPreviewRow = [label: string, value: string];
 export type ReasonCodeRow = [label: "Reason codes", value: string];
+export type SimulationRow = [label: string, value: string];
 export type StructuredAuditPreview = {
   intentId: string;
   recipientLabel: string;
@@ -76,6 +77,21 @@ export function buildReasonCodeRows(reasonCodes: string[] | undefined): ReasonCo
   }
 
   return [["Reason codes", reasonCodes.join(", ")]];
+}
+
+export function buildSimulationRows(simulation: ArcTestnetSimulation | undefined): SimulationRow[] {
+  if (!simulation) {
+    return [];
+  }
+
+  return [
+    ["Status", simulation.status],
+    ["Network", `${simulation.network.name} (${simulation.network.chainId})`],
+    ["Asset", `${simulation.asset.symbol} (${simulation.asset.decimals} decimals)`],
+    ["Amount", `${simulation.amountUSDC} ${simulation.asset.symbol}`],
+    ["Broadcast", simulation.broadcast ? "broadcast" : "not broadcast"],
+    ["Verification", simulation.verificationStatus]
+  ];
 }
 
 export function buildAuditPreview(record: AuditRecord | undefined): StructuredAuditPreview | null {

@@ -8,7 +8,7 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 
 ## Current phase
 
-`IGNYTE_CIRCLE_ARC_PREVIEW_STABILIZATION`
+`HACKATHON_READY_SIMULATION_PROOF`
 
 ## Done
 
@@ -20,7 +20,7 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 - JSONL audit logging is append-only and idempotent by `idempotencyKey`.
 - Existing paid-source selection flow maps source candidates to Guard-compatible payment intents.
 - Ignyte/Circle/Arc demo preset uses:
-  - trusted x402 API -> `ALLOW`;
+  - trusted Arc Testnet verification API -> `ALLOW` and non-broadcast simulation;
   - premium evidence bundle -> `REVIEW`;
   - untrusted scrape cache -> `BLOCK`;
   - telemetry attestation note -> `REVIEW`.
@@ -28,13 +28,15 @@ Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows a
 - Audit records include `eventType`, `reasonCodes`, `executionMode`, and `railPreview`.
 - Tests cover rail preview, policy reason codes, audit payload shape, scenario decisions, and safe invalid-request posture.
 - Demo UI shows compact rail preview rows for evaluated spend intents.
+- Arc Testnet simulation uses fixed official network and USDC metadata; it performs no RPC call, signing, or broadcast.
+- Health endpoint exists at `GET /api/health`; `pnpm smoke` verifies local health and the three decision states.
 - README and core docs now use AgentPay Guard / Circle / Arc positioning as primary.
 - Generated Playwright artifacts were removed from the working tree.
-- Final validation after tracker updates passed for `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build`.
+- Current validation passed: `pnpm test` (9 files, 47 tests), `pnpm lint`, `pnpm typecheck`, `pnpm build`, and production HTTP smoke.
 
 ## In progress
 
-- Commit is pending final diff inspection.
+- Submission owner can record a public demo URL or video only after it exists.
 
 ## Boundary
 

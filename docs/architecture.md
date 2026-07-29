@@ -1,98 +1,26 @@
 # Architecture
 
-## MVP flow
-
 ```txt
-Browser demo UI
-  ->
-POST /api/payment-intents/evaluate
-  ->
-Request validation
-  ->
-Policy config loader
-  ->
-Policy engine
-  ->
-Risk score + decision
-  ->
-Circle/Arc rail preview adapter
-  ->
-Audit JSONL append or idempotent reuse
-  ->
-Decision response
+CitePay research agent
+  -> proposed USDC payment intent
+  -> request validation
+  -> deterministic policy engine
+  -> ALLOW / REVIEW / BLOCK
+  -> append-only JSONL audit receipt
+  -> Arc Testnet simulation (ALLOW + Arc USDC route only)
+  -> browser evidence view
 ```
 
-## Payment rail boundary
+`POST /api/payment-intents/evaluate` remains the decision boundary. It validates the request, evaluates policy, writes or reuses an audit record, and returns additive `arcTestnetSimulation` evidence.
 
-```txt
-AI Agent / Machine Client
-  ->
-AgentPay Guard
-  ->
-ALLOW / REVIEW / BLOCK
-  ->
-mock x402 / Circle Gateway / Arc rail preview
-```
+`GET /api/audit-log` returns recent receipts. `GET /api/health` returns an unauthenticated local readiness response and exposes no configuration or credentials.
 
-The MVP stops at the decision and preview layer. It does not call live payment rails.
+## Arc Testnet simulation boundary
 
-## Rail preview adapter
+The adapter is pure TypeScript. It performs no RPC request, signing, wallet connection, or broadcast. It accepts only an `ALLOW` decision for `arc_settlement_preview` using USDC and the fixed Arc Testnet configuration. Every output has `broadcast: false` and `verificationStatus: not_broadcast`.
 
-`src/domain/payment-intent/rail-preview.ts` maps a validated `PaymentIntent` to a typed `CircleRailPreview`.
+The receipt deliberately has no transaction hash, signature, wallet address, private key, or explorer transaction URL. The explorer base URL is reference configuration only.
 
-The preview includes:
+## Persistence and failure posture
 
-- rail label;
-- settlement asset `USDC`;
-- execution mode: `mock_preview` or `live_disabled`;
-- recipient;
-- amount;
-- explanation of the no-execution boundary.
-
-It intentionally does not include transaction hashes, signatures, private keys, network calls, or payment execution semantics.
-
-## Main modules
-
-```txt
-src/domain/payment-intent
-  types
-  validation
-  evaluate
-  rail-preview
-
-src/domain/policy
-  policy-config
-  engine
-
-src/domain/audit
-  types
-  audit-log
-
-src/domain/citepay
-  source-selection
-  types
-
-src/lib
-  decimal
-  paths
-```
-
-## Persistence
-
-MVP uses files:
-
-- `data/policies.default.json`
-- `data/audit-log.jsonl`
-
-No DB is required for this slice.
-
-## Failure posture
-
-Internal error must not result in `ALLOW`.
-
-Expected behavior:
-
-- validation error -> structured 400 with `BLOCK`;
-- policy/audit internal error -> non-ALLOW safe failure;
-- unknown future rail -> `executionMode: "live_disabled"`;
-- no hidden payment execution path.
+Audit records are append-only JSONL at `data/audit-log.jsonl` and are idempotent by `idempotencyKey`. Validation failures return `BLOCK` before audit writing or simulation. Internal failures return non-ALLOW results. A simulation adapter marked unavailable returns `not_executed`; it never falls through to settlement.

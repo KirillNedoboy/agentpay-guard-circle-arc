@@ -557,6 +557,37 @@ input:focus {
   padding: 12px;
 }
 
+.simulation-stage {
+  grid-column: 1 / -1;
+}
+
+.simulation-card {
+  display: grid;
+  gap: 12px;
+  border: 1px solid rgba(15, 118, 110, 0.32);
+  background: var(--accent-soft);
+  padding: 14px;
+}
+
+.simulation-card.not_eligible,
+.simulation-card.not_executed {
+  border-color: rgba(161, 98, 7, 0.32);
+  background: var(--review-soft);
+}
+
+.simulation-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.simulation-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
 .rail-preview-head {
   display: flex;
   align-items: center;
@@ -605,6 +636,12 @@ input:focus {
   border-color: rgba(180, 35, 24, 0.26);
   background: var(--block-soft);
   color: var(--block);
+}
+
+.execution-chip.not_broadcast {
+  border-color: rgba(161, 98, 7, 0.32);
+  background: var(--review-soft);
+  color: var(--review);
 }
 
 .empty-state {

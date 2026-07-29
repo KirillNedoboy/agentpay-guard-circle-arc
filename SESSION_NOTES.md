@@ -881,3 +881,25 @@ The safety scan matched boundary and non-goal language only, including explicit 
 ### Commit status
 
 Pending final diff inspection and commit.
+
+## 2026-07-29 - Hackathon-ready Arc simulation proof
+
+### What changed
+
+- Added a pure Arc Testnet USDC simulation adapter with official testnet metadata and a permanent non-broadcast result.
+- Added simulation evidence to evaluation responses and JSONL audit records without changing the existing endpoints.
+- Routed the approved CitePay source to `arc_settlement_preview` and added stage 04 to the guided proof flow.
+- Added `GET /api/health`, `pnpm smoke`, deployment guidance, judge one-pager, submission answers, and integration-status matrix.
+
+### Boundary kept intact
+
+- No wallet connection, RPC request, `eth_call`, signing, broadcast, transaction hash, private key, seed phrase, Circle credential, or live payment rail.
+
+### Validation status
+
+- `pnpm test`: passed, 9 test files and 47 tests.
+- `pnpm lint`: passed.
+- `pnpm typecheck`: passed.
+- `pnpm build`: passed.
+- `pnpm smoke`: passed against a local production server with a temporary audit path.
+- `git diff --check`: passed.

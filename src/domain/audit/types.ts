@@ -1,4 +1,4 @@
-import type { CircleRail, CircleRailPreview, Decision, PaymentPurpose } from "@/domain/payment-intent/types";
+import type { ArcTestnetSimulation, CircleRail, CircleRailPreview, Decision, PaymentPurpose } from "@/domain/payment-intent/types";
 
 export type AuditRecord = {
   eventType: "agent_payment_guard_evaluated";
@@ -26,4 +26,5 @@ export type AuditRecord = {
   reason: string;
   executionMode: CircleRailPreview["executionMode"];
   railPreview: CircleRailPreview;
+  arcTestnetSimulation?: ArcTestnetSimulation;
 };

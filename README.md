@@ -1,110 +1,53 @@
 # AgentPay Guard
 
-> Preflight policy and audit layer for autonomous AI-agent USDC payment intents before x402, Circle Gateway, or Arc-compatible payment flows.
+AgentPay Guard is a preflight firewall and evidence layer that lets AI agents propose USDC spend on Arc without making opaque payment decisions.
 
-## What this is
+## 30-second pitch
 
-AgentPay Guard is a local deterministic proof for the Stablecoins Commerce Stack / agentic economy track.
+An agent can select a paid source and prepare a payment intent in seconds. A wallet alone cannot explain whether that spend is trusted, within budget, or repeatable. AgentPay Guard evaluates the intent with deterministic rules, returns `ALLOW`, `REVIEW`, or `BLOCK`, and stores an append-only receipt. The approved CitePay demo intent then enters an Arc Testnet USDC simulation boundary. It is never broadcast.
 
-It shows the control point before an agent spends:
+Primary hackathon track: **Agentic Economy**.
 
-1. an agent creates a USDC payment intent for a paid API, data source, or service;
-2. Guard validates the request and applies deterministic policy rules;
-3. Guard returns `ALLOW`, `REVIEW`, or `BLOCK`;
-4. Guard writes or reuses an append-only JSONL audit record;
-5. the UI shows a Circle/Arc rail preview without moving funds.
+## What the demo proves
 
-This is not a live payment product. It is the guard and evidence layer before a future payment rail.
+1. A CitePay research agent selects paid evidence sources.
+2. Guard evaluates each USDC intent and records why it was allowed, held, or blocked.
+3. The approved Arc-routed intent produces deterministic Arc Testnet simulation evidence.
+4. The receipt and audit log show the decision, rules, route, amount, and non-broadcast status.
 
-## Implemented now
+The first screen follows: `Proposed → Evaluated → Approved / Review / Blocked → Arc Testnet simulation → Evidence`.
 
-- Next.js / TypeScript local demo.
-- `POST /api/payment-intents/evaluate`.
-- `GET /api/audit-log`.
-- Decimal-string USDC amount handling.
-- Deterministic policy engine with trusted, review-required, unknown, and blocked recipient paths.
-- Circle/Arc rail preview adapter for:
-  - `mock_x402_service`;
-  - `mock_gateway_nanopayment`;
-  - `arc_settlement_preview`;
-  - `mock_agent_wallet`;
-  - unknown rails as `live_disabled`.
-- JSONL audit records with idempotency by `idempotencyKey`.
-- Demo preset with visible `ALLOW`, `REVIEW`, and `BLOCK` outcomes.
+## Golden path
 
-## Not implemented
+Run the built-in preset. It selects four sources:
 
-- no real payment execution;
-- no live Circle Gateway call;
-- no live Arc integration;
-- no live x402 buyer or seller flow;
-- no wallet signing;
-- no custody or private keys;
-- no transaction hash fabrication;
-- no DB/auth/smart contracts;
-- no AML/KYC or fraud guarantee;
-- no official Circle, Arc, or Ignyte integration claim.
+| Source | Decision | Result |
+|---|---|---|
+| Trusted Arc Testnet verification API, `0.08 USDC` | `ALLOW` | Arc Testnet USDC simulation; not broadcast |
+| Premium evidence bundle, `0.25 USDC` | `REVIEW` | Operator decision required |
+| Untrusted scrape cache, `0.04 USDC` | `BLOCK` | Cannot reach a payment rail |
+| Telemetry attestation note, `0.03 USDC` | `REVIEW` | Operator decision required |
 
-## Demo story
+## Arc and USDC status
 
-A research agent needs paid evidence before publishing a thesis. It prepares USDC spend intents for:
+AgentPay Guard uses a local deterministic simulation, not a live Arc integration. The simulation is fixed to the documented Arc Testnet values:
 
-- `Trusted x402 verification API` at `0.08 USDC` -> `ALLOW`;
-- `Premium evidence bundle` at `0.25 USDC` -> `REVIEW`;
-- `Untrusted scrape cache` at `0.04 USDC` -> `BLOCK`;
-- `Telemetry attestation note` at `0.03 USDC` -> `REVIEW`.
+- network: Arc Testnet, chain ID `5042002`;
+- asset: USDC, ERC-20 interface `0x3600000000000000000000000000000000000000`, 6 decimals;
+- RPC reference: `https://rpc.testnet.arc.io`;
+- explorer reference: `https://testnet.arcscan.app`.
 
-The UI shows proposed spend, allowed spend, matched policy rules, audit IDs, and the preview-only rail metadata.
+Sources: [Connect to Arc](https://docs.arc.io/arc/references/connect-to-arc) and [Arc Testnet contract addresses](https://docs.arc.io/arc/references/contract-addresses).
 
-## Architecture
+| Status | Capability |
+|---|---|
+| Implemented | Policy evaluation, JSONL audit receipts, idempotency, CitePay selection, guided demo, Arc Testnet USDC simulation, health endpoint |
+| Simulation-only | Arc Testnet route validation and non-broadcast settlement evidence |
+| Future | Wallet connection, user confirmation, RPC simulation, transaction broadcast, Circle App Kit, live payment rails |
 
-```txt
-Agent workflow
-  -> paid API/data/service source
-  -> payment intent
-  -> AgentPay Guard policy evaluation
-  -> ALLOW / REVIEW / BLOCK
-  -> JSONL audit record
-  -> mock x402 / Circle Gateway / Arc rail preview
-```
+## Safety boundary
 
-Payment execution remains outside this MVP.
-
-## Main API
-
-```http
-POST /api/payment-intents/evaluate
-```
-
-Typical response fields:
-
-- `decision`
-- `riskScore`
-- `reason`
-- `matchedRules`
-- `reasonCodes`
-- `policyId`
-- `auditId`
-- `createdAt`
-- `executionMode`
-- `railPreview`
-
-## Repository structure
-
-```txt
-src/                         app, UI, API, guard logic
-examples/                    sample payment-intent scenarios
-data/policies.default.json   default policy config
-data/audit-log.jsonl         local append-only audit log
-docs/                        architecture, demo, proof-pack notes
-screenshots/                 demo evidence
-```
-
-## Demo scenarios
-
-- `examples/scenario-allow-api.json` -> trusted x402 API purchase -> `ALLOW`
-- `examples/scenario-review-machine.json` -> premium dataset review -> `REVIEW`
-- `examples/scenario-block-risky.json` -> untrusted source block -> `BLOCK`
+This repository does not move funds, connect a wallet, sign a transaction, hold a private key, call Circle or Arc services, create a transaction hash, or claim an official partnership. `ALLOW` means the intent may enter a future settlement adapter; it does not mean a payment occurred.
 
 ## Run locally
 
@@ -117,28 +60,26 @@ pnpm build
 pnpm dev
 ```
 
-Open:
+Open `http://localhost:3000`, then select **Run demo**.
 
-```txt
-http://localhost:3000
+In a second terminal, with the app running:
+
+```bash
+pnpm smoke
 ```
 
-If port 3000 is busy, Next.js will print the alternate local URL.
+The smoke command checks health plus `ALLOW`, `REVIEW`, and `BLOCK` evaluation results. It writes three local JSONL audit records by design; it never broadcasts a transaction.
 
-## Recommended reviewer path
+## Documentation
 
-1. `README.md`
-2. `docs/ignyte-circle-arc-brief.md`
-3. `docs/architecture.md`
-4. `docs/demo-script.md`
-5. `docs/audit-log-schema.md`
-6. `data/policies.default.json`
-7. `tests/rail-preview.test.ts`
+- [Judge one-pager](docs/judge-one-pager.md)
+- [Demo script](docs/demo-script.md)
+- [Submission answers](docs/submission-answers.md)
+- [Architecture](docs/architecture.md)
+- [Integration status](docs/integration-status.md)
+- [Proof-pack checklist](docs/proof-pack-checklist.md)
+- [Deployment guide](docs/deployment.md)
 
-## Roadmap
+## Limits
 
-- buyer-side x402/Gateway adapter after explicit approval;
-- operator review queue for `REVIEW`;
-- policy editor and audit export;
-- DB/auth/rate limiting for production hardening;
-- optional live sandbox integration only after wallet/signing/payment-execution scope is explicitly approved.
+The audit log is file-based and process-local. `REVIEW` has no operator queue yet. The Arc Testnet adapter is intentionally a simulation contract, not `eth_call`, a wallet flow, or payment settlement.

@@ -9,6 +9,9 @@
 - [x] 3 scenarios verified
 - [x] audit-log.jsonl exists
 - [x] repo hygiene verified
+- [x] reviewer-first README and judge one-pager
+- [x] Arc Testnet simulation boundary labelled as non-broadcast
+- [x] health endpoint and local smoke command documented
 
 ## Proof Assets
 
@@ -24,6 +27,7 @@
 - [x] no live Circle API calls in MVP
 - [x] no wallet signing in MVP
 - [x] no database/auth/smart contracts in MVP
+- [x] no wallet connection, RPC call, signing, broadcast, or transaction hash
 
 ## Scenario Files
 

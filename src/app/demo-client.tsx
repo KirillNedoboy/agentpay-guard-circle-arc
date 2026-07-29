@@ -8,8 +8,8 @@ import {
 } from "@/domain/citepay/source-selection";
 import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/citepay/types";
 import type { AuditRecord } from "@/domain/audit/types";
-import type { CircleRailPreview, PaymentIntent } from "@/domain/payment-intent/types";
-import { buildAuditPreview, buildDemoSummary, buildRailPreviewRows, buildReasonCodeRows } from "./demo-metrics";
+import type { ArcTestnetSimulation, CircleRailPreview, PaymentIntent } from "@/domain/payment-intent/types";
+import { buildAuditPreview, buildDemoSummary, buildRailPreviewRows, buildReasonCodeRows, buildSimulationRows } from "./demo-metrics";
 
 export type Scenario = {
   label: string;
@@ -29,6 +29,7 @@ type EvaluationResult = {
   createdAt: string;
   executionMode?: CircleRailPreview["executionMode"];
   railPreview?: CircleRailPreview;
+  arcTestnetSimulation?: ArcTestnetSimulation;
 };
 
 type FieldName = keyof PaymentIntent;
@@ -178,6 +179,10 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     return Array.from(unique);
   }, [citePayEvaluations, result]);
   const auditPreview = useMemo(() => buildAuditPreview(records[0]), [records]);
+  const approvedSimulation = useMemo(
+    () => citePayEvaluations.find((item) => item.result.decision === "ALLOW")?.result.arcTestnetSimulation,
+    [citePayEvaluations]
+  );
   const primaryOutcome = useMemo(() => {
     const rankedEvaluation =
       citePayEvaluations.find((item) => item.result.decision === "BLOCK") ??
@@ -249,6 +254,37 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         <dd className="rule-list-inline">{value}</dd>
       </div>
     ));
+  }
+
+  function renderArcTestnetSimulation(simulation: ArcTestnetSimulation | undefined) {
+    const rows = buildSimulationRows(simulation);
+    if (!rows.length) {
+      return (
+        <div className="empty-state emphasis">
+          <strong>Awaiting an approved intent.</strong>
+          <p>Only an ALLOW decision on the Arc Testnet preview route may enter the simulation boundary.</p>
+        </div>
+      );
+    }
+
+    return (
+      <div className={`simulation-card ${simulation?.status ?? "not_eligible"}`} aria-label="Arc Testnet simulation evidence">
+        <div className="simulation-card-head">
+          <strong>Arc Testnet USDC simulation</strong>
+          <span className="execution-chip not_broadcast">{simulation?.verificationStatus}</span>
+        </div>
+        <dl className="rail-preview-grid">
+          {rows.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label}</dt>
+              <dd className={label === "Network" || label === "Verification" ? "mono-text" : ""}>{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <p>{simulation?.reason}</p>
+        <p className="rail-preview-boundary">No funds moved. Settlement was not executed.</p>
+      </div>
+    );
   }
 
   return (
@@ -515,6 +551,17 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
                 <p>After the flow runs, each selected source gets an explicit decision, risk score, policy match, and audit ID.</p>
               </div>
             )}
+          </article>
+
+          <article className="panel stage-panel simulation-stage">
+            <div className="stage-heading">
+              <span className="stage-index">04</span>
+              <div>
+                <p className="stage-label">Simulation boundary</p>
+                <h3>Only the approved intent reaches Arc Testnet simulation</h3>
+              </div>
+            </div>
+            {renderArcTestnetSimulation(approvedSimulation)}
           </article>
         </div>
       </section>

@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
+import { simulateArcTestnetSettlement } from "@/domain/payment-intent/arc-testnet-simulation";
 import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/types";
 import type { AuditRecord } from "./types";
 
@@ -70,7 +71,29 @@ function normalizeAuditRecord(record: AuditRecord): AuditRecord {
     rail: record.rail ?? railPreview.rail,
     reasonCodes: record.reasonCodes ?? [],
     executionMode: record.executionMode ?? railPreview.executionMode,
-    railPreview
+    railPreview,
+    arcTestnetSimulation:
+      record.arcTestnetSimulation ??
+      simulateArcTestnetSettlement({
+        intent: {
+          agentId: record.agentId,
+          intent: record.intent,
+          amount: record.amount,
+          currency: record.currency,
+          recipient: record.recipient,
+          scenario: record.scenario,
+          paymentRail: record.paymentRail,
+          idempotencyKey: record.idempotencyKey
+        },
+        decision: {
+          decision: record.decision,
+          riskScore: record.riskScore,
+          reason: record.reason,
+          matchedRules: record.matchedRules,
+          reasonCodes: record.reasonCodes ?? [],
+          policyId: record.policyId
+        }
+      })
   };
 }
 
@@ -90,6 +113,7 @@ export async function createOrReuseAuditRecord(
 
     const timestamp = new Date().toISOString();
     const railPreview = buildCircleRailPreview(intent);
+    const arcTestnetSimulation = simulateArcTestnetSettlement({ intent, decision });
     const record: AuditRecord = {
       eventType: "agent_payment_guard_evaluated",
       auditId: makeAuditId(records.length, timestamp),
@@ -115,7 +139,8 @@ export async function createOrReuseAuditRecord(
       reasonCodes: decision.reasonCodes,
       reason: decision.reason,
       executionMode: railPreview.executionMode,
-      railPreview
+      railPreview,
+      arcTestnetSimulation
     };
 
     await appendFile(auditPath, `${JSON.stringify(record)}\n`, "utf8");

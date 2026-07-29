@@ -53,12 +53,12 @@ describe("CitePay source selection", () => {
 
     expect(intent).toEqual({
       agentId: "agent_citepay_demo_001",
-      intent: "Pay 0.08 USDC to access Verity API for Trusted x402 verification API in an AgentPay Guard flow about: Need verification data",
+      intent: "Pay 0.08 USDC to access Verity API for Trusted Arc Testnet verification API in an AgentPay Guard flow about: Need verification data",
       amount: "0.08",
       currency: "USDC",
       recipient: "trusted-x402-api.demo",
       scenario: "api_access",
-      paymentRail: "mock_x402_service",
+      paymentRail: "arc_settlement_preview",
       idempotencyKey: "agentpay-agent_citepay_demo_001-trusted-x402-verification-api-1"
     });
   });

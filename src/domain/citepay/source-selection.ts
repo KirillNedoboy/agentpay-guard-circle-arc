@@ -11,14 +11,14 @@ import type {
 export const citePayMockSources: CitePaySourceCard[] = [
   {
     id: "trusted-x402-verification-api",
-    title: "Trusted x402 verification API",
+    title: "Trusted Arc Testnet verification API",
     creatorName: "Verity API",
     recipient: "trusted-x402-api.demo",
     description: "Trusted paid API for premium verification data before an agent publishes a research thesis.",
     price: "0.08",
     currency: "USDC",
     scenario: "api_access",
-    paymentRail: "mock_x402_service",
+    paymentRail: "arc_settlement_preview",
     tags: ["premium", "verification", "data", "agent", "research", "thesis"]
   },
   {

@@ -23,6 +23,8 @@ export type CircleRailPreview = {
   explanation: string;
 };
 
+export type { ArcTestnetSimulation } from "./arc-testnet-simulation";
+
 export type PaymentIntent = {
   agentId: string;
   intent: string;

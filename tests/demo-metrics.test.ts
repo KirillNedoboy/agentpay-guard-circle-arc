@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { buildAuditPreview, buildDemoSummary, buildRailPreviewRows, buildReasonCodeRows } from "@/app/demo-metrics";
+import { buildAuditPreview, buildDemoSummary, buildRailPreviewRows, buildReasonCodeRows, buildSimulationRows } from "@/app/demo-metrics";
 import type { AuditRecord } from "@/domain/audit/types";
 
 describe("buildDemoSummary", () => {
@@ -169,5 +169,47 @@ describe("buildAuditPreview", () => {
         recipientId: "market-data-api.demo"
       }
     });
+  });
+});
+
+describe("buildSimulationRows", () => {
+  test("keeps simulated Arc Testnet evidence separate from transaction evidence", () => {
+    expect(
+      buildSimulationRows({
+        status: "simulated",
+        broadcast: false,
+        verificationStatus: "not_broadcast",
+        route: {
+          networkName: "Arc Testnet",
+          chainId: 5042002,
+          rpcUrl: "https://rpc.testnet.arc.io",
+          explorerUrl: "https://testnet.arcscan.app",
+          assetSymbol: "USDC",
+          assetContractAddress: "0x3600000000000000000000000000000000000000",
+          assetDecimals: 6
+        },
+        network: {
+          name: "Arc Testnet",
+          chainId: 5042002,
+          rpcUrl: "https://rpc.testnet.arc.io",
+          explorerUrl: "https://testnet.arcscan.app"
+        },
+        asset: {
+          symbol: "USDC",
+          contractAddress: "0x3600000000000000000000000000000000000000",
+          decimals: 6
+        },
+        recipientId: "trusted-x402-api.demo",
+        amountUSDC: "0.08",
+        reason: "Arc Testnet USDC route simulation completed. Settlement was not executed and no funds moved."
+      })
+    ).toEqual([
+      ["Status", "simulated"],
+      ["Network", "Arc Testnet (5042002)"],
+      ["Asset", "USDC (6 decimals)"],
+      ["Amount", "0.08 USDC"],
+      ["Broadcast", "not broadcast"],
+      ["Verification", "not_broadcast"]
+    ]);
   });
 });

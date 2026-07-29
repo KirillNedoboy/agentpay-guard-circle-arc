@@ -1,99 +1,37 @@
-# Demo Script - AgentPay Guard Ignyte / Circle / Arc
+# AgentPay Guard demo script
 
-## Goal
+## 0:00–0:15 — problem
 
-Show in under two minutes that AgentPay Guard evaluates an agent's USDC payment intents before any x402, Circle Gateway, or Arc-compatible payment rail is used.
+> An AI agent can create a USDC payment request faster than a human can inspect it. A wallet can sign a request, but it does not explain whether the spend is trusted, within policy, or auditable.
 
-## Setup
+Show the title and the persistent boundary: **No funds moved. Settlement was not executed.**
 
-```bash
-pnpm dev
-```
+## 0:15–0:35 — proposed intent
 
-Open the local URL printed by Next.js, usually:
+Click **Run demo**. Explain that the CitePay research agent selects paid evidence sources and turns each into a USDC payment intent. Point to proposed spend and the selected source list.
 
-```txt
-http://localhost:3000
-```
+## 0:35–0:55 — deterministic decision
 
-## 0:00-0:20 - Opening
+Show the three outcomes:
 
-Show the title, live summary, and boundary card.
+- Trusted Arc Testnet verification API: `ALLOW`.
+- Premium evidence bundle and telemetry attestation: `REVIEW`.
+- Untrusted scrape cache: `BLOCK`.
 
-Say:
+> Guard checks explicit recipient, scenario, amount, risk, velocity, and idempotency rules. The result is explainable; there is no opaque score deciding a payment.
 
-> AgentPay Guard is a preflight policy and audit layer for AI-agent stablecoin payments. It decides whether a USDC spend intent is allowed, needs review, or must be blocked before any payment rail is reached.
+## 0:55–1:10 — Arc Testnet simulation
 
-Point out the boundary:
+Show stage 04. Explain that only the `ALLOW` intent on the Arc route enters a deterministic Arc Testnet USDC simulation. Read the `not_broadcast` badge.
 
-- no payment execution;
-- no wallet signing;
-- no private keys;
-- no fake transaction hash.
+> The simulation uses Arc Testnet's documented chain and USDC contract metadata. It does not call RPC, connect a wallet, sign, or broadcast.
 
-## 0:20-0:55 - Run the preset
+## 1:10–1:25 — evidence
 
-Use the built-in `Ignyte/Circle/Arc demo preset`.
+Open the decision proof and audit history.
 
-Click:
+> Every successful evaluation has an idempotent JSONL receipt. It shows the policy decision and simulation status, but never claims a transaction happened.
 
-```txt
-Run demo
-```
+## Close
 
-Expected selected sources:
-
-- `Trusted x402 verification API`
-- `Premium evidence bundle`
-- `Untrusted scrape cache`
-- `Telemetry attestation note`
-
-Expected skipped source:
-
-- `Market data note` -> `not_relevant`
-
-## 0:55-1:25 - Explain decisions
-
-Point at the Guard decisions.
-
-Expected outcomes:
-
-- `Trusted x402 verification API` -> `ALLOW`
-- `Premium evidence bundle` -> `REVIEW`
-- `Untrusted scrape cache` -> `BLOCK`
-- `Telemetry attestation note` -> `REVIEW`
-
-Say:
-
-> The same agent workflow produces different decisions because policy looks at recipient trust, purpose, amount thresholds, and blocked recipients. Only the trusted low-value API request is allowed.
-
-## 1:25-1:45 - Show rail preview
-
-Point at the rail preview fields for evaluated sources or validator output.
-
-Expected fields:
-
-- rail label;
-- settlement asset `USDC`;
-- execution mode `mock_preview` or `live_disabled`;
-- recipient;
-- amount;
-- preview-only explanation.
-
-Say:
-
-> This is a preview adapter, not settlement. It shows how the allowed intent could be prepared for an x402, Circle Gateway, or Arc-compatible flow later, but this demo does not move funds or call live payment APIs.
-
-## 1:45-2:00 - Show audit proof
-
-Expand or point at the audit log.
-
-Say:
-
-> Each successful evaluation writes or reuses a JSONL audit record. The record includes policy evidence and rail preview metadata, but no secrets, signatures, or transaction hashes.
-
-Mention:
-
-```txt
-data/audit-log.jsonl
-```
+> AgentPay Guard is the preflight firewall and evidence layer for agentic USDC spend. It controls the decision before a future settlement adapter is allowed to act.

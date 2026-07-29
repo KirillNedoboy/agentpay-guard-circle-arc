@@ -29,6 +29,15 @@
 - [x] Run full validation: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`.
 - [x] Run final validation after tracker updates and commit if clean.
 
+## Hackathon-ready simulation proof
+
+- [x] Add a pure Arc Testnet USDC simulation adapter with explicit `not_broadcast` evidence.
+- [x] Add simulation evidence to evaluation responses and audit receipts.
+- [x] Route the approved CitePay source into the Arc simulation boundary.
+- [x] Reshape the main demo into a guided proof flow with progressive disclosure.
+- [x] Add `GET /api/health`, local smoke script, deployment guide, judge one-pager, submission answers, and integration status matrix.
+- [x] Run final full validation and inspect the final diff.
+
 ## Do not start without explicit approval
 
 - [ ] Live Circle Gateway integration.
