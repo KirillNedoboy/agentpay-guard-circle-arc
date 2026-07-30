@@ -25,7 +25,7 @@ CitePay request → proposed USDC intent → Guard preflight
 - 10 test files, 142 passing tests.
 - `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass.
 - Production service: `agentpay-guard.service`.
-- Public demo verified at `http://138.124.108.146:3200`.
+- Public demo verified at `https://138-124-108-146.nip.io`.
 - Demo video is served from the public GitHub Raw URL above.
 
 ## Honest boundary
