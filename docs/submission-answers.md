@@ -52,7 +52,7 @@ https://github.com/KirillNedoboy/agentpay-guard-circle-arc
 
 ## Live demo
 
-http://138.124.108.146:3200
+https://138-124-108-146.nip.io
 
 ## Slide deck
 

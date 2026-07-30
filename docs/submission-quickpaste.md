@@ -26,7 +26,7 @@ All protocol-facing values remain preview-only. CCTP context does not burn or mi
 
 ## Live demo
 
-http://138.124.108.146:3200
+https://138-124-108-146.nip.io
 
 ## Repository
 

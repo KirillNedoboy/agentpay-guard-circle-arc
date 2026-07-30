@@ -44,7 +44,7 @@ AgentPay Guard does not move funds, connect wallets, sign transactions, hold pri
 
 Open the deployed production demo:
 
-**http://138.124.108.146:3200**
+**https://138-124-108-146.nip.io**
 
 ## Submission deck
 

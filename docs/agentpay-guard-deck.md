@@ -65,7 +65,7 @@ The demo makes the three outcomes legible: safe requests can be allowed, ambiguo
 **Current public assets**
 
 - Repository: `github.com/KirillNedoboy/agentpay-guard-circle-arc`
-- Live demo: `http://138.124.108.146:3200`
+- Live demo: `https://138-124-108-146.nip.io`
 - Demo video: `docs/videos/agentpay-guard-demo-en.mp4`
 
 **Roadmap:** put Arc / Circle Gateway / x402 adapters behind the same policy boundary only after the evidence contract is proven. The Guard remains the decision and audit layer before execution.

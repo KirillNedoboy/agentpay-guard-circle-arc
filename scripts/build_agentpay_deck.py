@@ -178,7 +178,7 @@ def slide7():
     txt(d, (820, 280), "ROADMAP", 22, YELLOW, bold=True)
     paragraph(d, (820, 345), "Put Arc / Circle Gateway / x402 adapters behind the same policy boundary only after the evidence contract is proven.", 31, 29, WHITE, 12, True)
     txt(d, (820, 595), "github.com/KirillNedoboy/agentpay-guard-circle-arc", 18, CYAN, mono=True)
-    txt(d, (820, 645), "http://138.124.108.146:3200", 20, CYAN, mono=True)
+    txt(d, (820, 645), "https://138-124-108-146.nip.io", 20, CYAN, mono=True)
     txt(d, (820, 700), "AGENTPAY GUARD", 24, WHITE, bold=True)
     footer(d); return im
 
