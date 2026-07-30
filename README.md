@@ -46,6 +46,11 @@ Open the deployed production demo:
 
 **http://138.124.108.146:3200**
 
+## Submission deck
+
+[Download the AgentPay Guard slide deck (PDF)](./docs/agentpay-guard-deck.pdf)
+
+
 The public demo runs the same production build verified by systemd. It remains a local-policy proof: no wallet, signing, network payment, or funds movement is performed.
 
 ```bash
