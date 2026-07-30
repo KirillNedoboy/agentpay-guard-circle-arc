@@ -37,7 +37,7 @@ It also does not claim live Circle, Arc, Gateway, x402, CCTP, Encode, or Ignyte 
 
 ## Validation
 
-The current proof has 10 test files and 138 passing tests.
+The current proof has 10 test files and 142 passing tests.
 
 ```bash
 pnpm test
@@ -49,3 +49,7 @@ pnpm build
 ## Repository
 
 https://github.com/KirillNedoboy/agentpay-guard-circle-arc
+
+## Live demo
+
+http://138.124.108.146:3200

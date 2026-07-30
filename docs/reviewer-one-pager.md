@@ -4,6 +4,8 @@
 
 AgentPay Guard is a deterministic policy and evidence layer for proposed AI-agent USDC payments.
 
+**Live demo:** http://138.124.108.146:3200
+
 ## Reviewer path
 
 ```txt

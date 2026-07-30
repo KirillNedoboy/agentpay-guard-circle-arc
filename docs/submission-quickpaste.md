@@ -20,9 +20,13 @@ All protocol-facing values remain preview-only. CCTP context does not burn or mi
 
 ## Proof
 
-- 10 test files, 138 passing tests.
+- 10 test files, 142 passing tests.
 - Real local screenshots document generic and programmable policy cases.
 - Validation: `pnpm test`, `pnpm lint`, `pnpm typecheck`, `pnpm build`.
+
+## Live demo
+
+http://138.124.108.146:3200
 
 ## Repository
 

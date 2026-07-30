@@ -40,6 +40,14 @@ AgentPay Guard does not move funds, connect wallets, sign transactions, hold pri
 
 ## Run and verify
 
+## Live demo
+
+Open the deployed production demo:
+
+**http://138.124.108.146:3200**
+
+The public demo runs the same production build verified by systemd. It remains a local-policy proof: no wallet, signing, network payment, or funds movement is performed.
+
 ```bash
 pnpm install --frozen-lockfile
 pnpm test
@@ -51,7 +59,7 @@ pnpm dev
 
 Open the local URL printed by Next.js, normally `http://localhost:3000`.
 
-The submitted baseline has 10 test files and 138 passing tests.
+The submitted baseline has 10 test files and 142 passing tests.
 
 ## Reviewer path
 
