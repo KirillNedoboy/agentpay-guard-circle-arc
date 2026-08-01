@@ -903,3 +903,30 @@ Pending final diff inspection and commit.
 - `pnpm build`: passed.
 - `pnpm smoke`: passed against a local production server with a temporary audit path.
 - `git diff --check`: passed.
+
+## 2026-08-01 - Judge-visible x402 policy envelope
+
+### What changed
+
+- Added typed `spendControls` receipt evidence derived from the existing policy and recent audit records.
+- The evidence reports the requested amount, per-request limit, review threshold, daily allowed spend, daily remaining before request, projected daily spend, and velocity attempts using decimal-string arithmetic.
+- Added a deterministic trusted `0.08 USDC` x402-style API micropayment judge preset and made it the primary demo action.
+- Added a judge-visible policy envelope, matched rules, receipt trace, and preview-only future settlement handoff in the UI.
+- Kept CitePay source selection as a collapsed secondary illustration and retained the local Arc Testnet simulation path.
+- Updated README and judge-facing documentation so the control-plane thesis and no-settlement boundary match the code.
+
+### Boundary kept intact
+
+- No funds move, wallet connects, signature is made, private key is handled, transaction is broadcast, or transaction hash is created.
+- No live x402, Circle Gateway, Circle API, Arc RPC, or Arc settlement call is present.
+- The public repository, deployed URL, deck, and media files were not republished or changed.
+
+### Validation status
+
+- `pnpm test`: passed, 11 files and 51 tests.
+- `pnpm lint`: passed.
+- `pnpm typecheck`: passed.
+- `pnpm build`: passed.
+- `pnpm smoke`: passed against a local production server using a temporary audit path.
+- Local browser path: **Run x402 policy proof** returned `ALLOW` and rendered receipt ID, matched rules, reason codes, per-request limit, daily budget, projected spend, velocity, and the preview-only handoff.
+- `git diff --check`: passed.

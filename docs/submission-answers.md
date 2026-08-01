@@ -2,24 +2,24 @@
 
 ## One-liner
 
-AgentPay Guard is a deterministic preflight firewall and evidence layer for AI-agent USDC payment intents before settlement.
+AgentPay Guard is a deterministic policy-and-evidence control plane before autonomous AI-agent USDC payments on Arc.
 
 ## 30-second pitch
 
-Autonomous agents can request USDC payments for data, APIs, and services, but a wallet cannot explain whether the request should happen. AgentPay Guard evaluates a proposed payment against deterministic policy, returns ALLOW, REVIEW, or BLOCK, and writes an auditable receipt. In the demo, an approved CitePay research intent reaches a non-broadcast Arc Testnet USDC simulation boundary; reviewed and blocked intents do not.
+Autonomous agents can request USDC payment for APIs, data, and services, but a wallet cannot explain whether the request should happen. AgentPay Guard evaluates a payment intent against deterministic recipient, amount, budget, and velocity policy; it returns `ALLOW`, `REVIEW`, or `BLOCK` and creates an auditable AgentPay Receipt. The primary demo evaluates a trusted x402-style `0.08 USDC` API micropayment, reveals its policy envelope, and hands it only to a preview of a future x402, Circle Gateway, or Arc adapter.
 
 ## Why Arc?
 
-Arc Testnet gives the future settlement boundary a stablecoin-native reference: USDC is the gas token and the network exposes documented EVM and USDC configuration. AgentPay Guard uses those official parameters in a local simulation today. It does not call Arc or submit a transaction.
+Arc provides a relevant stablecoin-native settlement target for future agent payments. AgentPay Guard provides the control and evidence layer before that target; the optional Arc Testnet simulation uses documented metadata locally and does not call Arc or submit a transaction.
 
 ## What is live versus preview-only?
 
-Live in the local app: intent validation, deterministic policy, source selection, JSONL audit receipts, idempotent replay, and the Arc route simulation result. Preview-only: the Arc handoff itself. There is no connected wallet, RPC request, signature, broadcast, transaction hash, or Circle service call.
+Implemented locally: input validation, deterministic policy, decimal-string spend controls, append-only JSONL receipts, idempotent replay, the x402-style judge preset, and optional CitePay source selection / Arc Testnet simulation. Preview-only: any x402, Circle Gateway, or Arc settlement handoff. There is no connected wallet, signing, custody, RPC request, broadcast, transaction hash, or Circle service call.
 
 ## Primary track
 
-Agentic Economy. The product controls how an autonomous agent can propose and justify stablecoin spend. It does not currently implement a DeFi protocol or execution flow.
+Agentic Economy. The product controls how an autonomous agent can propose and justify stablecoin spend before settlement.
 
 ## Limitations
 
-The audit log is local and file-based. REVIEW does not include an operator queue. Real testnet settlement needs a separately approved user-confirmed wallet flow and must not be inferred from this demo.
+The audit log is local and file-based. `REVIEW` has no operator queue. Real testnet settlement needs a separately approved, user-confirmed wallet flow and must not be inferred from this demo.

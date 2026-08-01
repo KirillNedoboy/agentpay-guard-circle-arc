@@ -2,6 +2,7 @@ import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/cit
 import type { AuditRecord } from "@/domain/audit/types";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
 import type { ArcTestnetSimulation, CircleRailPreview } from "@/domain/payment-intent/types";
+import type { SpendControls } from "@/domain/policy/spend-controls";
 import { addDecimalStrings } from "@/lib/decimal";
 
 export type DemoEvaluationResult = {
@@ -25,6 +26,7 @@ export type DemoSummary = {
 export type RailPreviewRow = [label: string, value: string];
 export type ReasonCodeRow = [label: "Reason codes", value: string];
 export type SimulationRow = [label: string, value: string];
+export type SpendControlRow = [label: string, value: string];
 export type StructuredAuditPreview = {
   intentId: string;
   recipientLabel: string;
@@ -35,6 +37,7 @@ export type StructuredAuditPreview = {
   reasonCodes: string[];
   executionMode: string;
   railPreview: CircleRailPreview;
+  spendControls?: SpendControls;
 };
 
 export function buildDemoSummary(
@@ -94,6 +97,23 @@ export function buildSimulationRows(simulation: ArcTestnetSimulation | undefined
   ];
 }
 
+export function buildSpendControlRows(controls: SpendControls | undefined): SpendControlRow[] {
+  if (!controls) {
+    return [];
+  }
+
+  const amount = (value: string) => `${value} ${controls.currency}`;
+  return [
+    ["Request", amount(controls.requestedAmount)],
+    ["Per-request limit", amount(controls.maxAmountPerPayment)],
+    ["Review threshold", amount(controls.reviewThreshold)],
+    ["Daily spend", `${controls.dailyAllowedSpend} / ${controls.dailyLimit} ${controls.currency}`],
+    ["Daily remaining", controls.dailyRemainingBeforeRequest === null ? "unavailable" : amount(controls.dailyRemainingBeforeRequest)],
+    ["Projected spend", controls.projectedDailySpend === null ? "unavailable" : `${controls.projectedDailySpend} / ${controls.dailyLimit} ${controls.currency}`],
+    ["Velocity", `${controls.velocityAttempts} / ${controls.velocityMaxAttempts} in ${controls.velocityWindowSeconds}s`]
+  ];
+}
+
 export function buildAuditPreview(record: AuditRecord | undefined): StructuredAuditPreview | null {
   if (!record) {
     return null;
@@ -112,7 +132,7 @@ export function buildAuditPreview(record: AuditRecord | undefined): StructuredAu
       idempotencyKey: record.idempotencyKey
     });
 
-  return {
+  const preview: StructuredAuditPreview = {
     intentId: record.intentId ?? record.idempotencyKey,
     recipientLabel: record.recipientLabel ?? record.recipient,
     amountUSDC: record.amountUSDC ?? record.amount,
@@ -123,4 +143,10 @@ export function buildAuditPreview(record: AuditRecord | undefined): StructuredAu
     executionMode: record.executionMode ?? railPreview.executionMode,
     railPreview
   };
+
+  if (record.spendControls) {
+    preview.spendControls = record.spendControls;
+  }
+
+  return preview;
 }

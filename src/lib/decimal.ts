@@ -65,6 +65,29 @@ export function addDecimalStrings(values: string[]): string | null {
   return fraction.length > 0 ? `${whole}.${fraction}` : whole;
 }
 
+export function subtractDecimalStrings(left: string, right: string): string | null {
+  const leftParts = parseParts(left);
+  const rightParts = parseParts(right);
+  if (!leftParts || !rightParts) {
+    return null;
+  }
+
+  const scale = Math.max(leftParts.fraction.length, rightParts.fraction.length);
+  const difference = toScaledBigInt(leftParts, scale) - toScaledBigInt(rightParts, scale);
+  if (difference < 0n) {
+    return null;
+  }
+
+  const raw = difference.toString().padStart(scale + 1, "0");
+  if (scale === 0) {
+    return raw;
+  }
+
+  const whole = raw.slice(0, -scale);
+  const fraction = raw.slice(-scale).replace(/0+$/, "");
+  return fraction.length > 0 ? `${whole}.${fraction}` : whole;
+}
+
 export function divideDecimalStringByTwo(value: string): string | null {
   const parts = parseParts(value);
   if (!parts) {

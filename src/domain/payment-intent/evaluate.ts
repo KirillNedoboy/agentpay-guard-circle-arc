@@ -4,6 +4,7 @@ import type { ArcTestnetSimulation, CircleRailPreview, PolicyDecision } from "@/
 import { validatePaymentIntent, ValidationError } from "@/domain/payment-intent/validation";
 import { evaluatePolicy } from "@/domain/policy/engine";
 import { loadPolicyConfig } from "@/domain/policy/policy-config";
+import { buildSpendControls, type SpendControls } from "@/domain/policy/spend-controls";
 import { auditLogPath, policyPath } from "@/lib/paths";
 
 export type EvaluationResponse = PolicyDecision & {
@@ -11,6 +12,7 @@ export type EvaluationResponse = PolicyDecision & {
   createdAt: string;
   executionMode: CircleRailPreview["executionMode"];
   railPreview: CircleRailPreview;
+  spendControls: SpendControls;
   arcTestnetSimulation: ArcTestnetSimulation;
 };
 
@@ -18,8 +20,9 @@ export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationR
   const intent = validatePaymentIntent(input);
   const policy = loadPolicyConfig(policyPath());
   const recentRecords = readRecentAuditRecords(auditLogPath(), 250);
-  const decision = evaluatePolicy(intent, policy, recentRecords);
-  const audit = await createOrReuseAuditRecord(auditLogPath(), intent, decision);
+  const spendControls = buildSpendControls({ intent, policy, recentAuditRecords: recentRecords });
+  const decision = evaluatePolicy(intent, policy, recentRecords, spendControls);
+  const audit = await createOrReuseAuditRecord(auditLogPath(), intent, decision, spendControls);
 
   return {
     decision: audit.decision,
@@ -32,6 +35,7 @@ export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationR
     createdAt: audit.timestamp,
     executionMode: audit.executionMode,
     railPreview: audit.railPreview,
+    spendControls: audit.spendControls ?? spendControls,
     arcTestnetSimulation: audit.arcTestnetSimulation!
   };
 }

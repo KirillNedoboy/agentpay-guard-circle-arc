@@ -1,21 +1,20 @@
 import type { AuditRecord } from "@/domain/audit/types";
 import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/types";
-import { addDecimalStrings, compareDecimalStrings, divideDecimalStringByTwo, isPositiveDecimal } from "@/lib/decimal";
+import { compareDecimalStrings, divideDecimalStringByTwo, isPositiveDecimal } from "@/lib/decimal";
 import type { PolicyConfig } from "./policy-config";
+import { buildSpendControls, type SpendControls } from "./spend-controls";
 
 function clampRisk(score: number): number {
   return Math.max(0, Math.min(100, score));
 }
 
-function isToday(timestamp: string): boolean {
-  return timestamp.slice(0, 10) === new Date().toISOString().slice(0, 10);
-}
-
 export function evaluatePolicy(
   intent: PaymentIntent,
   policy: PolicyConfig,
-  recentAuditRecords: AuditRecord[]
+  recentAuditRecords: AuditRecord[],
+  providedSpendControls?: SpendControls
 ): PolicyDecision {
+  const spendControls = providedSpendControls ?? buildSpendControls({ intent, policy, recentAuditRecords });
   const matchedRules: string[] = [];
   const reasonCodes: string[] = ["RAIL_PREVIEW_ONLY"];
   const reasonParts: string[] = [];
@@ -99,11 +98,10 @@ export function evaluatePolicy(
       }
     }
 
-    const todaysAllowedAmounts = recentAuditRecords
-      .filter((record) => record.agentId === intent.agentId && record.decision === "ALLOW" && isToday(record.timestamp))
-      .map((record) => record.amount);
-    const dailyTotal = addDecimalStrings([...todaysAllowedAmounts, intent.amount]);
-    if (dailyTotal === null || compareDecimalStrings(dailyTotal, policy.limits.dailyLimitPerAgent) === 1) {
+    if (
+      spendControls.projectedDailySpend === null ||
+      compareDecimalStrings(spendControls.projectedDailySpend, policy.limits.dailyLimitPerAgent) === 1
+    ) {
       matchedRules.push("daily_limit_exceeded");
       reasonCodes.push("SESSION_BUDGET_EXCEEDED");
       reasonParts.push("Agent daily spend limit would be exceeded.");
@@ -122,11 +120,7 @@ export function evaluatePolicy(
     riskScore += policy.riskWeights.suspiciousKeyword * suspiciousMatches.length;
   }
 
-  const windowStart = Date.now() - policy.velocity.windowSeconds * 1000;
-  const attemptsInWindow = recentAuditRecords.filter(
-    (record) => record.agentId === intent.agentId && Date.parse(record.timestamp) >= windowStart
-  ).length;
-  if (attemptsInWindow >= policy.velocity.maxAttemptsPerWindow) {
+  if (spendControls.velocityAttempts >= policy.velocity.maxAttemptsPerWindow) {
     matchedRules.push("velocity_limit_exceeded");
     reasonCodes.push("VELOCITY_LIMIT_EXCEEDED");
     reasonParts.push("Agent velocity limit was exceeded.");

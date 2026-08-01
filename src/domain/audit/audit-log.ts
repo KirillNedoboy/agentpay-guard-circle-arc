@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
 import { simulateArcTestnetSettlement } from "@/domain/payment-intent/arc-testnet-simulation";
 import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/types";
+import type { SpendControls } from "@/domain/policy/spend-controls";
 import type { AuditRecord } from "./types";
 
 const locks = new Map<string, Promise<unknown>>();
@@ -100,7 +101,8 @@ function normalizeAuditRecord(record: AuditRecord): AuditRecord {
 export async function createOrReuseAuditRecord(
   auditPath: string,
   intent: PaymentIntent,
-  decision: PolicyDecision
+  decision: PolicyDecision,
+  spendControls: SpendControls
 ): Promise<AuditRecord> {
   return withAuditLock(auditPath, async () => {
     await mkdir(dirname(auditPath), { recursive: true });
@@ -140,6 +142,7 @@ export async function createOrReuseAuditRecord(
       reason: decision.reason,
       executionMode: railPreview.executionMode,
       railPreview,
+      spendControls,
       arcTestnetSimulation
     };
 

@@ -2,32 +2,28 @@
 
 ## What is it?
 
-AgentPay Guard is a deterministic preflight layer for AI-agent USDC spend. It decides whether a proposed payment is allowed, requires review, or must be blocked before a payment adapter can receive it.
+AgentPay Guard is a deterministic policy-and-evidence control plane for AI-agent USDC payment intents. Before any future x402, Circle Gateway, or Arc settlement adapter can act, it returns `ALLOW`, `REVIEW`, or `BLOCK` and creates an auditable receipt.
 
-## Who needs it?
+## Judge path
 
-Builders of agents that purchase data, APIs, compute, or services with stablecoins. They need a control point between an agent's intent and a wallet or settlement rail.
+Click **Run x402 policy proof**. A trusted `0.08 USDC` x402-style API micropayment is evaluated against a known recipient, amount controls, daily budget, projected daily spend, and a velocity window. The UI then shows the decision, matched rules, reason codes, and the spend-control evidence attached to its AgentPay Receipt.
 
-## Why now?
+## Why this matters
 
-Agents can assemble payment requests faster than people can inspect them. A payment rail answers how to transfer value; Guard records whether the request should be allowed in the first place.
+Autonomous agents can request payment for APIs, data, compute, and services faster than a person can inspect each request. A payment rail moves value; Guard supplies the deterministic control point and evidence needed before the rail is allowed to do so.
 
-## Why Arc?
+## Arc and Circle relevance
 
-The demo uses Arc Testnet's documented USDC-native configuration to show the handoff that a future settlement adapter would need. Arc's USDC gas model is relevant to predictable agent payment costs, but this repository does not execute an Arc transaction.
+The receipt exposes a preview-only handoff to future x402, Circle Gateway, and Arc adapters. The optional CitePay flow retains a local Arc Testnet USDC simulation using documented network metadata, but this repository does not call RPC, a Circle service, or a live x402 endpoint.
 
-## What works?
+## What is built
 
-The CitePay flow selects sources, creates payment intents, evaluates deterministic policy, writes idempotent JSONL receipts, and produces simulation-only Arc Testnet evidence for the approved intent.
+- deterministic recipient, scenario, amount, daily-limit, and velocity policy;
+- decimal-string spend-control calculations;
+- append-only JSONL AgentPay Receipts with idempotency;
+- x402-style USDC API micropayment judge preset;
+- optional CitePay source-selection flow and local Arc Testnet simulation evidence.
 
-## What does the demo prove?
+## Boundary
 
-It proves that an agent can propose multiple USDC spends while Guard creates explainable `ALLOW`, `REVIEW`, and `BLOCK` outcomes. Only `ALLOW` reaches the simulation boundary; the interface states that no funds moved.
-
-## Strongest differentiator
-
-Guard treats explainability and evidence as part of the payment decision, rather than an afterthought after a wallet has already approved a transaction.
-
-## Future work
-
-User-confirmed wallet connection, real RPC simulation, and testnet broadcast require a separately approved scope. No wallet or transaction path is included here.
+No funds move. There is no wallet connection, signing, custody, private key, transaction hash, broadcast, or official Arc/Circle integration claim. `ALLOW` means a future settlement adapter may be considered; it never means that payment occurred.

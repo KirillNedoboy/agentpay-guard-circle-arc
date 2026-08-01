@@ -1,37 +1,31 @@
 # AgentPay Guard demo script
 
-## 0:00–0:15 — problem
+## 0:00–0:15 — problem and boundary
 
-> An AI agent can create a USDC payment request faster than a human can inspect it. A wallet can sign a request, but it does not explain whether the spend is trusted, within policy, or auditable.
+> An AI agent can request a USDC API payment faster than a person can inspect it. A settlement rail can move value, but it does not decide whether the request is trusted, within budget, or explainable.
 
-Show the title and the persistent boundary: **No funds moved. Settlement was not executed.**
+Show the title and the persistent boundary: **No payment execution. No wallet signing. No transaction broadcast.**
 
-## 0:15–0:35 — proposed intent
+## 0:15–0:35 — one-click judge proof
 
-Click **Run demo**. Explain that the CitePay research agent selects paid evidence sources and turns each into a USDC payment intent. Point to proposed spend and the selected source list.
+Click **Run x402 policy proof**. Explain that this is a trusted `0.08 USDC` x402-style API micropayment and that AgentPay Guard evaluates it before a future adapter can receive it.
 
-## 0:35–0:55 — deterministic decision
+## 0:35–0:55 — deterministic policy envelope
 
-Show the three outcomes:
+Point to the `ALLOW` decision, matched rules, and reason codes. Then show the policy envelope: per-request limit, daily spend already consumed, daily remaining, projected daily spend after this request, and the velocity window.
 
-- Trusted Arc Testnet verification API: `ALLOW`.
-- Premium evidence bundle and telemetry attestation: `REVIEW`.
-- Untrusted scrape cache: `BLOCK`.
+> These are deterministic decimal-string calculations from policy and recent receipts, not an opaque AI risk score.
 
-> Guard checks explicit recipient, scenario, amount, risk, velocity, and idempotency rules. The result is explainable; there is no opaque score deciding a payment.
+## 0:55–1:05 — receipt and handoff boundary
 
-## 0:55–1:10 — Arc Testnet simulation
+Point to the audit trace and the handoff: **AgentPay Receipt → Future settlement adapter → x402 / Circle Gateway / Arc**.
 
-Show stage 04. Explain that only the `ALLOW` intent on the Arc route enters a deterministic Arc Testnet USDC simulation. Read the `not_broadcast` badge.
+> The handoff is preview-only. No funds moved, nothing was signed, and nothing was broadcast.
 
-> The simulation uses Arc Testnet's documented chain and USDC contract metadata. It does not call RPC, connect a wallet, sign, or broadcast.
+## 1:05–1:20 — optional evidence
 
-## 1:10–1:25 — evidence
-
-Open the decision proof and audit history.
-
-> Every successful evaluation has an idempotent JSONL receipt. It shows the policy decision and simulation status, but never claims a transaction happened.
+Open **Receipt and audit log** to show the machine-readable receipt, including `spendControls`, and explain that repeating the same idempotency key reuses the same record. If time permits, open the optional CitePay flow to show the local ALLOW / REVIEW / BLOCK source-selection illustration and non-broadcast Arc Testnet simulation.
 
 ## Close
 
-> AgentPay Guard is the preflight firewall and evidence layer for agentic USDC spend. It controls the decision before a future settlement adapter is allowed to act.
+> AgentPay Guard is the deterministic policy-and-evidence control plane before autonomous AI-agent USDC payments on Arc.

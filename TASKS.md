@@ -38,6 +38,15 @@
 - [x] Add `GET /api/health`, local smoke script, deployment guide, judge one-pager, submission answers, and integration status matrix.
 - [x] Run final full validation and inspect the final diff.
 
+## Judge-visible x402 policy envelope
+
+- [x] Add decimal-safe per-request, daily-budget, projected-spend, and velocity receipt evidence.
+- [x] Add the deterministic trusted x402-style USDC API micropayment judge preset.
+- [x] Make the x402 proof the primary UI path and retain CitePay as an optional secondary flow.
+- [x] Preserve append-only JSONL audit evidence, idempotency, `ALLOW` / `REVIEW` / `BLOCK`, rail preview, and Arc Testnet simulation boundaries.
+- [x] Update README, one-pagers, demo script, submission answers, integration matrix, state, and session notes.
+- [ ] Refresh the published deck and video separately before final submission; do not imply their older CitePay-led story matches this click path.
+
 ## Do not start without explicit approval
 
 - [ ] Live Circle Gateway integration.

@@ -2,48 +2,24 @@
 
 ## What is AgentPay Guard?
 
-A preflight policy and audit layer for AI-agent payments.
+AgentPay Guard is a deterministic policy and audit layer for AI-agent USDC payment intents before settlement.
 
 ## What does it do?
 
-It receives a payment intent and returns:
+It evaluates an intent and returns `ALLOW`, `REVIEW`, or `BLOCK`. Each successful evaluation creates or reuses an append-only JSONL AgentPay Receipt, including matched rules, reason codes, and decimal-safe spend-control evidence.
 
-- `ALLOW`;
-- `REVIEW`;
-- `BLOCK`.
+## Judge-visible proof
 
-It records every decision in an audit log.
-
-## Why does it matter?
-
-Autonomous agents can pay for APIs, compute, data and services. Before they spend stablecoins, builders need explainable controls.
+The primary preset evaluates a trusted `0.08 USDC` x402-style API micropayment. Its receipt displays the request amount, per-request limit, review threshold, daily spend consumed and remaining, projected daily spend, and velocity count before a preview-only future settlement handoff.
 
 ## Why Arc/Circle?
 
-The product is built around the idea of USDC-based agentic payments, x402-style paid APIs, Circle Gateway/Nanopayments and Arc ecosystem machine-to-machine settlement.
-
-## What is built in the MVP?
-
-- deterministic policy engine;
-- local API;
-- demo UI;
-- 3 scenarios;
-- audit log;
-- grant/post documentation.
+The product targets programmable USDC payments by agents: paid APIs in an x402-style flow, Circle Gateway-style routing, and Arc settlement. The current code only previews these handoffs; its optional Arc Testnet simulation is local and non-broadcast.
 
 ## What is not built?
 
-- real payment execution;
-- custody;
-- signing;
-- AML/KYC;
-- fraud guarantee;
-- production admin system.
-
-## What comes next?
-
-- x402/Gateway adapter;
-- policy management UI;
-- review queue;
-- webhook integrations;
-- audit export/attestation.
+- real payment execution or USDC movement;
+- wallet connection, signing, or custody;
+- private-key handling or transaction hashes;
+- live x402, Circle Gateway, Arc RPC, or Circle API calls;
+- AML/KYC, fraud guarantee, database, or production admin system.

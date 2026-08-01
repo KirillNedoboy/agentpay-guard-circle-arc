@@ -1,32 +1,31 @@
 # AgentPay Guard
 
-AgentPay Guard is a preflight firewall and evidence layer that lets AI agents propose USDC spend on Arc without making opaque payment decisions.
+AgentPay Guard is a deterministic policy-and-evidence control plane before autonomous AI-agent USDC payments on Arc.
 
 ## 30-second pitch
 
-An agent can select a paid source and prepare a payment intent in seconds. A wallet alone cannot explain whether that spend is trusted, within budget, or repeatable. AgentPay Guard evaluates the intent with deterministic rules, returns `ALLOW`, `REVIEW`, or `BLOCK`, and stores an append-only receipt. The approved CitePay demo intent then enters an Arc Testnet USDC simulation boundary. It is never broadcast.
+An agent can request paid API access in seconds, but a wallet cannot explain whether the spend is trusted, within budget, or repeatable. AgentPay Guard evaluates the intent with deterministic rules, returns `ALLOW`, `REVIEW`, or `BLOCK`, and creates an append-only AgentPay Receipt. The primary demo is a trusted `0.08 USDC` x402-style API micropayment: it shows the per-request limit, daily budget, projected spend, velocity window, matched rules, and a preview-only future settlement handoff.
 
 Primary hackathon track: **Agentic Economy**.
 
 ## What the demo proves
 
-1. A CitePay research agent selects paid evidence sources.
-2. Guard evaluates each USDC intent and records why it was allowed, held, or blocked.
-3. The approved Arc-routed intent produces deterministic Arc Testnet simulation evidence.
-4. The receipt and audit log show the decision, rules, route, amount, and non-broadcast status.
+1. An AI agent proposes a trusted x402-style USDC API micropayment.
+2. Guard checks recipient, amount, per-request limit, daily budget, velocity, and deterministic policy.
+3. The interface shows `ALLOW`, `REVIEW`, or `BLOCK`, matched rules, and a receipt-backed policy envelope.
+4. The receipt is handed only to a future x402, Circle Gateway, or Arc adapter preview; nothing is settled.
 
-The first screen follows: `Proposed → Evaluated → Approved / Review / Blocked → Arc Testnet simulation → Evidence`.
+The primary screen follows: `Agent intent → policy envelope → ALLOW / REVIEW / BLOCK → AgentPay Receipt → future settlement adapter preview`.
 
-## Golden path
+## Judge path
 
-Run the built-in preset. It selects four sources:
+Click **Run x402 policy proof**. The deterministic preset is:
 
-| Source | Decision | Result |
+| Payment intent | Decision | Result |
 |---|---|---|
-| Trusted Arc Testnet verification API, `0.08 USDC` | `ALLOW` | Arc Testnet USDC simulation; not broadcast |
-| Premium evidence bundle, `0.25 USDC` | `REVIEW` | Operator decision required |
-| Untrusted scrape cache, `0.04 USDC` | `BLOCK` | Cannot reach a payment rail |
-| Telemetry attestation note, `0.03 USDC` | `REVIEW` | Operator decision required |
+| Trusted x402-style verification API, `0.08 USDC` | `ALLOW` | AgentPay Receipt with per-request, daily-budget, projected-spend, and velocity evidence; mock rail preview only |
+
+The CitePay source-selection and Arc Testnet simulation remain available as an optional illustrative secondary flow. They are not the primary product label or judge path.
 
 ## Arc and USDC status
 
@@ -41,8 +40,8 @@ Sources: [Connect to Arc](https://docs.arc.io/arc/references/connect-to-arc) and
 
 | Status | Capability |
 |---|---|
-| Implemented | Policy evaluation, JSONL audit receipts, idempotency, CitePay selection, guided demo, Arc Testnet USDC simulation, health endpoint |
-| Simulation-only | Arc Testnet route validation and non-broadcast settlement evidence |
+| Implemented | Policy evaluation, decimal-safe spend controls, JSONL receipts, idempotency, x402-style judge preset, CitePay selection, Arc Testnet simulation, health endpoint |
+| Preview-only | x402-style, Circle Gateway, and Arc settlement handoff descriptions; Arc Testnet route validation and non-broadcast simulation evidence |
 | Future | Wallet connection, user confirmation, RPC simulation, transaction broadcast, Circle App Kit, live payment rails |
 
 ## Safety boundary
@@ -60,7 +59,7 @@ pnpm build
 pnpm dev
 ```
 
-Open `http://localhost:3000`, then select **Run demo**.
+Open `http://localhost:3000`, then select **Run x402 policy proof**.
 
 In a second terminal, with the app running:
 
@@ -82,4 +81,4 @@ The smoke command checks health plus `ALLOW`, `REVIEW`, and `BLOCK` evaluation r
 
 ## Limits
 
-The audit log is file-based and process-local. `REVIEW` has no operator queue yet. The Arc Testnet adapter is intentionally a simulation contract, not `eth_call`, a wallet flow, or payment settlement.
+The audit log is file-based and process-local. `REVIEW` has no operator queue yet. The x402/Circle/Arc handoff is intentionally preview-only; the Arc Testnet adapter is a local simulation contract, not `eth_call`, a wallet flow, or payment settlement.

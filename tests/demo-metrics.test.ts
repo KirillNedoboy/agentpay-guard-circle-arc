@@ -1,5 +1,12 @@
 import { describe, expect, test } from "vitest";
-import { buildAuditPreview, buildDemoSummary, buildRailPreviewRows, buildReasonCodeRows, buildSimulationRows } from "@/app/demo-metrics";
+import {
+  buildAuditPreview,
+  buildDemoSummary,
+  buildRailPreviewRows,
+  buildReasonCodeRows,
+  buildSimulationRows,
+  buildSpendControlRows
+} from "@/app/demo-metrics";
 import type { AuditRecord } from "@/domain/audit/types";
 
 describe("buildDemoSummary", () => {
@@ -135,6 +142,57 @@ describe("buildAuditPreview", () => {
     expect(buildAuditPreview(undefined)).toBeNull();
   });
 
+  test("keeps policy-envelope evidence in the structured audit preview", () => {
+    const preview = buildAuditPreview({
+      eventType: "agent_payment_guard_evaluated",
+      auditId: "audit_20260801_000001",
+      timestamp: "2026-08-01T12:00:00.000Z",
+      idempotencyKey: "judge-x402-micropayment-001",
+      agentId: "agent_x402_judge_001",
+      intent: "Pay 0.08 USDC for a trusted x402-style verification API response",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      decision: "ALLOW",
+      riskScore: 10,
+      policyId: "default-agentpay-policy-v1",
+      matchedRules: ["recipient_allowlisted"],
+      reasonCodes: ["RECIPIENT_TRUSTED", "RAIL_PREVIEW_ONLY"],
+      reason: "Recipient is allowlisted.",
+      executionMode: "mock_preview",
+      railPreview: {
+        rail: "mock_x402_service",
+        networkLabel: "x402-compatible paid API",
+        settlementAsset: "USDC",
+        executionMode: "mock_preview",
+        recipientId: "trusted-x402-api.demo",
+        amountUSDC: "0.08",
+        explanation: "Preview only."
+      },
+      spendControls: {
+        currency: "USDC",
+        requestedAmount: "0.08",
+        maxAmountPerPayment: "10.00",
+        reviewThreshold: "0.20",
+        dailyLimit: "25.00",
+        dailyAllowedSpend: "0",
+        dailyRemainingBeforeRequest: "25",
+        projectedDailySpend: "0.08",
+        velocityWindowSeconds: 60,
+        velocityAttempts: 0,
+        velocityMaxAttempts: 5
+      }
+    });
+
+    expect(preview?.spendControls).toMatchObject({
+      requestedAmount: "0.08",
+      dailyRemainingBeforeRequest: "25",
+      velocityAttempts: 0
+    });
+  });
+
   test("maps legacy audit records that do not yet store rail preview fields", () => {
     const preview = buildAuditPreview({
       auditId: "audit_20260527_000001",
@@ -210,6 +268,34 @@ describe("buildSimulationRows", () => {
       ["Amount", "0.08 USDC"],
       ["Broadcast", "not broadcast"],
       ["Verification", "not_broadcast"]
+    ]);
+  });
+});
+
+describe("buildSpendControlRows", () => {
+  test("formats a deterministic x402 policy envelope without numeric coercion", () => {
+    expect(
+      buildSpendControlRows({
+        currency: "USDC",
+        requestedAmount: "0.08",
+        maxAmountPerPayment: "10.00",
+        reviewThreshold: "0.20",
+        dailyLimit: "25.00",
+        dailyAllowedSpend: "0.105",
+        dailyRemainingBeforeRequest: "24.895",
+        projectedDailySpend: "0.185",
+        velocityWindowSeconds: 60,
+        velocityAttempts: 3,
+        velocityMaxAttempts: 5
+      })
+    ).toEqual([
+      ["Request", "0.08 USDC"],
+      ["Per-request limit", "10.00 USDC"],
+      ["Review threshold", "0.20 USDC"],
+      ["Daily spend", "0.105 / 25.00 USDC"],
+      ["Daily remaining", "24.895 USDC"],
+      ["Projected spend", "0.185 / 25.00 USDC"],
+      ["Velocity", "3 / 5 in 60s"]
     ]);
   });
 });

@@ -1,71 +1,40 @@
-# STATE.md - Project State
+# Project State
 
 ## Product
 
-AgentPay Guard is a preflight policy and audit layer for AI-agent stablecoin payment intents.
-
-Current focus: Ignyte / Circle / Arc stablecoin commerce proof. The demo shows an agent creating USDC spend intents for paid API/data/service access, Guard returning `ALLOW`, `REVIEW`, or `BLOCK`, and a preview-only x402 / Circle Gateway / Arc rail object.
+AgentPay Guard is a deterministic policy-and-evidence control plane before AI-agent USDC payments. It evaluates an intent, returns `ALLOW`, `REVIEW`, or `BLOCK`, and creates an append-only receipt before any future x402, Circle Gateway, or Arc settlement adapter can run.
 
 ## Current phase
 
-`HACKATHON_READY_SIMULATION_PROOF`
+`HACKATHON_READY_POLICY_ENVELOPE`
 
 ## Done
 
-- Next.js / React / TypeScript / Vitest app scaffold exists.
-- Guard API exists at `POST /api/payment-intents/evaluate`.
-- Audit API exists at `GET /api/audit-log`.
-- Deterministic policy engine exists.
-- Decimal-string money helpers are used for amount comparisons.
-- JSONL audit logging is append-only and idempotent by `idempotencyKey`.
-- Existing paid-source selection flow maps source candidates to Guard-compatible payment intents.
-- Ignyte/Circle/Arc demo preset uses:
-  - trusted Arc Testnet verification API -> `ALLOW` and non-broadcast simulation;
-  - premium evidence bundle -> `REVIEW`;
-  - untrusted scrape cache -> `BLOCK`;
-  - telemetry attestation note -> `REVIEW`.
-- Additive rail preview types and adapter exist.
-- Audit records include `eventType`, `reasonCodes`, `executionMode`, and `railPreview`.
-- Tests cover rail preview, policy reason codes, audit payload shape, scenario decisions, and safe invalid-request posture.
-- Demo UI shows compact rail preview rows for evaluated spend intents.
-- Arc Testnet simulation uses fixed official network and USDC metadata; it performs no RPC call, signing, or broadcast.
-- Health endpoint exists at `GET /api/health`; `pnpm smoke` verifies local health and the three decision states.
-- README and core docs now use AgentPay Guard / Circle / Arc positioning as primary.
-- Generated Playwright artifacts were removed from the working tree.
-- Current validation passed: `pnpm test` (9 files, 47 tests), `pnpm lint`, `pnpm typecheck`, `pnpm build`, and production HTTP smoke.
-
-## In progress
-
-- Submission owner can record a public demo URL or video only after it exists.
+- Next.js / React / TypeScript / Vitest app and local APIs.
+- Deterministic policy engine with decimal-string money handling.
+- Append-only JSONL audit log with idempotency by `idempotencyKey`.
+- Typed `spendControls` evidence derived from policy and recent audit receipts: request limit, review threshold, daily consumed / remaining / projected spend, and velocity window.
+- One-click trusted `0.08 USDC` x402-style API micropayment judge preset.
+- Judge-facing UI shows the decision, matched rules, receipt trace, policy envelope, and explicit preview-only adapter handoff.
+- CitePay source-selection flow remains available as a collapsed secondary illustration.
+- Arc Testnet simulation remains local and non-broadcast; health endpoint and `pnpm smoke` remain available.
 
 ## Boundary
 
-The MVP does not:
+The MVP does not move funds, sign transactions, connect wallets, store private keys, call live Circle Gateway APIs, call live Arc services, run live x402 buyer/seller flows, create transaction hashes, add DB/auth/smart contracts, or perform AML/KYC or fraud prevention.
 
-- move funds;
-- sign transactions;
-- connect wallets;
-- store private keys;
-- call live Circle Gateway APIs;
-- call live Arc services;
-- run live x402 buyer/seller flows;
-- create transaction hashes;
-- add DB/auth/smart contracts;
-- perform AML/KYC or fraud prevention.
+## Final-submission note
 
-## Reference-only context
-
-The prior Lepton/CitePay and Mantle research-flow materials are useful narrative context only. They should not be treated as runtime dependencies or application models for this slice.
+The repository, live demo, public deck, and video assets are preserved. The current deck and video should be refreshed separately before final submission if they describe older CitePay-led functionality; this implementation does not modify or republish media.
 
 ## Next safe step
 
-Inspect the final diff, then commit only if the diff remains intentional:
+Inspect the focused diff and run the full validation set before committing:
 
 ```bash
 pnpm test
 pnpm lint
 pnpm typecheck
 pnpm build
+pnpm smoke
 ```
-
-After commit, report the commit hash and validation results.

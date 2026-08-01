@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test } from "vitest";
 import { createOrReuseAuditRecord, readRecentAuditRecords } from "@/domain/audit/audit-log";
 import { evaluatePolicy } from "@/domain/policy/engine";
 import { loadPolicyConfig } from "@/domain/policy/policy-config";
+import { buildSpendControls } from "@/domain/policy/spend-controls";
 import { validatePaymentIntent } from "@/domain/payment-intent/validation";
 
 const tempDirs: string[] = [];
@@ -36,12 +37,14 @@ describe("audit log", () => {
       idempotencyKey: "same-key"
     });
     const decision = evaluatePolicy(intent, policy, []);
+    const spendControls = buildSpendControls({ intent, policy, recentAuditRecords: [] });
 
-    const first = await createOrReuseAuditRecord(auditPath, intent, decision);
-    const second = await createOrReuseAuditRecord(auditPath, intent, decision);
+    const first = await createOrReuseAuditRecord(auditPath, intent, decision, spendControls);
+    const second = await createOrReuseAuditRecord(auditPath, intent, decision, spendControls);
     const lines = readFileSync(auditPath, "utf8").trim().split("\n");
 
     expect(second.auditId).toBe(first.auditId);
+    expect(second.spendControls).toEqual(spendControls);
     expect(lines).toHaveLength(1);
   });
 
@@ -58,8 +61,9 @@ describe("audit log", () => {
       idempotencyKey: "jsonl-required-fields"
     });
     const decision = evaluatePolicy(intent, policy, []);
+    const spendControls = buildSpendControls({ intent, policy, recentAuditRecords: [] });
 
-    await createOrReuseAuditRecord(auditPath, intent, decision);
+    await createOrReuseAuditRecord(auditPath, intent, decision, spendControls);
 
     const records = readRecentAuditRecords(auditPath, 10);
     expect(records).toHaveLength(1);
@@ -83,7 +87,8 @@ describe("audit log", () => {
         executionMode: "mock_preview",
         recipientId: "telemetry-attestation.demo",
         amountUSDC: "0.001"
-      }
+      },
+      spendControls
     });
     expect(records[0].reasonCodes).toContain("RAIL_PREVIEW_ONLY");
     expect(JSON.stringify(records[0])).not.toMatch(/transactionHash|txHash|signature|privateKey|seedPhrase/i);
