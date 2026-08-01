@@ -46,6 +46,11 @@ Open the deployed production demo:
 
 **https://138-124-108-146.nip.io**
 
+## Demo video
+
+- [Watch the AgentPay Guard demo on YouTube](https://youtu.be/Zj_sK3MY9kQ)
+- [Download the fallback MP4 from GitHub Raw](https://raw.githubusercontent.com/KirillNedoboy/agentpay-guard-circle-arc/main/docs/videos/agentpay-guard-demo-en.mp4)
+
 ## Submission deck
 
 [Download the AgentPay Guard slide deck (PDF)](./docs/agentpay-guard-deck.pdf)
