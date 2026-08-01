@@ -3,11 +3,12 @@
 ## Current MVP
 
 - Deterministic policy engine.
+- x402-first API-micropayment policy envelope with decimal-safe budget and velocity evidence.
 - `ALLOW` / `REVIEW` / `BLOCK`.
 - JSONL audit log.
 - Demo UI.
-- Circle/Arc rail preview adapter.
-- Ignyte/Circle/Arc demo scenarios.
+- Future settlement-adapter preview (`broadcast: false`).
+- x402, CCTP, ERC-20, and Paymaster proposal-only demo scenarios.
 - README + proof-pack docs.
 
 ## After MVP

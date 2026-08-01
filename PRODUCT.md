@@ -2,7 +2,7 @@
 
 ## Register
 
-product
+AgentPay Guard is a deterministic policy-and-evidence control plane for autonomous AI-agent USDC payment intents.
 
 ## Users
 
@@ -22,7 +22,7 @@ Do not make it look like a generic payment button, wallet app, trading console, 
 
 ## Design Principles
 
-- Start the reviewer path with the CitePay request and proposed payment intent, then show the Guard decision and evidence before any payment rail preview.
+- Start the reviewer path with the trusted x402-style `0.08 USDC` API-micropayment proof, then show the Guard decision and evidence before any future settlement-adapter preview.
 - Keep policy, rail, and audit evidence visible without decorative distraction.
 - Make the local/mock boundary obvious wherever payment execution could be inferred.
 - Use familiar dashboard controls and dense but readable evidence panels.
@@ -31,12 +31,12 @@ Do not make it look like a generic payment button, wallet app, trading console, 
 ## Reviewer path
 
 ```txt
-CitePay request -> proposed USDC payment intent -> Guard preflight
+x402-style USDC API payment intent -> Guard preflight
 -> ALLOW / REVIEW / BLOCK -> explanation -> audit / AgentPay Receipt
 -> Future settlement adapter (not executed in MVP)
 ```
 
-CitePay is only the local illustrative entry story. Generic validator cases and programmable CCTP, ERC-20, and Paymaster previews remain available as secondary proof.
+CCTP, ERC-20, and Paymaster proposal contexts remain visible as secondary deterministic policy proofs. CitePay is only a collapsed local illustrative entry story.
 
 ## Accessibility & Inclusion
 

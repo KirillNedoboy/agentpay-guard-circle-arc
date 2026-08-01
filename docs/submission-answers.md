@@ -1,60 +1,44 @@
-# AgentPay Guard submission answers
+# Encode Club × Arc × Circle submission answers
 
 ## Project name
 
 AgentPay Guard
 
-## One-liner
+## Track
 
-Deterministic policy and evidence layer for proposed AI-agent USDC payment intents before a future settlement adapter.
+Agentic Economy
 
-## Problem
+## One-sentence description
 
-An agent can form a payment request faster than an operator can assess whether the recipient, purpose, amount, route, authority, and fee context are acceptable. A payment rail alone does not retain the policy reasoning behind that decision.
+AgentPay Guard is a deterministic policy-and-evidence control plane before autonomous AI-agent USDC payments on Arc: it evaluates a payment intent, returns `ALLOW` / `REVIEW` / `BLOCK`, and creates an auditable receipt before any future settlement adapter executes.
 
-## Solution
+## What is built
 
-AgentPay Guard strictly validates a proposed intent, applies deterministic local policy, returns `ALLOW`, `REVIEW`, or `BLOCK`, and writes or reuses append-only JSONL evidence by idempotency key. The demo preserves that evidence in an AgentPay Receipt with `fundsMoved: false`.
+The application evaluates a USDC payment intent with deterministic policy rules and decimal-string money arithmetic. Its primary judge path is a trusted `0.08 USDC` x402-style API micropayment context. The result shows recipient, amount, daily budget, per-request limit, projected spend, velocity, matched rules, reason codes, append-only JSONL audit evidence, and an AgentPay Receipt.
 
-## Implemented now
+The application also preserves proposal-only CCTP route, ERC-20 authority, and USDC Paymaster preview contexts. These are local policy inputs and evidence, not protocol confirmations.
 
-- Generic USDC recipient, scenario, amount, daily-limit, velocity, and suspicious-keyword policy.
-- CCTP route-policy preview for proposed Ethereum to Base transfers, including Fast Transfer, wallet-control, estimated-fee, and decimal-safe total context.
-- ERC-20 authority proposal context for `approve` and `transferFrom`, spender policy, and informational six-decimal USDC base units.
-- Separate Paymaster fee-budget preview for `usdc-paymaster-preview`; it has no UserOperation, permit, bundler, EntryPoint, or gas-payment behavior.
-- Append-only JSONL audit records, idempotent replay, optional `programmablePaymentContext`, and AgentPay Receipt evidence.
-- Validator scenarios for generic `ALLOW`/`REVIEW`/`BLOCK`, CCTP Fast Transfer `REVIEW`, standard CCTP `ALLOW`, unsupported CCTP `BLOCK`, and ERC-20 approval `REVIEW`.
+## Arc/Circle relevance
 
-## Demo story
+Autonomous agents need a control point before programmable-money execution. AgentPay Guard models that control point for USDC/x402-style API payments and exposes where a separately authorised future Arc, Circle Gateway, or x402 adapter would sit after the policy receipt.
 
-CitePay is the illustrative entry point: a paid-source request becomes a proposed USDC payment intent, Guard returns `ALLOW`, `REVIEW`, or `BLOCK`, and the AgentPay Receipt plus append-only JSONL audit preserve the explanation. The compact boundary then points to a future Arc / Circle Gateway / x402 settlement adapter that is not executed in this MVP.
+## What it does not do
 
-## Preview-only boundary
+No wallet connection, signing, private keys, custody, real USDC movement, live Arc/Circle/x402/CCTP API call, RPC call, smart contract, database, auth, transaction hash, AML/KYC, fraud guarantee, official integration, or partnership claim.
 
-CCTP data is policy preview, not CCTP integration. ERC-20 operation/spender data is proposal context, not an allowance or balance read. Paymaster data is fee-budget preview, not a UserOperation. The app does not move funds, connect wallets, sign, hold keys, create permits or transactions, verify Iris, read balances, or confirm settlement/finality.
+The Arc Testnet item in the receipt is a local deterministic preview only: `broadcast: false`, `status: "not_executed"`.
 
-It also does not claim live Circle, Arc, Gateway, x402, CCTP, Encode, or Ignyte integration; production compliance; AML/KYC; custody; or an official partnership.
+## Demo path
 
-## Validation
+Open the demo, click **Run x402 policy proof**, inspect the `ALLOW` envelope, then click **View receipt**. CCTP, ERC-20, and Paymaster fixtures are visible below; the CitePay flow is a secondary local illustration.
 
-The current proof has 10 test files and 142 passing tests.
+## Links
 
-```bash
-pnpm test
-pnpm lint
-pnpm typecheck
-pnpm build
-```
+- Repository: https://github.com/KirillNedoboy/agentpay-guard-circle-arc
+- Live demo: https://138-124-108-146.nip.io
+- YouTube demo: https://youtu.be/Zj_sK3MY9kQ
+- Fallback MP4: https://raw.githubusercontent.com/KirillNedoboy/agentpay-guard-circle-arc/main/docs/videos/agentpay-guard-demo-en.mp4
+- Reviewer one-pager: https://github.com/KirillNedoboy/agentpay-guard-circle-arc/blob/main/docs/reviewer-one-pager.md
+- Deck: https://github.com/KirillNedoboy/agentpay-guard-circle-arc/blob/main/docs/agentpay-guard-deck.pdf
 
-## Repository
-
-https://github.com/KirillNedoboy/agentpay-guard-circle-arc
-
-## Live demo
-
-https://138-124-108-146.nip.io
-
-## Slide deck
-
-https://github.com/KirillNedoboy/agentpay-guard-circle-arc/blob/main/docs/agentpay-guard-deck.pdf
-
+The live demo must be manually redeployed from merged `main` before final submission. The current public video links are preserved, but their x402-first alignment requires manual review or re-recording.

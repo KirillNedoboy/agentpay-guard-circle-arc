@@ -8,8 +8,10 @@ import {
 } from "@/domain/citepay/source-selection";
 import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/citepay/types";
 import type { AuditRecord } from "@/domain/audit/types";
+import { createX402JudgePreset } from "@/domain/payment-intent/judge-preset";
 import { buildAgentPayReceipt, type AgentPayReceipt } from "@/domain/payment-intent/receipt";
 import type { CircleRailPreview, PaymentIntent } from "@/domain/payment-intent/types";
+import type { SpendControls } from "@/domain/policy/spend-controls";
 import {
   buildAuditPreview,
   buildCctpRouteExplanation,
@@ -42,6 +44,7 @@ type EvaluationResult = {
   createdAt: string;
   executionMode?: CircleRailPreview["executionMode"];
   railPreview?: CircleRailPreview;
+  spendControls?: SpendControls;
 };
 
 type FieldName =
@@ -76,6 +79,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
   const selectedScenario = scenarios[selectedIndex] ?? scenarios[0];
   const [form, setForm] = useState<PaymentIntent>(selectedScenario.intent);
   const [result, setResult] = useState<EvaluationResult | null>(null);
+  const [judgeResult, setJudgeResult] = useState<EvaluationResult | null>(null);
   const [records, setRecords] = useState<AuditRecord[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -113,7 +117,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     setCopyState("idle");
   }
 
-  async function evaluateIntent(intent: PaymentIntent) {
+  async function evaluateIntent(intent: PaymentIntent): Promise<EvaluationResult | null> {
     setIsSubmitting(true);
     setError(null);
     selectReceipt(null);
@@ -130,8 +134,10 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         setError(data.reason);
       }
       await refreshAuditLog();
+      return data;
     } catch {
       setError("Evaluation request failed locally.");
+      return null;
     } finally {
       setIsSubmitting(false);
     }
@@ -221,6 +227,15 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     () => (selectedAuditRecord ? buildAgentPayReceipt(selectedAuditRecord) : null),
     [selectedAuditRecord]
   );
+  const judgeAuditRecord = useMemo(
+    () => records.find((record) => record.auditId === judgeResult?.auditId) ?? null,
+    [records, judgeResult]
+  );
+  const judgeReceipt = useMemo<AgentPayReceipt | null>(
+    () => (judgeAuditRecord ? buildAgentPayReceipt(judgeAuditRecord) : null),
+    [judgeAuditRecord]
+  );
+  const judgeSpendControls = judgeResult?.spendControls ?? judgeAuditRecord?.spendControls;
   const primaryEvaluation = useMemo(() => {
     const selectedEvaluation = citePayEvaluations.find(
       (item) => item.result.auditId === selectedReceiptAuditId
@@ -232,7 +247,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
       null;
   }, [citePayEvaluations, selectedReceiptAuditId]);
   const primaryResult = result ?? primaryEvaluation?.result ?? null;
-  const proposedIntent = primaryEvaluation?.paymentIntent ?? (result ? form : quickCases.find((item) => item.id === "review")?.intent ?? null);
+  const proposedIntent = primaryEvaluation?.paymentIntent ?? (result ? form : quickCases.find((item) => item.id === "allow")?.intent ?? createX402JudgePreset());
   const proposedIntentRows = useMemo(() => buildProposedIntentRows(proposedIntent), [proposedIntent]);
   const latestRules = primaryResult?.matchedRules ?? [];
   const latestReasonCodes = primaryResult?.reasonCodes ?? [];
@@ -241,7 +256,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
       return {
         decision: "READY",
         riskScore: null,
-        reason: "Run the CitePay flow or a quick case to produce an explainable policy decision.",
+        reason: "Run the x402 policy proof or a validator case to produce an explainable policy decision.",
         auditId: "pending"
       };
     }
@@ -258,9 +273,15 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  function runPrimaryDemo() {
-    scrollToId("main-demo");
-    void runCitePayFlow();
+  async function runPrimaryDemo() {
+    const preset = createX402JudgePreset();
+    setForm(preset);
+    setActiveQuickCaseId("allow");
+    const evaluation = await evaluateIntent(preset);
+    if (evaluation) {
+      setJudgeResult(evaluation);
+      scrollToId("x402-policy-proof");
+    }
   }
 
   async function copyReceiptJson() {
@@ -377,12 +398,12 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
 
       <section className="hero-panel">
         <div className="hero-copy">
-          <p className="eyebrow">Preflight control layer</p>
-          <h1>CitePay request, checked before settlement.</h1>
-          <p className="hero-text">Turn a paid-source request into a proposed USDC payment intent, run AgentPay Guard preflight, and inspect an explainable decision with append-only evidence.</p>
+          <p className="eyebrow">Deterministic policy-and-evidence control plane</p>
+          <h1>Prove policy before an agent spends USDC.</h1>
+          <p className="hero-text">Run one x402-style API micropayment intent through AgentPay Guard and inspect the decision, spend envelope, audit evidence, receipt, and future-adapter boundary.</p>
           <div className="hero-actions">
-            <button className="hero-cta-primary" onClick={runPrimaryDemo} type="button">
-              {citePayIsSubmitting ? "Running CitePay..." : "Run CitePay demo"}
+            <button className="hero-cta-primary" disabled={isSubmitting} onClick={() => void runPrimaryDemo()} type="button">
+              {isSubmitting ? "Evaluating x402 proof..." : "Run x402 policy proof"}
             </button>
           </div>
           <div className="hero-kpis" aria-label="Proof context">
@@ -413,6 +434,84 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         </aside>
       </section>
 
+      <section className="x402-policy-proof" id="x402-policy-proof" aria-label="x402 API micropayment policy proof">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Recommended one-minute judge path</p>
+            <h2>x402 API micropayment policy envelope</h2>
+            <p className="section-subtitle">Trusted `0.08 USDC` API access is evaluated locally before any future x402, Circle Gateway, or Arc settlement adapter. This is a deterministic preview, not payment execution.</p>
+          </div>
+          <span className="mono-chip">x402-style / USDC / preview only</span>
+        </div>
+
+        <article className={`x402-proof-card ${judgeResult?.decision.toLowerCase() ?? "ready"}`}>
+          <div className="x402-proof-head">
+            <div>
+              <span className="summary-label">Agent payment intent</span>
+              <h3>trusted-x402-api.demo · 0.08 USDC</h3>
+            </div>
+            <span className={`status-chip large ${judgeResult?.decision.toLowerCase() ?? "ready"}`}>{judgeResult?.decision ?? "READY"}</span>
+          </div>
+
+          {judgeResult ? (
+            <>
+              <p className="proof-reason">{judgeResult.reason}</p>
+              <dl className="x402-envelope-grid">
+                <div>
+                  <dt>Per-request limit</dt>
+                  <dd>{judgeSpendControls?.maxAmountPerPayment ?? "pending"} USDC</dd>
+                </div>
+                <div>
+                  <dt>Daily spend</dt>
+                  <dd>{judgeSpendControls?.dailyAllowedSpend ?? "pending"} / {judgeSpendControls?.dailyLimit ?? "pending"} USDC</dd>
+                </div>
+                <div>
+                  <dt>Daily remaining</dt>
+                  <dd>{judgeSpendControls?.dailyRemainingBefore ?? "pending"} USDC</dd>
+                </div>
+                <div>
+                  <dt>Projected daily spend</dt>
+                  <dd>{judgeSpendControls?.projectedDailySpend ?? "pending"} USDC</dd>
+                </div>
+                <div>
+                  <dt>Velocity window</dt>
+                  <dd>{judgeSpendControls ? `${judgeSpendControls.velocityAttemptCount} / ${judgeSpendControls.velocityMaxAttempts} in ${judgeSpendControls.velocityWindowSeconds}s` : "pending"}</dd>
+                </div>
+                <div>
+                  <dt>Audit trace</dt>
+                  <dd className="mono-text">{judgeResult.auditId ?? "not written"}</dd>
+                </div>
+                <div className="wide-proof-row">
+                  <dt>Matched rules</dt>
+                  <dd className="rule-list-inline">{judgeResult.matchedRules.join(", ")}</dd>
+                </div>
+                <div className="wide-proof-row">
+                  <dt>Reason codes</dt>
+                  <dd className="rule-list-inline">{(judgeResult.reasonCodes ?? []).join(", ")}</dd>
+                </div>
+              </dl>
+              <div className="x402-boundary-row">
+                <div>
+                  <strong>AgentPay Receipt created</strong>
+                  <span>append-only JSONL evidence · fundsMoved: {String(judgeReceipt?.fundsMoved ?? false)}</span>
+                </div>
+                <div>
+                  <strong>Future settlement adapter</strong>
+                  <span>{judgeReceipt?.arcTestnetSimulation ? "Arc Testnet local simulation: broadcast false, not executed" : "no signing, broadcast, or funds moved"}</span>
+                </div>
+                <button onClick={() => scrollToId("evidence")} type="button">View receipt</button>
+              </div>
+            </>
+          ) : (
+            <div className="empty-state emphasis">
+              <strong>Ready to evaluate the trusted API intent.</strong>
+              <p>The proof will show an `ALLOW` decision with policy limits, matched rules, an audit trace, and a receipt before any adapter could run.</p>
+            </div>
+          )}
+          {error ? <p className="error">{error}</p> : null}
+        </article>
+      </section>
+
       <details className="architecture-strip" aria-label="Architecture flow">
         <summary>How it fits in the stack</summary>
         <div className="architecture-strip-grid">
@@ -422,37 +521,43 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         </div>
       </details>
 
-      <section className="summary-strip-compact" aria-label="Live summary">
-        <div className="summary-pill">
-          <span>Proposed</span>
-          <strong>{demoSummary.proposedSpend} USDC</strong>
-        </div>
-        <div className="summary-pill positive">
-          <span>Allowed</span>
-          <strong>{demoSummary.allowedSpend} USDC</strong>
-        </div>
-        <div className="summary-pill warning">
-          <span>Review</span>
-          <strong>{demoSummary.reviewCount}</strong>
-        </div>
-        <div className="summary-pill danger">
-          <span>Blocked</span>
-          <strong>{demoSummary.blockedCount}</strong>
-        </div>
-      </section>
-
       <section className="story-section" id="main-demo">
+        <details className="collapse-block citepay-secondary-flow">
+          <summary className="collapse-summary-strong">
+            <span>Illustrative CitePay source-selection flow</span>
+            <span className="muted-copy">Secondary local demo</span>
+          </summary>
+          <div className="collapse-content">
         <div className="section-heading narrative-heading">
           <div>
-            <p className="eyebrow">Main demo narrative</p>
-            <h2>Paid source to proposed payment intent</h2>
-            <p className="section-subtitle">CitePay is the illustrative entry story. AgentPay Guard validates each proposed USDC intent before any future settlement adapter.</p>
+            <p className="eyebrow">Illustrative local entry story</p>
+            <h2>CitePay source selection, then Guard policy</h2>
+            <p className="section-subtitle">CitePay is not the product title or payment rail. It is a local source-selection example feeding proposed USDC intents into AgentPay Guard.</p>
           </div>
           <div className="micro-proof">
             <span className="mono-chip">{demoSummary.selectedCount} selected</span>
             <span className="mono-chip">{demoSummary.approvedCount} approved</span>
           </div>
         </div>
+
+        <section className="summary-strip-compact" aria-label="CitePay flow summary">
+          <div className="summary-pill">
+            <span>Proposed</span>
+            <strong>{demoSummary.proposedSpend} USDC</strong>
+          </div>
+          <div className="summary-pill positive">
+            <span>Allowed</span>
+            <strong>{demoSummary.allowedSpend} USDC</strong>
+          </div>
+          <div className="summary-pill warning">
+            <span>Review</span>
+            <strong>{demoSummary.reviewCount}</strong>
+          </div>
+          <div className="summary-pill danger">
+            <span>Blocked</span>
+            <strong>{demoSummary.blockedCount}</strong>
+          </div>
+        </section>
 
         <div className="quick-case-bar" aria-label="Quick policy cases">
           <div>
@@ -682,6 +787,8 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
             )}
           </article>
         </div>
+          </div>
+        </details>
       </section>
 
       <section className="evidence-section" id="evidence">
@@ -912,11 +1019,14 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
         </section>
       </section>
 
-      <details className="validator-section collapse-block">
-        <summary className="collapse-summary-strong">
-          <span>Policy test cases</span>
-          <span className="muted-copy">Expand validator mode</span>
-        </summary>
+      <section className="validator-section" aria-label="Additional deterministic policy contexts">
+        <div className="section-heading">
+          <div>
+            <p className="eyebrow">Additional deterministic policy contexts</p>
+            <h2>CCTP, ERC-20, and Paymaster previews</h2>
+            <p className="section-subtitle">These validator fixtures remain visible after the x402 proof. Each is policy input and evidence only: no protocol call, UserOperation, transaction, or settlement occurs.</p>
+          </div>
+        </div>
         <div className="collapse-content">
           <div className="section-heading">
             <div>
@@ -1004,7 +1114,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
             </div>
           </div>
         </div>
-      </details>
+      </section>
     </main>
   );
 }

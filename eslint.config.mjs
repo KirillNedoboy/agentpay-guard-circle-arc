@@ -7,6 +7,16 @@ export default [
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
+    files: ["scripts/**/*.mjs"],
+    languageOptions: {
+      globals: {
+        console: "readonly",
+        fetch: "readonly",
+        process: "readonly"
+      }
+    }
+  },
+  {
     files: ["**/*.{ts,tsx}"],
     plugins: {
       "@next/next": nextPlugin

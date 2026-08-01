@@ -1,52 +1,39 @@
 # Architecture
 
-## Implemented flow
+## Canonical flow
 
 ```txt
-CitePay request / source selection
-  -> proposed USDC payment intent
+AI agent payment intent
   -> strict validation
-  -> deterministic local policy
-  -> ALLOW / REVIEW / BLOCK
-  -> explanation and matched rules
-  -> append-only audit record or idempotent reuse
-  -> AgentPay Receipt evidence
-  -> preview-only route, authority, and fee explanation
-  -> future settlement adapter boundary
+  -> deterministic policy + decimal-safe spend controls
+  -> ALLOW / REVIEW / BLOCK, matched rules, reason codes
+  -> append-only JSONL audit record or idempotent reuse
+  -> AgentPay Receipt (fundsMoved: false)
+  -> future settlement adapter preview (broadcast: false)
 ```
 
-The browser demo calls `POST /api/payment-intents/evaluate`. The endpoint validates the request before policy evaluation, writes JSONL evidence only for successful evaluations, and returns the decision, matched rules, reason codes, audit ID, and existing `railPreview` field.
+The API is `POST /api/payment-intents/evaluate`. It validates the request before policy evaluation, computes the spend-control envelope once, writes or reuses audit evidence, and returns the decision plus the persisted evidence fields.
 
-## Implemented policy and evidence
+## Policy and evidence
 
-- Generic USDC policy checks currency, amount, recipient, scenario, daily limit, velocity, and suspicious terms.
-- CCTP route policy handles only proposal context. The local allowlist permits Ethereum to Base; same-chain and unsupported routes block. Fast Transfer, developer-controlled wallet context, and claimed verified attestation can require review.
-- ERC-20 authority policy handles proposal-only `approve` and `transferFrom` details. Decimal `amount` remains the policy amount; base units are informational evidence.
-- Paymaster policy handles only `usdc-paymaster-preview`. A missing estimated fee or developer-controlled context requires review; amount plus fee above the separate local demo budget blocks.
-- `programmablePaymentContext` is optional audit and receipt evidence. Legacy generic JSONL lines remain readable, and repeated `idempotencyKey` values reuse the existing line.
+- `src/domain/policy/engine.ts` evaluates currency, amount, recipient, scenario, suspicious intent terms, daily budget, and velocity. CCTP, ERC-20 authority, and Paymaster rules remain additive policy contexts.
+- `src/domain/policy/spend-controls.ts` uses string parsing and `BigInt` decimal arithmetic. It reports the request amount, per-request limit, review threshold, daily allowed/remaining/projected spend, and velocity count.
+- `src/domain/audit/audit-log.ts` serialises one JSON object per line. Repeated `idempotencyKey` values return the original record and do not append a duplicate.
+- `src/domain/payment-intent/receipt.ts` builds an AgentPay Receipt from audit evidence. Every receipt has `fundsMoved: false`.
 
-Decimal sums use string arithmetic. None of these contexts proves an on-chain protocol result.
+New fields are optional in `AuditRecord` so historical JSONL remains readable without rewriting it: `spendControls`, `arcTestnetSimulation`, and the existing `programmablePaymentContext`.
 
-## Preview-only protocol context
+## x402-first judge path
 
-`railPreview` can contain nested CCTP route, ERC-20 authority, or Paymaster fee details. They describe what the policy evaluated:
+`createX402JudgePreset()` describes a trusted `0.08 USDC` API intent. It is a deterministic x402-style context, not an implementation of x402. The UI puts it first and shows:
 
-- a proposed native-USDC CCTP route, not a burn, Iris request, attestation verification, or mint;
-- a proposed authority operation, not an allowance/balance read or signed ERC-20 action;
-- a proposed USDC fee budget, not a UserOperation, permit, bundler/EntryPoint request, or gas payment.
+- the decision, matched rules, reason codes, and audit trace;
+- per-request and daily spend controls;
+- the linked AgentPay Receipt;
+- the explicit future-adapter boundary.
 
-The AgentPay Receipt has `fundsMoved: false` and remains policy/evidence output, not a payment receipt or settlement result.
+## Protocol-context boundary
 
-## Future integration boundary
+`railPreview` may describe CCTP route, ERC-20 authority, or USDC Paymaster policy inputs. `arcTestnetSimulation` is local deterministic evidence only, with `broadcast: false` and `status: "not_executed"`.
 
-Any settlement adapter is future, separately approved work. This repository has no live Circle, Arc, CCTP, Gateway, x402, Iris, wallet, signing, private-key, transaction, balance, finality, or custody capability.
-
-## Main modules
-
-```txt
-src/domain/payment-intent  types, validation, evaluation, preview, receipt
-src/domain/policy          policy config and deterministic engine
-src/domain/audit           append-only JSONL records and idempotency
-src/domain/citepay         local source selection
-src/app                    demo UI and API routes
-```
+This code does not call an RPC, Circle, Arc, Gateway, x402, CCTP, Iris, bundler, EntryPoint, or wallet API. It does not read balances or allowances, construct a UserOperation or permit, sign, custody, or settle USDC.

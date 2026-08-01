@@ -6,7 +6,7 @@
 - [x] README complete
 - [x] local demo runs
 - [x] tests pass
-- [x] CitePay flow and quick `ALLOW` / `REVIEW` / `BLOCK` cases verified
+- [x] x402 policy-envelope flow and `ALLOW` / `REVIEW` / `BLOCK` cases verified
 - [x] audit-log.jsonl exists
 - [x] repo hygiene verified
 
@@ -34,3 +34,4 @@
 - [x] `examples/scenario-allow-cctp-standard.json` -> programmable `ALLOW`
 - [x] `examples/scenario-block-cctp-route.json` -> programmable `BLOCK`
 - [x] `examples/scenario-review-erc20-approval.json` -> authority `REVIEW`
+- [x] `examples/scenario-review-paymaster.json` -> fee-budget `REVIEW`

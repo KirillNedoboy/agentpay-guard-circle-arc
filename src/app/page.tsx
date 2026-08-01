@@ -9,7 +9,8 @@ const scenarioFiles = [
   ["CCTP Fast Transfer review", "scenario-review-cctp-fast-transfer.json"],
   ["CCTP standard route allow", "scenario-allow-cctp-standard.json"],
   ["CCTP unsupported route block", "scenario-block-cctp-route.json"],
-  ["ERC-20 approval review", "scenario-review-erc20-approval.json"]
+  ["ERC-20 approval review", "scenario-review-erc20-approval.json"],
+  ["Paymaster preview review", "scenario-review-paymaster.json"]
 ] as const;
 
 function loadScenarios(): Scenario[] {

@@ -44,6 +44,26 @@ Each line is a complete JSON object. The file is append-only, except that a repe
     "AMOUNT_WITHIN_LIMIT"
   ],
   "reason": "Recipient is allowlisted, amount is below limits, and scenario is allowed.",
+  "spendControls": {
+    "currency": "USDC",
+    "requestedAmount": "0.08",
+    "maxAmountPerPayment": "10.00",
+    "reviewThreshold": "5.00",
+    "dailyLimit": "25.00",
+    "dailyAllowedSpend": "0.30",
+    "dailyRemainingBefore": "24.70",
+    "projectedDailySpend": "0.38",
+    "velocityWindowSeconds": 3600,
+    "velocityAttemptCount": 2,
+    "velocityMaxAttempts": 5
+  },
+  "arcTestnetSimulation": {
+    "network": "Arc Testnet",
+    "adapter": "future_settlement_adapter",
+    "simulation": "local_deterministic_preview",
+    "broadcast": false,
+    "status": "not_executed"
+  },
   "programmablePaymentContext": {
     "transferMode": "cctp",
     "sourceChain": "ethereum",
@@ -97,7 +117,13 @@ Each line is a complete JSON object. The file is append-only, except that a repe
 - `executionMode`
 - `railPreview`
 
-`programmablePaymentContext` is optional. Older JSONL lines do not contain it and remain valid.
+`programmablePaymentContext`, `spendControls`, and `arcTestnetSimulation` are optional. Older JSONL lines do not contain them and remain valid.
+
+## Optional spend-control and adapter evidence
+
+New records can persist `spendControls`: the requested amount, configured per-request and daily limits, daily allowed spend, remaining daily budget before the request, projected daily spend, and velocity-window count. Monetary fields are decimal strings calculated without JavaScript floating-point arithmetic.
+
+`arcTestnetSimulation` is a local future-adapter preview only. It records `broadcast: false` and `status: "not_executed"`; it does not record an RPC response, signature, wallet, transaction hash, or settlement result.
 
 ## Optional programmable-payment context
 
@@ -125,6 +151,8 @@ The UI renders a copyable structured audit preview for the most recent audit rec
 - `executionMode`
 - `railPreview`
 - optional `programmablePaymentContext`
+- optional `spendControls`
+- optional `arcTestnetSimulation`
 
 ## Rules
 

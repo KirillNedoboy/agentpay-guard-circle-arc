@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { buildCircleRailPreview } from "@/domain/payment-intent/rail-preview";
+import { buildArcTestnetSimulation } from "@/domain/payment-intent/arc-testnet-simulation";
 import { buildProgrammablePaymentContext } from "@/domain/payment-intent/programmable-payment-context";
 import type { AuditRecord } from "@/domain/audit/types";
 import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/types";
@@ -41,6 +42,8 @@ function makeAuditRecord(intent: PaymentIntent, decision: PolicyDecision): Audit
     reasonCodes: decision.reasonCodes,
     reason: decision.reason,
     ...(programmablePaymentContext ? { programmablePaymentContext } : {}),
+    ...(decision.spendControls ? { spendControls: decision.spendControls } : {}),
+    arcTestnetSimulation: buildArcTestnetSimulation(intent),
     executionMode: railPreview.executionMode,
     railPreview
   };
@@ -125,6 +128,33 @@ describe("safe payment intent evaluation", () => {
     expect(body.auditId).toBe("audit_api_evidence_000001");
     expect(body.railPreview).toHaveProperty(previewField);
     expect(auditLog.createOrReuseAuditRecord).toHaveBeenCalledTimes(1);
+  });
+
+  test("returns the persisted x402 spend-control envelope on a successful evaluation", async () => {
+    const response = await safeEvaluatePaymentIntent(makeIntent({ idempotencyKey: "api-x402-envelope" }));
+    const body = (await response.json()) as {
+      decision: string;
+      spendControls?: {
+        requestedAmount: string;
+        dailyAllowedSpend: string;
+        projectedDailySpend: string;
+        velocityAttemptCount: number;
+      };
+      arcTestnetSimulation?: { broadcast: boolean; status: string };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.decision).toBe("ALLOW");
+    expect(body.spendControls).toMatchObject({
+      requestedAmount: "0.08",
+      dailyAllowedSpend: "0",
+      projectedDailySpend: "0.08",
+      velocityAttemptCount: 0
+    });
+    expect(body.arcTestnetSimulation).toMatchObject({
+      broadcast: false,
+      status: "not_executed"
+    });
   });
 
   test("invalid nested route context never returns ALLOW or creates audit evidence", async () => {

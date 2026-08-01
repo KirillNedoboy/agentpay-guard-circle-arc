@@ -10,7 +10,7 @@ Web3/backend MVP, AI-agent payments, stablecoin commerce, policy/audit infrastru
 
 ## Positioning
 
-AgentPay Guard is a preflight policy and audit layer for autonomous AI-agent payments.
+AgentPay Guard is a deterministic policy-and-evidence control plane before autonomous AI-agent USDC payments on Arc.
 
 It checks payment intent before a payment rail is used.
 
@@ -24,7 +24,7 @@ Autonomous payments create a new control problem:
 
 The MVP proves:
 
-- a CitePay paid-source request becomes a proposed USDC payment intent;
+- a trusted x402-style API micropayment becomes a proposed USDC payment intent;
 - there is a local payment-intent evaluation flow;
 - decisions are deterministic and explainable;
 - every decision is auditable;
@@ -33,7 +33,7 @@ The MVP proves:
 ## Implemented narrative flow
 
 ```txt
-CitePay request
+x402-style API payment intent
   -> proposed USDC payment intent
   -> AgentPay Guard preflight
   -> ALLOW / REVIEW / BLOCK
@@ -42,7 +42,7 @@ CitePay request
   -> future settlement adapter
 ```
 
-CitePay is an illustrative local demo entry point. It reuses the existing Guard API and source-selection data; it is not a marketplace and does not execute a payment.
+CCTP, ERC-20, and Paymaster previews remain secondary policy contexts. CitePay is a collapsed illustrative local entry point, not a marketplace or product title.
 
 ## Safety boundary
 

@@ -1437,6 +1437,101 @@ p {
   box-shadow: var(--shadow);
 }
 
+.x402-policy-proof {
+  display: grid;
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.x402-proof-card {
+  display: grid;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  padding: 22px;
+  box-shadow: var(--shadow);
+}
+
+.x402-proof-card.allow {
+  border-color: rgba(10, 112, 69, 0.34);
+  background: var(--allow-soft);
+}
+
+.x402-proof-card.review {
+  border-color: rgba(138, 90, 5, 0.34);
+  background: var(--review-soft);
+}
+
+.x402-proof-card.block {
+  border-color: rgba(167, 54, 44, 0.34);
+  background: var(--block-soft);
+}
+
+.x402-proof-head,
+.x402-boundary-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.x402-proof-head h3 {
+  margin: 5px 0 0;
+}
+
+.x402-envelope-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.x402-envelope-grid > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.75);
+  padding: 10px 11px;
+}
+
+.x402-envelope-grid dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+}
+
+.x402-envelope-grid dd {
+  margin: 5px 0 0;
+  font-size: 0.92rem;
+  overflow-wrap: anywhere;
+}
+
+.x402-envelope-grid .wide-proof-row {
+  grid-column: span 3;
+}
+
+.x402-boundary-row {
+  align-items: stretch;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.65);
+  padding: 12px;
+}
+
+.x402-boundary-row > div {
+  display: grid;
+  gap: 4px;
+}
+
+.x402-boundary-row span {
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.citepay-secondary-flow {
+  border: 1px solid var(--line);
+  background: #fbfcfc;
+}
+
 .proof-card .proof-meta {
   grid-template-columns: 0.55fr 1.2fr 1.2fr;
   background: rgba(255, 255, 255, 0.68);
@@ -2060,6 +2155,7 @@ tr:hover td {
   .programmable-evidence-grid,
   .quick-case-actions,
   .proposed-intent-grid,
+  .x402-envelope-grid,
   .settlement-boundary-flow,
   .receipt-grid,
   .receipt-layout {
@@ -2088,6 +2184,15 @@ tr:hover td {
   .proof-card .proof-meta,
   .proof-card.stacked .proof-meta {
     grid-template-columns: 1fr;
+  }
+
+  .x402-envelope-grid .wide-proof-row {
+    grid-column: auto;
+  }
+
+  .x402-proof-head,
+  .x402-boundary-row {
+    display: grid;
   }
 
   .proof-card .proof-reason {

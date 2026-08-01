@@ -2,6 +2,7 @@ import type { AuditRecord } from "@/domain/audit/types";
 import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/types";
 import { addDecimalStrings, compareDecimalStrings, divideDecimalStringByTwo, isPositiveDecimal } from "@/lib/decimal";
 import type { PolicyConfig } from "./policy-config";
+import { calculateSpendControls, type SpendControls } from "./spend-controls";
 
 function clampRisk(score: number): number {
   return Math.max(0, Math.min(100, score));
@@ -18,7 +19,8 @@ function isToday(timestamp: string): boolean {
 export function evaluatePolicy(
   intent: PaymentIntent,
   policy: PolicyConfig,
-  recentAuditRecords: AuditRecord[]
+  recentAuditRecords: AuditRecord[],
+  providedSpendControls?: SpendControls
 ): PolicyDecision {
   const matchedRules: string[] = [];
   const reasonCodes: string[] = ["RAIL_PREVIEW_ONLY"];
@@ -28,6 +30,7 @@ export function evaluatePolicy(
   let hasReview = false;
 
   const amountIsValid = isPositiveDecimal(intent.amount);
+  const spendControls = providedSpendControls ?? (amountIsValid ? calculateSpendControls(intent, policy, recentAuditRecords) : undefined);
   if (!amountIsValid) {
     matchedRules.push("amount_invalid");
     reasonCodes.push("AMOUNT_INVALID");
@@ -103,10 +106,12 @@ export function evaluatePolicy(
       }
     }
 
-    const todaysAllowedAmounts = recentAuditRecords
-      .filter((record) => record.agentId === intent.agentId && record.decision === "ALLOW" && isToday(record.timestamp))
-      .map((record) => record.amount);
-    const dailyTotal = addDecimalStrings([...todaysAllowedAmounts, intent.amount]);
+    const dailyTotal = spendControls?.projectedDailySpend ?? addDecimalStrings([
+      ...recentAuditRecords
+        .filter((record) => record.agentId === intent.agentId && record.decision === "ALLOW" && isToday(record.timestamp))
+        .map((record) => record.amount),
+      intent.amount
+    ]);
     if (dailyTotal === null || compareDecimalStrings(dailyTotal, policy.limits.dailyLimitPerAgent) === 1) {
       matchedRules.push("daily_limit_exceeded");
       reasonCodes.push("SESSION_BUDGET_EXCEEDED");
@@ -244,10 +249,11 @@ export function evaluatePolicy(
     riskScore += policy.riskWeights.suspiciousKeyword * suspiciousMatches.length;
   }
 
-  const windowStart = Date.now() - policy.velocity.windowSeconds * 1000;
-  const attemptsInWindow = recentAuditRecords.filter(
-    (record) => record.agentId === intent.agentId && Date.parse(record.timestamp) >= windowStart
-  ).length;
+  const attemptsInWindow =
+    spendControls?.velocityAttemptCount ??
+    recentAuditRecords.filter(
+      (record) => record.agentId === intent.agentId && Date.parse(record.timestamp) >= Date.now() - policy.velocity.windowSeconds * 1000
+    ).length;
   if (attemptsInWindow >= policy.velocity.maxAttemptsPerWindow) {
     matchedRules.push("velocity_limit_exceeded");
     reasonCodes.push("VELOCITY_LIMIT_EXCEEDED");
@@ -267,7 +273,8 @@ export function evaluatePolicy(
       reason: "Recipient is allowlisted, amount is below limits, and scenario is allowed.",
       matchedRules: uniqueStrings(matchedRules),
       reasonCodes: uniqueStrings(reasonCodes),
-      policyId: policy.policyId
+      policyId: policy.policyId,
+      ...(spendControls ? { spendControls } : {})
     };
   }
 
@@ -277,6 +284,7 @@ export function evaluatePolicy(
     reason: reasonParts.join(" ") || "Policy requires review before payment can proceed.",
     matchedRules: uniqueStrings(matchedRules),
     reasonCodes: uniqueStrings(reasonCodes),
-    policyId: policy.policyId
+    policyId: policy.policyId,
+    ...(spendControls ? { spendControls } : {})
   };
 }
