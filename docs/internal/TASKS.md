@@ -8,6 +8,7 @@
 - [x] Add deterministic tests for spend controls, x402 receipt/idempotency, API evidence, Paymaster fixture, and external audit-path smoke isolation.
 - [x] Make CitePay a secondary local flow and expose CCTP/ERC-20/Paymaster validator fixtures.
 - [x] Align required docs and deck source with proposal-only scope.
+- [x] Polish canonical submission packaging: judge-first README, internal-note relocation, MIT license, metadata, and presentation-only x402-first UI hierarchy.
 
 ## Before final Encode submission
 

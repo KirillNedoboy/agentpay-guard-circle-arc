@@ -2063,6 +2063,135 @@ tr:hover td {
   font-size: 1.1rem;
 }
 
+.architecture-strip {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+  margin: 14px 0;
+  padding: 18px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+}
+
+.architecture-strip-head {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.architecture-strip-head .eyebrow {
+  margin-bottom: 6px;
+}
+
+.architecture-strip-head h2 {
+  margin-bottom: 0;
+}
+
+.future-rail-chip {
+  min-height: 0;
+  border: 1px solid rgba(15, 118, 110, 0.35);
+  background: var(--accent-soft);
+  color: #075f59;
+  padding: 7px 9px;
+  font-size: 0.78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.architecture-strip-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.architecture-stage {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  gap: 4px 8px;
+  min-width: 0;
+  min-height: 86px;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  padding: 12px;
+}
+
+.architecture-stage.future {
+  border-color: rgba(15, 118, 110, 0.38);
+  background: var(--accent-soft);
+}
+
+.architecture-stage > span {
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+.architecture-stage-index {
+  grid-row: span 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  color: #fff;
+  background: var(--ink-panel);
+  font-size: 0.78rem;
+  font-weight: 800;
+}
+
+.architecture-stage strong {
+  align-self: end;
+  font-size: 0.9rem;
+}
+
+.architecture-stage > span:last-child {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.ready-state {
+  border-color: rgba(15, 118, 110, 0.3);
+}
+
+.ready-state-label,
+.quick-case-status {
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.primary-quick-cases {
+  margin-top: 0;
+}
+
+.quick-case {
+  align-content: start;
+  min-height: 108px;
+}
+
+.quick-case.allow .quick-case-status {
+  color: var(--allow);
+}
+
+.quick-case.review .quick-case-status {
+  color: var(--review);
+}
+
+.quick-case.block .quick-case-status {
+  color: var(--block);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;
@@ -2164,6 +2293,19 @@ tr:hover td {
 
   .summary-strip-compact {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .architecture-strip,
+  .primary-quick-cases {
+    padding: 16px;
+  }
+
+  .architecture-strip-head {
+    display: grid;
+  }
+
+  .future-rail-chip {
+    width: fit-content;
   }
 
   .architecture-strip > summary {

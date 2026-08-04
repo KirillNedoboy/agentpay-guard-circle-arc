@@ -72,7 +72,12 @@ const fieldLabels: Array<[FieldName, string]> = [
   ["idempotencyKey", "Idempotency key"]
 ];
 
-const architectureStages = ["AI Agent", "AgentPay Guard", "x402 / Circle Gateway", "Paid API / Service"];
+const architectureStages = [
+  { label: "AI Agent", detail: "Proposes a USDC payment intent", isFuture: false },
+  { label: "AgentPay Guard", detail: "Applies policy and records evidence", isFuture: false },
+  { label: "Future rail", detail: "x402 / Gateway / Arc preview only", isFuture: true },
+  { label: "Paid API / Service", detail: "Not reached in this MVP", isFuture: false }
+] as const;
 
 export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -503,23 +508,56 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
               </div>
             </>
           ) : (
-            <div className="empty-state emphasis">
+            <div className="empty-state emphasis ready-state">
+              <span className="ready-state-label">No decision yet</span>
               <strong>Ready to evaluate the trusted API intent.</strong>
-              <p>The proof will show an `ALLOW` decision with policy limits, matched rules, an audit trace, and a receipt before any adapter could run.</p>
+              <p>The proof will show the decision, policy limits, matched rules, an audit trace, and a receipt before any adapter could run.</p>
             </div>
           )}
           {error ? <p className="error">{error}</p> : null}
         </article>
       </section>
 
-      <details className="architecture-strip" aria-label="Architecture flow">
-        <summary>How it fits in the stack</summary>
-        <div className="architecture-strip-grid">
-          {architectureStages.map((stage) => (
-            <span key={stage}>{stage}</span>
+      <section className="architecture-strip" aria-label="Guarded payment flow">
+        <div className="architecture-strip-head">
+          <div>
+            <p className="eyebrow">Where the Guard fits</p>
+            <h2>Policy first. Settlement remains future work.</h2>
+          </div>
+          <span className="future-rail-chip">Future / not executed</span>
+        </div>
+        <ol className="architecture-strip-grid">
+          {architectureStages.map((stage, index) => (
+            <li className={stage.isFuture ? "architecture-stage future" : "architecture-stage"} key={stage.label}>
+              <span className="architecture-stage-index">{index + 1}</span>
+              <strong>{stage.label}</strong>
+              <span>{stage.detail}</span>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="quick-case-bar primary-quick-cases" aria-label="Quick policy cases">
+        <div>
+          <strong>See every decision path</strong>
+          <span>Run one of the existing deterministic fixtures without opening the full validator.</span>
+        </div>
+        <div className="quick-case-actions">
+          {quickCases.map((quickCase) => (
+            <button
+              className={`quick-case ${quickCase.id} ${activeQuickCaseId === quickCase.id ? "is-active" : ""}`}
+              disabled={isSubmitting || citePayIsSubmitting}
+              key={quickCase.id}
+              onClick={() => void runQuickCase(quickCase)}
+              type="button"
+            >
+              <span className="quick-case-status">{quickCase.id}</span>
+              <strong>{quickCase.label}</strong>
+              <span>{quickCase.description}</span>
+            </button>
           ))}
         </div>
-      </details>
+      </section>
 
       <section className="story-section" id="main-demo">
         <details className="collapse-block citepay-secondary-flow">
@@ -558,27 +596,6 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
             <strong>{demoSummary.blockedCount}</strong>
           </div>
         </section>
-
-        <div className="quick-case-bar" aria-label="Quick policy cases">
-          <div>
-            <strong>Quick cases</strong>
-            <span>Reuse existing intents for a compact policy proof.</span>
-          </div>
-          <div className="quick-case-actions">
-            {quickCases.map((quickCase) => (
-              <button
-                className={`quick-case ${quickCase.id} ${activeQuickCaseId === quickCase.id ? "is-active" : ""}`}
-                disabled={isSubmitting || citePayIsSubmitting}
-                key={quickCase.id}
-                onClick={() => void runQuickCase(quickCase)}
-                type="button"
-              >
-                <strong>{quickCase.label}</strong>
-                <span>{quickCase.description}</span>
-              </button>
-            ))}
-          </div>
-        </div>
 
         <article className="proposed-intent-panel" aria-label="Proposed payment intent">
           <div className="proposed-intent-head">
