@@ -1,43 +1,24 @@
 # AgentPay Guard — Arc submission package
 
-## Canonical links
+## Canonical assets
 
 - Repository: https://github.com/KirillNedoboy/agentpay-guard-circle-arc
 - Live demo: https://138-124-108-146.nip.io
-- Demo video: https://raw.githubusercontent.com/KirillNedoboy/agentpay-guard-circle-arc/main/docs/videos/agentpay-guard-demo-en.mp4
-- YouTube demo: https://youtu.be/Zj_sK3MY9kQ
+- YouTube: https://youtu.be/Zj_sK3MY9kQ
+- Fallback MP4: https://raw.githubusercontent.com/KirillNedoboy/agentpay-guard-circle-arc/main/docs/videos/agentpay-guard-demo-en.mp4
 - Reviewer one-pager: https://github.com/KirillNedoboy/agentpay-guard-circle-arc/blob/main/docs/reviewer-one-pager.md
-- Slide deck source: https://github.com/KirillNedoboy/agentpay-guard-circle-arc/blob/main/docs/agentpay-guard-deck.md
-- Slide deck PDF: https://github.com/KirillNedoboy/agentpay-guard-circle-arc/blob/main/docs/agentpay-guard-deck.pdf
+- Deck source: https://github.com/KirillNedoboy/agentpay-guard-circle-arc/blob/main/docs/agentpay-guard-deck.md
+- Deck PDF: https://github.com/KirillNedoboy/agentpay-guard-circle-arc/blob/main/docs/agentpay-guard-deck.pdf
 
-## One-line description
+## Submission framing
 
-AgentPay Guard is a deterministic policy and evidence layer that evaluates proposed AI-agent USDC payment intents before a future Arc, Circle Gateway, or x402 settlement adapter.
+AgentPay Guard is a deterministic policy-and-evidence control plane before autonomous AI-agent USDC payments on Arc. A judge can click one trusted x402-style `0.08 USDC` API intent and immediately inspect the decision, decimal-safe spend controls, matched rules, audit record, receipt, and future-adapter boundary.
 
-## Judge path
+The public repository implements policy and evidence, not settlement. `fundsMoved` is always `false`; the local Arc Testnet preview has `broadcast: false`; no live Arc, Circle, x402, CCTP, RPC, wallet, signing, custody, or transaction capability is present.
 
-```text
-CitePay request → proposed USDC intent → Guard preflight
-→ ALLOW / REVIEW / BLOCK → matched rules → audit evidence → AgentPay Receipt
-```
+## Manual release actions before final Encode submission
 
-## Current proof
-
-- 10 test files, 142 passing tests.
-- `pnpm test`, `pnpm lint`, `pnpm typecheck`, and `pnpm build` pass.
-- Production service: `agentpay-guard.service`.
-- Public demo verified at `https://138-124-108-146.nip.io`.
-- Demo video is served from the public GitHub Raw URL above.
-
-## Honest boundary
-
-This MVP does not move funds, connect wallets, sign transactions, store keys, call live Circle or Arc services, execute CCTP, create permits or UserOperations, read balances or allowances, or claim settlement/finality. All protocol-facing values are proposal-only evidence.
-
-## Manual submission checklist
-
-- [ ] Paste repository URL.
-- [ ] Paste live demo URL.
-- [ ] Paste demo video URL.
-- [ ] Attach or link screenshots from `screenshots/`.
-- [ ] Use the description from `docs/submission-answers.md`.
-- [ ] Verify the current Arc form fields and deadline in the authenticated Encode dashboard before submitting.
+1. Merge the reviewed integration PR into `main`.
+2. Redeploy the live demo from merged `main`; do not deploy this branch automatically.
+3. Review the YouTube and MP4 content against the x402-first click path. Preserve the links, but re-record if the media does not match this implementation.
+4. Open the production demo and perform the click path in `docs/demo-script.md`.

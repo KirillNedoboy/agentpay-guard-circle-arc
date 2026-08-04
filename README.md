@@ -1,62 +1,46 @@
 # AgentPay Guard
 
-> Deterministic policy and evidence layer for proposed AI-agent USDC payment intents before a future settlement adapter.
+> Deterministic policy and evidence for proposed AI-agent USDC payment intents, before any future settlement adapter.
+
+[![CI](https://github.com/KirillNedoboy/agentpay-guard-circle-arc/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/KirillNedoboy/agentpay-guard-circle-arc/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-0f766e.svg)](./LICENSE)
+
+![AgentPay Guard demo](./docs/assets/screenshots/demo-main.png)
+
+AgentPay Guard gives builders and reviewers a deterministic decision before an AI agent can reach a future USDC payment adapter. It evaluates a proposed intent, returns `ALLOW`, `REVIEW`, or `BLOCK`, and records append-only JSONL evidence plus an AgentPay Receipt. The demo is a local policy proof; it does not settle a payment.
+
+## Judge links
+
+- [Live demo](https://138-124-108-146.nip.io) — deployed baseline; this PR's x402-first screen requires deployment before it is reflected there.
+- [Demo video on YouTube](https://youtu.be/Zj_sK3MY9kQ) — earlier CitePay-led walkthrough, preserved for reference.
+- [Fallback MP4](./docs/videos/agentpay-guard-demo-en.mp4) — the same earlier walkthrough.
+- [Submission deck (PDF)](./docs/agentpay-guard-deck.pdf)
+- [Reviewer one-pager](./docs/reviewer-one-pager.md)
+- [Architecture](./docs/architecture.md)
+- [Screenshot evidence](./docs/screenshots.md)
 
 ## What it does
 
-AgentPay Guard accepts a proposed payment intent, validates its shape, applies local deterministic policy, returns `ALLOW`, `REVIEW`, or `BLOCK`, and writes or reuses append-only JSONL evidence by `idempotencyKey`.
+- Evaluates amount, recipient, scenario, budget, suspicious terms, and velocity with deterministic rules.
+- Returns `ALLOW`, `REVIEW`, or `BLOCK`, with matched rules and reason codes.
+- Preserves audit evidence by `idempotencyKey` and builds an AgentPay Receipt with `fundsMoved: false`.
+- Shows x402-style API access first, with CCTP, ERC-20 authority, Paymaster, and Arc Testnet as proposal-only policy contexts.
 
-The app is a local proof. It does not settle a payment. Its audit record and AgentPay Receipt preserve the policy decision and proposal context for review.
+## Why this matters
 
-## Implemented policy contexts
+Agents can request paid data or API access quickly. A future payment adapter still needs a clear answer to a simpler question first: is this proposed spend within policy, explainable, and recorded? AgentPay Guard supplies that preflight decision without pretending to be the rail itself.
 
-- **CCTP route policy preview:** evaluates a proposed route such as Ethereum to Base. It is not a CCTP integration and does not burn or mint USDC, request Iris attestations, or call Circle.
-- **ERC-20 authority proposal context:** evaluates proposed `approve` and `transferFrom` operations with a spender and optional six-decimal USDC base units. It does not read an on-chain allowance or balance, sign an approval, or submit an ERC-20 transaction.
-- **USDC Paymaster fee-budget preview:** evaluates an estimated local USDC fee only for `usdc-paymaster-preview`. It does not create a UserOperation or permit, contact a bundler or EntryPoint, or pay gas.
-- **Audit and receipt evidence:** successful evaluations persist the optional normalized `programmablePaymentContext`; the receipt is an evidence artifact with `fundsMoved: false`.
+## Reviewer path
 
-Generic intents remain compatible, as does the existing CitePay source-selection flow.
-
-## Reviewer narrative
-
-The local demo starts with a CitePay paid-source request. It becomes a proposed USDC payment intent, passes AgentPay Guard preflight, and produces an explainable `ALLOW`, `REVIEW`, or `BLOCK` result. The same screen links the proposed intent to matched rules, an audit ID, an AgentPay Receipt, and a compact future settlement boundary for Arc / Circle Gateway / x402.
-
-CitePay is an illustrative local entry story, not a marketplace or payment product. The quick cases reuse the existing generic `ALLOW`, CitePay premium-source `REVIEW`, and denylisted-recipient `BLOCK` intents.
-
-## Demo scenarios
-
-The validator includes the original generic `ALLOW`, `REVIEW`, and `BLOCK` cases plus:
-
-- CCTP Fast Transfer, Ethereum to Base, developer-controlled, `5.01` USDC plus `0.02` fee -> `REVIEW`.
-- Standard CCTP, Ethereum to Base -> `ALLOW`.
-- Unsupported CCTP route, Ethereum to Arbitrum -> `BLOCK`.
-- ERC-20 approval for `trusted-agent-service`, `5010000` base units -> `REVIEW`.
-
-All route, fee, authority, and receipt fields remain proposal-only evidence.
+1. Open the demo and click **Run x402 policy proof**.
+2. Inspect the trusted `0.08 USDC` API intent, policy envelope, matched rules, reason codes, and `ALLOW` decision.
+3. Open the AgentPay Receipt and confirm the audit evidence, `fundsMoved: false`, and the non-broadcast future-adapter preview.
+4. Use the visible `ALLOW`, `REVIEW`, and `BLOCK` cases for the other deterministic outcomes.
 
 ## Safety boundary
 
-AgentPay Guard does not move funds, connect wallets, sign transactions, hold private keys, create permits or UserOperations, read balances or allowances, call Circle, Arc, CCTP, Gateway, x402, Iris, a bundler, or an EntryPoint, or create transaction hashes. It does not claim production compliance, AML/KYC, custody, settlement/finality confirmation, or official Circle, Arc, Encode, or Ignyte partnerships.
+This repository does not move funds, connect wallets, sign transactions, store private keys, create permits or UserOperations, read balances or allowances, call Circle, Arc, CCTP, Gateway, x402, Iris, bundlers, or EntryPoints, or create transaction hashes. An `ALLOW` only means that a separately authorised future adapter could be considered.
 
-## Run and verify
-
-## Live demo
-
-Open the deployed production demo:
-
-**https://138-124-108-146.nip.io**
-
-## Demo video
-
-- [Watch the AgentPay Guard demo on YouTube](https://youtu.be/Zj_sK3MY9kQ)
-- [Download the fallback MP4 from GitHub Raw](https://raw.githubusercontent.com/KirillNedoboy/agentpay-guard-circle-arc/main/docs/videos/agentpay-guard-demo-en.mp4)
-
-## Submission deck
-
-[Download the AgentPay Guard slide deck (PDF)](./docs/agentpay-guard-deck.pdf)
-
-
-The public demo runs the same production build verified by systemd. It remains a local-policy proof: no wallet, signing, network payment, or funds movement is performed.
+## Run locally
 
 ```bash
 pnpm install --frozen-lockfile
@@ -67,16 +51,25 @@ pnpm build
 pnpm dev
 ```
 
-Open the local URL printed by Next.js, normally `http://localhost:3000`.
+Open `http://localhost:3000`. `pnpm smoke` is optional and requires a running server; set `AGENTPAY_AUDIT_LOG_PATH` to a temporary file when you want an isolated smoke run.
 
-The submitted baseline has 10 test files and 142 passing tests.
+## Repository map
 
-## Reviewer path
+```txt
+src/domain/payment-intent  intent types, validation, receipts, and judge preset
+src/domain/policy          deterministic engine and spend controls
+src/domain/audit           append-only JSONL evidence and idempotency
+src/app                    Next.js demo and local API routes
+docs/                      reviewer, submission, architecture, and evidence materials
+examples/                  deterministic demo fixtures
+tests/                     policy, audit, API, and receipt coverage
+```
 
-1. `docs/architecture.md`
-2. `docs/demo-script.md`
-3. `docs/audit-log-schema.md`
-4. `docs/submission-answers.md`
-5. `docs/screenshots.md`
-6. `data/policies.default.json`
-7. `tests/`
+## Implemented scenarios
+
+| Scenario | Expected decision | Evidence shown |
+| --- | --- | --- |
+| Trusted x402-style API access, `0.08 USDC` | `ALLOW` | Spend controls, rules, audit ID, and receipt |
+| Premium or unknown payment context | `REVIEW` | Reason codes and review-required evidence |
+| Denylisted or unsupported payment context | `BLOCK` | Deterministic block reasons |
+| CCTP, ERC-20 authority, and Paymaster contexts | Varies by fixture | Proposal-only policy evidence; no protocol call |

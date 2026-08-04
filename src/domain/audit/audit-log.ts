@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { appendFile, mkdir, readFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
+import { buildArcTestnetSimulation } from "@/domain/payment-intent/arc-testnet-simulation";
 import { buildProgrammablePaymentContext } from "@/domain/payment-intent/programmable-payment-context";
 import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/types";
 import type { AuditRecord } from "./types";
@@ -92,6 +93,7 @@ export async function createOrReuseAuditRecord(
     const timestamp = new Date().toISOString();
     const railPreview = buildCircleRailPreview(intent);
     const programmablePaymentContext = buildProgrammablePaymentContext(intent);
+    const arcTestnetSimulation = buildArcTestnetSimulation(intent);
     const record: AuditRecord = {
       eventType: "agent_payment_guard_evaluated",
       auditId: makeAuditId(records.length, timestamp),
@@ -117,6 +119,8 @@ export async function createOrReuseAuditRecord(
       reasonCodes: decision.reasonCodes,
       reason: decision.reason,
       ...(programmablePaymentContext ? { programmablePaymentContext } : {}),
+      ...(decision.spendControls ? { spendControls: decision.spendControls } : {}),
+      arcTestnetSimulation,
       executionMode: railPreview.executionMode,
       railPreview
     };

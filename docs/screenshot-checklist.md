@@ -2,6 +2,16 @@
 
 Create these screenshots after demo implementation. Do not use placeholders or generated fake screenshots.
 
+## docs/assets/screenshots/x402-policy-envelope.png
+
+Must show:
+
+- the trusted `0.08 USDC` x402-style API intent;
+- `ALLOW`, matched rules, and reason codes;
+- per-request, daily, projected, and velocity spend controls;
+- audit ID / AgentPay Receipt;
+- `broadcast: false`, `not executed`, and no-funds-moved boundary.
+
 ## screenshots/01-allow-decision.png
 
 Must show:

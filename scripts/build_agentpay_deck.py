@@ -8,183 +8,176 @@ from PIL import Image, ImageDraw, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "docs" / "agentpay-guard-deck.pdf"
 PREVIEW = ROOT / "docs" / "assets" / "agentpay-guard-deck-preview.png"
+SCREENSHOT = ROOT / "docs" / "assets" / "screenshots" / "x402-policy-envelope.png"
+FALLBACK_SCREENSHOT = ROOT / "docs" / "assets" / "screenshots" / "demo-main.png"
 W, H = 1600, 900
 BG = (8, 16, 29)
 PANEL = (17, 31, 49)
-PANEL2 = (22, 43, 59)
+PANEL_ALT = (22, 43, 59)
 WHITE = (241, 246, 248)
 MUTED = (165, 185, 194)
 CYAN = (42, 205, 222)
 GREEN = (82, 211, 145)
 YELLOW = (247, 201, 87)
 RED = (245, 105, 103)
-FONT_DIR = Path("/usr/share/fonts/truetype/dejavu")
-REG = str(FONT_DIR / "DejaVuSans.ttf")
-BOLD = str(FONT_DIR / "DejaVuSans-Bold.ttf")
-MONO = str(FONT_DIR / "DejaVuSansMono.ttf")
+
+FONT_CANDIDATES = {
+    "regular": [Path("C:/Windows/Fonts/arial.ttf"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")],
+    "bold": [Path("C:/Windows/Fonts/arialbd.ttf"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf")],
+    "mono": [Path("C:/Windows/Fonts/consola.ttf"), Path("/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf")],
+}
 
 
-def font(path: str, size: int) -> ImageFont.FreeTypeFont:
-    return ImageFont.truetype(path, size)
+def resolve_font(kind: str) -> str:
+    for candidate in FONT_CANDIDATES[kind]:
+        if candidate.exists():
+            return str(candidate)
+    raise RuntimeError(f"No supported {kind} font found: {FONT_CANDIDATES[kind]}")
 
 
-def rounded(draw: ImageDraw.ImageDraw, box, fill, radius=22, outline=None, width=1):
-    draw.rounded_rectangle(box, radius=radius, fill=fill, outline=outline, width=width)
+REG = resolve_font("regular")
+BOLD = resolve_font("bold")
+MONO = resolve_font("mono")
 
 
-def txt(draw, xy, value, size=30, fill=WHITE, bold=False, mono=False, anchor=None):
-    f = font(MONO if mono else (BOLD if bold else REG), size)
-    draw.text(xy, value, font=f, fill=fill, anchor=anchor)
+def f(size: int, bold: bool = False, mono: bool = False) -> ImageFont.FreeTypeFont:
+    return ImageFont.truetype(MONO if mono else (BOLD if bold else REG), size)
 
 
-def paragraph(draw, xy, value, max_chars, size=27, fill=MUTED, leading=12, bold=False):
+def text(draw: ImageDraw.ImageDraw, xy, value: str, size: int = 30, fill=WHITE, bold: bool = False, mono: bool = False, anchor=None):
+    draw.text(xy, value, font=f(size, bold, mono), fill=fill, anchor=anchor)
+
+
+def paragraph(draw: ImageDraw.ImageDraw, xy, value: str, width: int, size: int = 28, fill=MUTED, leading: int = 12, bold: bool = False):
     x, y = xy
-    lines = []
-    for raw in value.split("\n"):
-        lines.extend(wrap(raw, width=max_chars) or [""])
-    f = font(BOLD if bold else REG, size)
-    for line in lines:
-        draw.text((x, y), line, font=f, fill=fill)
-        y += size + leading
+    for source_line in value.split("\n"):
+        for line in wrap(source_line, width=width) or [""]:
+            draw.text((x, y), line, font=f(size, bold), fill=fill)
+            y += size + leading
     return y
 
 
-def header(draw, kicker, title, n):
-    txt(draw, (86, 55), kicker.upper(), 18, CYAN, bold=True)
-    txt(draw, (86, 95), title, 48, WHITE, bold=True)
-    txt(draw, (1515, 58), f"{n:02d}", 20, MUTED, mono=True, anchor="ra")
+def card(draw: ImageDraw.ImageDraw, box, fill=PANEL, outline=None):
+    draw.rounded_rectangle(box, radius=22, fill=fill, outline=outline, width=2 if outline else 1)
+
+
+def base(kicker: str, title: str, page: int):
+    image = Image.new("RGB", (W, H), BG)
+    draw = ImageDraw.Draw(image)
+    draw.rectangle((0, 0, 16, H), fill=CYAN)
+    text(draw, (86, 55), kicker.upper(), 18, CYAN, bold=True)
+    text(draw, (86, 95), title, 46, WHITE, bold=True)
+    text(draw, (1515, 58), f"{page:02d}", 20, MUTED, mono=True, anchor="ra")
     draw.line((86, 175, 1514, 175), fill=(45, 71, 83), width=2)
-
-
-def footer(draw):
     draw.line((86, 835, 1514, 835), fill=(45, 71, 83), width=1)
-    txt(draw, (86, 850), "AGENTPAY GUARD  /  PROGRAMMABLE MONEY HACKATHON", 16, MUTED, bold=True)
-    txt(draw, (1514, 850), "ARC · CIRCLE · ENCODE CLUB", 16, MUTED, bold=True, anchor="ra")
+    text(draw, (86, 850), "AGENTPAY GUARD / PROGRAMMABLE MONEY HACKATHON", 16, MUTED, bold=True)
+    text(draw, (1514, 850), "ARC / CIRCLE / ENCODE CLUB", 16, MUTED, bold=True, anchor="ra")
+    return image, draw
 
 
-def slide_base():
-    im = Image.new("RGB", (W, H), BG)
-    d = ImageDraw.Draw(im)
-    d.rectangle((0, 0, 16, H), fill=CYAN)
-    return im, d
+def slide_one():
+    image, draw = base("Agentic Economy Track", "AgentPay Guard", 1)
+    text(draw, (86, 225), "Policy and evidence before autonomous USDC spend", 42, WHITE, bold=True)
+    paragraph(draw, (90, 305), "A deterministic control plane that evaluates an agent payment intent, returns ALLOW / REVIEW / BLOCK, and records evidence before any future settlement adapter executes.", 67, 30, MUTED, 14)
+    card(draw, (90, 495, 1510, 670), PANEL, CYAN)
+    text(draw, (135, 535), "x402-STYLE API INTENT", 20, CYAN, bold=True)
+    text(draw, (135, 585), "ALLOW", 38, GREEN, bold=True)
+    text(draw, (530, 585), "REVIEW", 38, YELLOW, bold=True)
+    text(draw, (945, 585), "BLOCK", 38, RED, bold=True)
+    text(draw, (90, 745), "No wallet. No signing. No broadcast. No USDC movement.", 27, WHITE, bold=True)
+    return image
 
 
-def slide1():
-    im, d = slide_base()
-    txt(d, (86, 82), "PROGRAMMABLE MONEY HACKATHON", 20, CYAN, bold=True)
-    txt(d, (86, 180), "AgentPay Guard", 86, WHITE, bold=True)
-    txt(d, (90, 290), "The payment firewall for autonomous AI agents", 38, MUTED, bold=True)
-    rounded(d, (90, 410, 1510, 580), PANEL, 28, outline=(46, 82, 94), width=2)
-    txt(d, (140, 455), "PROPOSED USDC PAYMENT INTENT", 22, CYAN, bold=True)
-    txt(d, (140, 500), "ALLOW", 44, GREEN, bold=True)
-    txt(d, (480, 500), "REVIEW", 44, YELLOW, bold=True)
-    txt(d, (865, 500), "BLOCK", 44, RED, bold=True)
-    txt(d, (140, 650), "Deterministic policy. Explainable evidence. Human-confirmed boundaries.", 29, WHITE, bold=True)
-    txt(d, (90, 790), "Agentic Economy Track  ·  Arc / Circle / Encode Club", 22, MUTED)
-    return im
+def slide_two():
+    image, draw = base("The problem", "Agents outpace payment review", 2)
+    card(draw, (86, 235, 760, 730), PANEL)
+    text(draw, (130, 285), "THE REQUEST", 21, CYAN, bold=True)
+    paragraph(draw, (130, 345), "An agent can propose a recipient, amount, purpose, route, authority, and fee context in seconds.", 31, 31, WHITE, 15, True)
+    card(draw, (840, 235, 1514, 730), PANEL_ALT)
+    text(draw, (885, 285), "THE GAP", 21, YELLOW, bold=True)
+    paragraph(draw, (885, 345), "A payment rail does not retain why the request was allowed, reviewed, or blocked. That reasoning must exist before execution.", 31, 31, WHITE, 15, True)
+    return image
 
 
-def slide2():
-    im, d = slide_base(); header(d, "The problem", "Autonomous payment intent is faster than human review", 2)
-    rounded(d, (86, 235, 760, 735), PANEL, 24)
-    txt(d, (130, 285), "AN AGENT CAN FORM A REQUEST", 22, CYAN, bold=True)
-    paragraph(d, (130, 345), "before an operator can assess whether the recipient, purpose, amount, route, authority, and fee context are acceptable.", 32, 33, WHITE, 16, True)
-    rounded(d, (840, 235, 1514, 735), PANEL2, 24)
-    txt(d, (885, 285), "A PAYMENT RAIL ALONE DOES NOT", 22, YELLOW, bold=True)
-    paragraph(d, (885, 345), "preserve the policy reasoning behind the decision. AgentPay Guard creates that missing evidence boundary before settlement.", 31, 31, WHITE, 16, True)
-    txt(d, (885, 650), "intent  →  policy  →  evidence", 30, CYAN, bold=True, mono=True)
-    footer(d); return im
+def slide_three():
+    image, draw = base("First proof", "A trusted 0.08 USDC x402-style API intent", 3)
+    stages = ["Intent", "Validation", "Policy + limits", "Decision + receipt", "Future adapter"]
+    colors = [CYAN, WHITE, YELLOW, GREEN, MUTED]
+    x = 86
+    for index, (stage, color) in enumerate(zip(stages, colors)):
+        card(draw, (x, 320, x + 255, 510), PANEL, color)
+        text(draw, (x + 24, 350), f"0{index + 1}", 18, color, bold=True, mono=True)
+        paragraph(draw, (x + 24, 405), stage, 14, 25, WHITE, 8, True)
+        x += 285
+    paragraph(draw, (90, 620), "The envelope shows per-request limit, daily spend, remaining budget, projected spend, velocity, matched rules, reason codes, and append-only audit evidence.", 86, 27, MUTED, 12)
+    text(draw, (90, 740), "AgentPay Receipt: fundsMoved: false", 28, GREEN, bold=True, mono=True)
+    return image
 
 
-def slide3():
-    im, d = slide_base(); header(d, "The solution", "A hard policy boundary before settlement", 3)
-    steps = [("01", "Proposed intent", CYAN), ("02", "Validation", WHITE), ("03", "Policy engine", YELLOW), ("04", "Decision + receipt", GREEN)]
-    x = 95
-    for i, (num, label, color) in enumerate(steps):
-        rounded(d, (x, 320, x+315, 545), PANEL, 22, outline=color, width=3)
-        txt(d, (x+28, 350), num, 22, color, bold=True, mono=True)
-        paragraph(d, (x+28, 415), label, 15, 28, WHITE, 8, True)
-        if i < len(steps)-1:
-            txt(d, (x+328, 410), "→", 42, CYAN, bold=True)
-        x += 370
-    txt(d, (95, 650), "ALLOW", 34, GREEN, bold=True)
-    txt(d, (410, 650), "REVIEW", 34, YELLOW, bold=True)
-    txt(d, (790, 650), "BLOCK", 34, RED, bold=True)
-    txt(d, (95, 715), "Every outcome carries matched rules, risk context, an audit ID, and an AgentPay Receipt.", 25, MUTED)
-    footer(d); return im
-
-
-def slide4():
-    im, d = slide_base(); header(d, "Policy contexts", "One boundary, multiple payment proposals", 4)
-    cards = [
-        ("GENERIC USDC", "Recipient · scenario · amount\nDaily limit · velocity\nSuspicious keywords", CYAN),
-        ("CCTP ROUTE PREVIEW", "Ethereum → Base\nFast Transfer · wallet control\nEstimated fee · decimal-safe totals", YELLOW),
-        ("ERC-20 AUTHORITY", "approve / transferFrom\nSpender policy\nUSDC base units", GREEN),
-        ("PAYMASTER PREVIEW", "Local USDC fee budget\nNo UserOperation\nNo gas execution", RED),
+def slide_four():
+    image, draw = base("Policy contexts", "One Guard, several proposal types", 4)
+    items = [
+        ("GENERIC USDC", "Recipient, scenario, amount, daily limit, velocity, suspicious terms", CYAN),
+        ("CCTP PREVIEW", "Local route, finality, wallet-control, fee, and total-budget policy", YELLOW),
+        ("ERC-20 AUTHORITY", "Proposed approve / transferFrom and deterministic spender policy", GREEN),
+        ("PAYMASTER PREVIEW", "Local USDC fee and wallet-control policy; no UserOperation", RED),
     ]
-    positions = [(86, 245), (790, 245), (86, 510), (790, 510)]
-    for (title, body, color), (x, y) in zip(cards, positions):
-        rounded(d, (x, y, x+620, y+205), PANEL, 20, outline=color, width=2)
-        txt(d, (x+28, y+28), title, 20, color, bold=True)
-        paragraph(d, (x+28, y+78), body, 31, 24, WHITE, 5)
-    txt(d, (86, 770), "All protocol-facing values remain proposal-only evidence in the current MVP.", 24, MUTED, bold=True)
-    footer(d); return im
+    for (title, body, color), (x, y) in zip(items, [(86, 245), (790, 245), (86, 510), (790, 510)]):
+        card(draw, (x, y, x + 620, y + 205), PANEL, color)
+        text(draw, (x + 28, y + 28), title, 20, color, bold=True)
+        paragraph(draw, (x + 28, y + 78), body, 34, 24, WHITE, 6)
+    return image
 
 
 def fit_image(path: Path, box):
-    im = Image.open(path).convert("RGB")
-    bw, bh = box[2]-box[0], box[3]-box[1]
-    scale = min(bw/im.width, bh/im.height)
-    size = (max(1, int(im.width*scale)), max(1, int(im.height*scale)))
-    im = im.resize(size, Image.Resampling.LANCZOS)
-    canvas = Image.new("RGB", (bw, bh), (4, 10, 19))
-    canvas.paste(im, ((bw-size[0])//2, (bh-size[1])//2))
+    source = Image.open(path).convert("RGB")
+    width, height = box[2] - box[0], box[3] - box[1]
+    scale = min(width / source.width, height / source.height)
+    resized = source.resize((max(1, int(source.width * scale)), max(1, int(source.height * scale))), Image.Resampling.LANCZOS)
+    canvas = Image.new("RGB", (width, height), (4, 10, 19))
+    canvas.paste(resized, ((width - resized.width) // 2, (height - resized.height) // 2))
     return canvas
 
 
-def slide5():
-    im, d = slide_base(); header(d, "The demo", "Make the decision and evidence legible", 5)
-    left = fit_image(ROOT / "screenshots" / "06-citepay-guard-decisions.png", (86, 225, 865, 770))
-    im.paste(left, (86, 225)); rounded(d, (86, 225, 865, 770), None, 18, outline=(59, 91, 102), width=2)
-    rounded(d, (930, 225, 1515, 770), PANEL, 24)
-    txt(d, (975, 275), "OPERATOR PATH", 21, CYAN, bold=True)
-    paragraph(d, (975, 330), "CitePay request\n→ proposed USDC intent\n→ Guard preflight\n→ matched rules\n→ AgentPay Receipt", 24, 29, WHITE, 12, True)
-    txt(d, (975, 625), "fundsMoved: false", 26, GREEN, bold=True, mono=True)
-    txt(d, (975, 680), "No wallet. No signing. No live settlement.", 20, MUTED)
-    footer(d); return im
+def slide_five():
+    image, draw = base("Judge path", "The x402 policy envelope in one minute", 5)
+    screenshot = SCREENSHOT if SCREENSHOT.exists() else FALLBACK_SCREENSHOT
+    image.paste(fit_image(screenshot, (86, 225, 865, 770)), (86, 225))
+    card(draw, (930, 225, 1515, 770), PANEL)
+    text(draw, (975, 275), "WHAT THE JUDGE SEES", 20, CYAN, bold=True)
+    paragraph(draw, (975, 330), "Trusted API intent\nALLOW / REVIEW / BLOCK\nSpend controls\nMatched rules + audit trace\nReceipt + future adapter boundary", 28, 27, WHITE, 11, True)
+    text(draw, (975, 630), "fundsMoved: false", 25, GREEN, bold=True, mono=True)
+    text(draw, (975, 685), "broadcast: false", 25, GREEN, bold=True, mono=True)
+    return image
 
 
-def slide6():
-    im, d = slide_base(); header(d, "Trust boundary", "Proof now, execution later", 6)
-    rounded(d, (86, 235, 760, 760), PANEL, 24)
-    txt(d, (130, 280), "IMPLEMENTED NOW", 22, GREEN, bold=True)
-    paragraph(d, (130, 345), "Deterministic local policy engine\nAppend-only JSONL audit trail\nIdempotent replay by intent key\nAgentPay Receipt evidence\nProduction build and public demo", 30, 28, WHITE, 12)
-    rounded(d, (840, 235, 1515, 760), PANEL2, 24)
-    txt(d, (885, 280), "EXPLICITLY NOT EXECUTED", 22, RED, bold=True)
-    paragraph(d, (885, 345), "No wallet connection\nNo private keys or signing\nNo live funds movement\nNo live Arc / Circle / CCTP / x402 calls\nNo settlement or finality claim", 30, 28, WHITE, 12)
-    footer(d); return im
+def slide_six():
+    image, draw = base("Boundary", "Evidence now; execution remains separate", 6)
+    card(draw, (86, 235, 760, 760), PANEL)
+    text(draw, (130, 285), "IMPLEMENTED", 21, GREEN, bold=True)
+    paragraph(draw, (130, 345), "Deterministic policy\nDecimal-safe controls\nAppend-only JSONL\nIdempotent replay\nAgentPay Receipt", 30, 28, WHITE, 11)
+    card(draw, (840, 235, 1515, 760), PANEL_ALT)
+    text(draw, (885, 285), "NOT EXECUTED", 21, RED, bold=True)
+    paragraph(draw, (885, 345), "No wallet or private keys\nNo signing or custody\nNo live Arc / Circle / x402 call\nNo RPC or transaction\nNo settlement or finality claim", 30, 28, WHITE, 11)
+    return image
 
 
-def slide7():
-    im, d = slide_base(); header(d, "Proof and roadmap", "A controlled path from evidence to settlement", 7)
-    rounded(d, (86, 235, 705, 750), PANEL, 24)
-    txt(d, (130, 280), "VALIDATED", 22, CYAN, bold=True)
-    txt(d, (130, 355), "142", 78, WHITE, bold=True)
-    txt(d, (335, 386), "passing tests", 29, MUTED, bold=True)
-    txt(d, (130, 500), "10 test files", 27, WHITE, bold=True)
-    txt(d, (130, 555), "lint · typecheck · build", 27, WHITE, bold=True)
-    txt(d, (130, 640), "systemd production service", 25, GREEN, bold=True)
-    rounded(d, (775, 235, 1515, 750), PANEL2, 24)
-    txt(d, (820, 280), "ROADMAP", 22, YELLOW, bold=True)
-    paragraph(d, (820, 345), "Put Arc / Circle Gateway / x402 adapters behind the same policy boundary only after the evidence contract is proven.", 31, 29, WHITE, 12, True)
-    txt(d, (820, 595), "github.com/KirillNedoboy/agentpay-guard-circle-arc", 18, CYAN, mono=True)
-    txt(d, (820, 645), "https://138-124-108-146.nip.io", 20, CYAN, mono=True)
-    txt(d, (820, 700), "AGENTPAY GUARD", 24, WHITE, bold=True)
-    footer(d); return im
+def slide_seven():
+    image, draw = base("Release state", "Keep every adapter behind the evidence contract", 7)
+    card(draw, (86, 235, 705, 750), PANEL)
+    text(draw, (130, 285), "VERIFICATION", 21, CYAN, bold=True)
+    paragraph(draw, (130, 355), "Deterministic tests\nLint and typecheck\nProduction build\nLocal API smoke", 28, 30, WHITE, 12, True)
+    text(draw, (130, 635), "Append-only JSONL + idempotency", 22, GREEN, bold=True)
+    card(draw, (775, 235, 1515, 750), PANEL_ALT)
+    text(draw, (820, 285), "NEXT MANUAL ACTIONS", 21, YELLOW, bold=True)
+    paragraph(draw, (820, 345), "Review the integration PR. Redeploy the public demo from merged main. Review or re-record the public video for the x402-first click path.", 34, 28, WHITE, 12, True)
+    text(draw, (820, 620), "github.com/KirillNedoboy/agentpay-guard-circle-arc", 17, CYAN, mono=True)
+    text(draw, (820, 680), "NO WALLET / NO SIGNING / NO BROADCAST", 20, WHITE, bold=True)
+    return image
 
 
 if __name__ == "__main__":
-    slides = [slide1(), slide2(), slide3(), slide4(), slide5(), slide6(), slide7()]
+    slides = [slide_one(), slide_two(), slide_three(), slide_four(), slide_five(), slide_six(), slide_seven()]
     OUT.parent.mkdir(parents=True, exist_ok=True)
     PREVIEW.parent.mkdir(parents=True, exist_ok=True)
     slides[0].save(OUT, "PDF", resolution=144.0, save_all=True, append_images=slides[1:])

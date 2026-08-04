@@ -13,7 +13,8 @@ const requiredFixtures = [
   ["scenario-review-cctp-fast-transfer.json", "REVIEW"],
   ["scenario-allow-cctp-standard.json", "ALLOW"],
   ["scenario-block-cctp-route.json", "BLOCK"],
-  ["scenario-review-erc20-approval.json", "REVIEW"]
+  ["scenario-review-erc20-approval.json", "REVIEW"],
+  ["scenario-review-paymaster.json", "REVIEW"]
 ] as const;
 
 function loadFixture(fileName: string) {
@@ -26,7 +27,7 @@ function loadFixture(fileName: string) {
 }
 
 describe("programmable payment demo fixtures", () => {
-  test("adds the focused CCTP and ERC-20 demo fixture files without replacing generic scenarios", () => {
+  test("adds focused CCTP, ERC-20, and Paymaster fixtures without replacing generic scenarios", () => {
     const fileNames = readdirSync(examplesPath);
 
     expect(fileNames).toEqual(

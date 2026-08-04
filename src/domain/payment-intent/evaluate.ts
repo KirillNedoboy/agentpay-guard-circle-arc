@@ -1,9 +1,11 @@
 import { createOrReuseAuditRecord, readRecentAuditRecords } from "@/domain/audit/audit-log";
 import type { AuditRecord } from "@/domain/audit/types";
-import type { CircleRailPreview, PolicyDecision } from "@/domain/payment-intent/types";
+import type { ArcTestnetSimulation, CircleRailPreview, PolicyDecision } from "@/domain/payment-intent/types";
 import { validatePaymentIntent, ValidationError } from "@/domain/payment-intent/validation";
 import { evaluatePolicy } from "@/domain/policy/engine";
 import { loadPolicyConfig } from "@/domain/policy/policy-config";
+import type { SpendControls } from "@/domain/policy/spend-controls";
+import { calculateSpendControls } from "@/domain/policy/spend-controls";
 import { auditLogPath, policyPath } from "@/lib/paths";
 
 export type EvaluationResponse = PolicyDecision & {
@@ -11,13 +13,16 @@ export type EvaluationResponse = PolicyDecision & {
   createdAt: string;
   executionMode: CircleRailPreview["executionMode"];
   railPreview: CircleRailPreview;
+  spendControls?: SpendControls;
+  arcTestnetSimulation?: ArcTestnetSimulation;
 };
 
 export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationResponse> {
   const intent = validatePaymentIntent(input);
   const policy = loadPolicyConfig(policyPath());
   const recentRecords = readRecentAuditRecords(auditLogPath(), 250);
-  const decision = evaluatePolicy(intent, policy, recentRecords);
+  const spendControls = calculateSpendControls(intent, policy, recentRecords);
+  const decision = evaluatePolicy(intent, policy, recentRecords, spendControls);
   const audit = await createOrReuseAuditRecord(auditLogPath(), intent, decision);
 
   return {
@@ -30,7 +35,9 @@ export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationR
     auditId: audit.auditId,
     createdAt: audit.timestamp,
     executionMode: audit.executionMode,
-    railPreview: audit.railPreview
+    railPreview: audit.railPreview,
+    ...(audit.spendControls ? { spendControls: audit.spendControls } : {}),
+    ...(audit.arcTestnetSimulation ? { arcTestnetSimulation: audit.arcTestnetSimulation } : {})
   };
 }
 

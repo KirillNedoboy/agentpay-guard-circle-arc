@@ -99,6 +99,16 @@ export type CircleRailPreview = {
   usdcPaymasterPreview?: UsdcPaymasterPreview;
 };
 
+export type ArcTestnetSimulation = {
+  network: "Arc Testnet";
+  adapter: "future_settlement_adapter";
+  simulation: "local_deterministic_preview";
+  intentReference: string;
+  broadcast: false;
+  status: "not_executed";
+  explanation: string;
+};
+
 export type PaymentIntent = {
   agentId: string;
   intent: string;
@@ -121,4 +131,5 @@ export type PolicyDecision = {
   matchedRules: string[];
   reasonCodes: string[];
   policyId: string;
+  spendControls?: import("@/domain/policy/spend-controls").SpendControls;
 };

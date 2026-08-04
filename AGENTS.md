@@ -12,10 +12,10 @@ The MVP evaluates payment intents before an agent proceeds to x402 / Circle Gate
 
 Before editing:
 
-1. `REQUIREMENTS.md`
-2. `STATE.md`
-3. `TASKS.md`
-4. `SESSION_NOTES.md`
+1. `docs/internal/REQUIREMENTS.md`
+2. `docs/internal/STATE.md`
+3. `docs/internal/TASKS.md`
+4. `docs/internal/SESSION_NOTES.md`
 5. `README.md`
 
 ## Product boundary
@@ -150,9 +150,9 @@ Add deterministic tests for:
 Update docs when behavior changes:
 
 - `README.md`
-- `REQUIREMENTS.md` if product scope changes;
-- `STATE.md`
-- `SESSION_NOTES.md`
+- `docs/internal/REQUIREMENTS.md` if product scope changes;
+- `docs/internal/STATE.md`
+- `docs/internal/SESSION_NOTES.md`
 
 Do not make fake claims about Arc, Circle, grants, points, or APIs.
 
@@ -174,7 +174,7 @@ Ask before:
 
 A task is done only if:
 
-- implementation matches `REQUIREMENTS.md`;
+- implementation matches `docs/internal/REQUIREMENTS.md`;
 - tests or manual verification were run;
 - errors are handled explicitly;
 - no secrets are present;

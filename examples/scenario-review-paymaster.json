@@ -1,0 +1,20 @@
+{
+  "agentId": "agent_paymaster_demo_001",
+  "intent": "Propose a USDC Paymaster preview for trusted API access",
+  "amount": "0.08",
+  "currency": "USDC",
+  "recipient": "trusted-x402-api.demo",
+  "scenario": "api_access",
+  "paymentRail": "mock_x402_service",
+  "idempotencyKey": "demo-paymaster-review-001",
+  "routeContext": {
+    "transferMode": "single-chain",
+    "sourceChain": "ethereum",
+    "destinationChain": "ethereum",
+    "walletControlModel": "developer-controlled",
+    "estimatedFee": "0.02",
+    "feeAsset": "USDC",
+    "gasPaymentMode": "usdc-paymaster-preview"
+  },
+  "expectedDecision": "REVIEW"
+}

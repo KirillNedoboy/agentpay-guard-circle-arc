@@ -1,4 +1,5 @@
-import type { CircleRail, CircleRailPreview, Decision, PaymentPurpose, ProgrammablePaymentContext } from "@/domain/payment-intent/types";
+import type { SpendControls } from "@/domain/policy/spend-controls";
+import type { ArcTestnetSimulation, CircleRail, CircleRailPreview, Decision, PaymentPurpose, ProgrammablePaymentContext } from "@/domain/payment-intent/types";
 
 export type AuditRecord = {
   eventType: "agent_payment_guard_evaluated";
@@ -25,6 +26,8 @@ export type AuditRecord = {
   reasonCodes: string[];
   reason: string;
   programmablePaymentContext?: ProgrammablePaymentContext;
+  spendControls?: SpendControls;
+  arcTestnetSimulation?: ArcTestnetSimulation;
   executionMode: CircleRailPreview["executionMode"];
   railPreview: CircleRailPreview;
 };

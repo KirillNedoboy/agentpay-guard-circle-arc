@@ -4,7 +4,7 @@ Use these prompts with Codex in order.
 
 ## Prompt 1 — Initialize implementation
 
-Read `AGENTS.md`, `REQUIREMENTS.md`, `STATE.md`, `TASKS.md`, and `SESSION_NOTES.md`.
+Read `AGENTS.md`, `docs/internal/REQUIREMENTS.md`, `docs/internal/STATE.md`, `docs/internal/TASKS.md`, and `docs/internal/SESSION_NOTES.md`.
 
 Implement Phase 1 only.
 
@@ -22,11 +22,11 @@ Build a compact TypeScript app for AgentPay Guard with:
 
 Do not implement real payments, wallet signing, database, auth, or live Circle integration.
 
-After implementation, run tests/typecheck/lint if configured, update `STATE.md` and `SESSION_NOTES.md`, and report exactly what was verified.
+After implementation, run tests/typecheck/lint if configured, update `docs/internal/STATE.md` and `docs/internal/SESSION_NOTES.md`, and report exactly what was verified.
 
 ## Prompt 2 — Build demo UI
 
-Read `AGENTS.md`, `REQUIREMENTS.md`, `STATE.md`, `TASKS.md`, and current code.
+Read `AGENTS.md`, `docs/internal/REQUIREMENTS.md`, `docs/internal/STATE.md`, `docs/internal/TASKS.md`, and current code.
 
 Implement Phase 2 only.
 
@@ -43,7 +43,7 @@ Create a single local demo UI with:
 
 Do not add auth, DB, real payments, or external paid services.
 
-Run available checks and update `STATE.md` and `SESSION_NOTES.md`.
+Run available checks and update `docs/internal/STATE.md` and `docs/internal/SESSION_NOTES.md`.
 
 ## Prompt 3 — Proof pack
 
@@ -65,4 +65,4 @@ Do not claim AML/KYC/compliance coverage.
 
 Run the local demo and verify all 3 scenarios produce expected decisions.
 
-Update `STATE.md`, `TASKS.md`, and `SESSION_NOTES.md`.
+Update `docs/internal/STATE.md`, `docs/internal/TASKS.md`, and `docs/internal/SESSION_NOTES.md`.
