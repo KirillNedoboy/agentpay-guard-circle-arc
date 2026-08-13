@@ -2,10 +2,12 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
-import { createOrReuseAuditRecord, readRecentAuditRecords } from "@/domain/audit/audit-log";
+import { createOrReuseAuditRecord, createOrReuseAuditRecordWithEvidence, readRecentAuditRecords } from "@/domain/audit/audit-log";
+import { buildReplayEvidence } from "@/domain/audit/replay-evidence";
 import { evaluatePolicy } from "@/domain/policy/engine";
 import { fingerprintPolicy } from "@/domain/policy/policy-fingerprint";
 import { loadPolicyConfig } from "@/domain/policy/policy-config";
+import { fingerprintIntent } from "@/domain/payment-intent/intent-fingerprint";
 import { validatePaymentIntent } from "@/domain/payment-intent/validation";
 
 const tempDirs: string[] = [];
@@ -286,6 +288,8 @@ describe("audit log", () => {
     const [record] = readRecentAuditRecords(auditPath, 10);
     expect(record.policyVersion).toBe(policy.policyVersion);
     expect(record.policyFingerprint).toBe(fingerprintPolicy(policy));
+    expect(record.intentFingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(record.intentFingerprint).toBe(fingerprintIntent(intent));
     expect(record.executionStatus).toBe("not_executed");
     expect(JSON.stringify(record)).not.toMatch(/transactionHash|txHash|signature|privateKey|settlementStatus/i);
   });
@@ -340,9 +344,87 @@ describe("audit log", () => {
 
     expect(record.policyVersion).toBeNull();
     expect(record.policyFingerprint).toBeNull();
+    expect(record.intentFingerprint).toBeNull();
     expect(record.executionStatus).toBe("not_executed");
     expect(record.policyId).toBe("default-agentpay-policy-v1");
     expect(readFileSync(auditPath, "utf8")).toBe(before);
+    expect(readFileSync(auditPath, "utf8").trim().split("\n")).toHaveLength(1);
+  });
+
+  test("first evaluation writes one line with replayed false", async () => {
+    const auditPath = makeTempAuditPath();
+    const intent = validatePaymentIntent({
+      agentId: "agent_replay_001",
+      intent: "Buy premium verification data from a trusted x402 API",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      idempotencyKey: "phase3-first-write"
+    });
+
+    const { record, replayed } = await createOrReuseAuditRecordWithEvidence(auditPath, intent, evaluatePolicy(intent, policy, []));
+
+    expect(replayed).toBe(false);
+    expect(record.idempotencyKey).toBe("phase3-first-write");
+    expect(readFileSync(auditPath, "utf8").trim().split("\n")).toHaveLength(1);
+  });
+
+  test("exact replay returns the stored record with replayed true and no mismatch", async () => {
+    const auditPath = makeTempAuditPath();
+    const intent = validatePaymentIntent({
+      agentId: "agent_replay_001",
+      intent: "Buy premium verification data from a trusted x402 API",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      idempotencyKey: "phase3-exact-replay"
+    });
+
+    const first = await createOrReuseAuditRecordWithEvidence(auditPath, intent, evaluatePolicy(intent, policy, []));
+    const replay = await createOrReuseAuditRecordWithEvidence(auditPath, intent, evaluatePolicy(intent, policy, []));
+    const evidence = buildReplayEvidence(replay.record, fingerprintIntent(intent), policy, replay.replayed);
+
+    expect(replay.replayed).toBe(true);
+    expect(replay.record.auditId).toBe(first.record.auditId);
+    expect(evidence).toMatchObject({ replayed: true, replayMismatch: false, policyChanged: false });
+    expect(readFileSync(auditPath, "utf8").trim().split("\n")).toHaveLength(1);
+  });
+
+  test("same key with a changed intent replays the stored record with a mismatch and no duplicate line", async () => {
+    const auditPath = makeTempAuditPath();
+    const original = validatePaymentIntent({
+      agentId: "agent_replay_001",
+      intent: "Buy premium verification data from a trusted x402 API",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      idempotencyKey: "phase3-mismatch"
+    });
+    const changed = validatePaymentIntent({
+      agentId: "agent_replay_001",
+      intent: "A completely different intent reusing the same key",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      idempotencyKey: "phase3-mismatch"
+    });
+
+    const first = await createOrReuseAuditRecordWithEvidence(auditPath, original, evaluatePolicy(original, policy, []));
+    const replay = await createOrReuseAuditRecordWithEvidence(auditPath, changed, evaluatePolicy(changed, policy, []));
+    const evidence = buildReplayEvidence(replay.record, fingerprintIntent(changed), policy, replay.replayed);
+
+    expect(replay.replayed).toBe(true);
+    expect(replay.record.auditId).toBe(first.record.auditId);
+    expect(replay.record.intent).toBe(original.intent);
+    expect(evidence.replayMismatch).toBe(true);
     expect(readFileSync(auditPath, "utf8").trim().split("\n")).toHaveLength(1);
   });
 });

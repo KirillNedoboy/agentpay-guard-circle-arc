@@ -88,6 +88,27 @@ baseline (`eb28fe7973cdd3d770de155556c23ee214c6ef33`):
   `policyVersion` is now `"2"` (`policyId` unchanged). Validation after Phase 2:
   15 test files / 180 tests, lint, typecheck, build, and `git diff --check` all
   passing; historical `data/audit-log.jsonl` byte-identical.
+- Phase 3 replay and policy-drift evidence (commit `feat: add replay and policy
+  drift evidence`): deterministic `intentFingerprint` (`sha256:<64 hex>` over the
+  validated intent; key order irrelevant, array order significant) persisted on
+  new audit records, `null` on legacy records via in-memory normalization only
+  (historical JSONL byte-identical, no reconstruction); explicit `replayed` signal
+  from the audit writer (same `idempotencyKey` still creates at most one original
+  line); `ReplayEvidence` in every successful response (`replayed`,
+  `replayMismatch`, `policyChanged`, stored/current fingerprints) comparing
+  stored evidence vs the current evaluation; policy drift reported when stored
+  `policyVersion` or `policyFingerprint` differs from the current loaded policy,
+  and `null` (unknown, not fabricated) when stored attribution is missing;
+  mismatched replay preserves the stored decision as historical evidence without a
+  duplicate line; ExecutionAuthorization is issued only when replay evidence shows
+  no intent mismatch and no policy change, and the builder rejects stored records
+  with missing attribution or a changed current policy. Stable-JSON
+  canonicalization extracted to `src/lib/stable-json.ts` and shared by policy and
+  intent fingerprints (policy fingerprint output verified byte-identical to
+  Phase 2). Validation after Phase 3: 16 test files / 204 tests, lint, typecheck,
+  build, and `git diff --check` all passing; `data/policies.default.json`
+  (`policyVersion: "2"`, unchanged), `package.json`, `pnpm-lock.yaml`, and
+  historical `data/audit-log.jsonl` byte-identical.
 
 ## 3. PROPOSED
 

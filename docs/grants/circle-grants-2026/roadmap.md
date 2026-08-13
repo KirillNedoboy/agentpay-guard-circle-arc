@@ -1,6 +1,6 @@
 # Circle Grants 2026 — Roadmap
 
-Phases 0, 1, and 2 are complete on this branch. Phases 3–9 are NOT yet implemented.
+Phases 0, 1, 2, and 3 are complete on this branch. Phases 4–9 are NOT yet implemented.
 Each phase lists objective, main deliverable, dependencies, and Definition of Done.
 This roadmap is planning documentation only; no future phase is implemented here.
 
@@ -65,13 +65,35 @@ This roadmap is planning documentation only; no future phase is implemented here
   Validation: 180 tests / 15 files passing (was 162 / 14), lint, typecheck, build,
   `git diff --check` all green.
 
-## Phase 3 — Replay and policy-drift evidence (NOT IMPLEMENTED)
+## Phase 3 — Replay and policy-drift evidence (IMPLEMENTED — 2026-08-13)
 
 - Objective: re-evaluate recorded decisions against current policy to surface drift.
 - Main deliverable: deterministic replay command and drift report.
 - Dependencies: Phase 1.
 - Definition of Done: replay of historical records reproduces decisions or reports
   exact policy differences; tests cover drift scenarios.
+- Evidence (commit `feat: add replay and policy drift evidence`): explicit
+  `replayed` signal from the audit writer (`createOrReuseAuditRecordWithEvidence`
+  returns `{ record, replayed }`; same key → at most one original line);
+  deterministic `intentFingerprint` (`sha256:<64 hex>`, key-order-insensitive,
+  over the validated intent) persisted on new audit records and `null` on legacy
+  records via in-memory normalization only (historical JSONL byte-identical);
+  `ReplayEvidence` response object (`replayed`, `replayMismatch`,
+  `policyChanged`, stored/current intent fingerprints, stored/current policy
+  version + fingerprint) comparing stored evidence vs the current evaluation;
+  policy drift detected by comparing both `policyVersion` and `policyFingerprint`
+  against the current loaded policy (missing stored attribution → `null`, never
+  fabricated); mismatched replay returns the stored decision as historical
+  evidence without appending a duplicate line; ExecutionAuthorization is issued
+  only when `replayMismatch === false && policyChanged === false`, and the
+  builder additionally refuses to mix stored old attribution with a changed
+  current policy (null `policyVersion`/`policyFingerprint`/`intentFingerprint`,
+  current version mismatch, or current fingerprint mismatch → no envelope).
+  Shared stable-JSON canonicalization extracted to `src/lib/stable-json.ts` and
+  reused by policy and intent fingerprints — policy fingerprint output verified
+  byte-identical to Phase 2. Validation: 204 tests / 16 files passing (was
+  180 / 15), lint, typecheck, build, `git diff --check` all green; policy config,
+  dependencies, and historical audit log untouched.
 
 ## Phase 4 — Canonical ALLOW / REVIEW / BLOCK / REPLAY scenarios (NOT IMPLEMENTED)
 

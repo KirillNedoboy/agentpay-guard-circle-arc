@@ -2,11 +2,12 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { buildCircleRailPreview } from "@/domain/payment-intent/rail-preview";
 import { buildArcTestnetSimulation } from "@/domain/payment-intent/arc-testnet-simulation";
 import { buildProgrammablePaymentContext } from "@/domain/payment-intent/programmable-payment-context";
+import { fingerprintIntent } from "@/domain/payment-intent/intent-fingerprint";
 import type { AuditRecord } from "@/domain/audit/types";
 import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/types";
 
 const auditLog = vi.hoisted(() => ({
-  createOrReuseAuditRecord: vi.fn(),
+  createOrReuseAuditRecordWithEvidence: vi.fn(),
   readRecentAuditRecords: vi.fn(() => [])
 }));
 
@@ -40,6 +41,7 @@ function makeAuditRecord(intent: PaymentIntent, decision: PolicyDecision): Audit
     policyId: decision.policyId,
     policyVersion: decision.policyVersion,
     policyFingerprint: decision.policyFingerprint,
+    intentFingerprint: fingerprintIntent(intent),
     executionStatus: "not_executed",
     matchedRules: decision.matchedRules,
     reasonCodes: decision.reasonCodes,
@@ -67,12 +69,13 @@ function makeIntent(overrides: Record<string, unknown> = {}) {
 }
 
 beforeEach(() => {
-  auditLog.createOrReuseAuditRecord.mockReset();
+  auditLog.createOrReuseAuditRecordWithEvidence.mockReset();
   auditLog.readRecentAuditRecords.mockReset();
   auditLog.readRecentAuditRecords.mockReturnValue([]);
-  auditLog.createOrReuseAuditRecord.mockImplementation(async (_auditPath: string, intent: PaymentIntent, decision: PolicyDecision) =>
-    makeAuditRecord(intent, decision)
-  );
+  auditLog.createOrReuseAuditRecordWithEvidence.mockImplementation(async (_auditPath: string, intent: PaymentIntent, decision: PolicyDecision) => ({
+    record: makeAuditRecord(intent, decision),
+    replayed: false
+  }));
 });
 
 describe("safe payment intent evaluation", () => {
@@ -130,7 +133,7 @@ describe("safe payment intent evaluation", () => {
     expect(body.reasonCodes).toContain("RAIL_PREVIEW_ONLY");
     expect(body.auditId).toBe("audit_api_evidence_000001");
     expect(body.railPreview).toHaveProperty(previewField);
-    expect(auditLog.createOrReuseAuditRecord).toHaveBeenCalledTimes(1);
+    expect(auditLog.createOrReuseAuditRecordWithEvidence).toHaveBeenCalledTimes(1);
   });
 
   test("returns the persisted x402 spend-control envelope on a successful evaluation", async () => {
@@ -167,6 +170,7 @@ describe("safe payment intent evaluation", () => {
       policyVersion: string | null;
       policyFingerprint: string | null;
       executionStatus: string;
+      replayEvidence: { replayed: boolean; replayMismatch: boolean | null; policyChanged: boolean | null };
     };
 
     expect(response.status).toBe(200);
@@ -174,6 +178,7 @@ describe("safe payment intent evaluation", () => {
     expect(body.policyVersion).toBe("2");
     expect(body.policyFingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(body.executionStatus).toBe("not_executed");
+    expect(body.replayEvidence).toMatchObject({ replayed: false, replayMismatch: false, policyChanged: false });
   });
 
   test("ALLOW returns a deterministic execution authorization without changing decision fields", async () => {
@@ -238,6 +243,42 @@ describe("safe payment intent evaluation", () => {
     expect(body).not.toHaveProperty("executionAuthorization");
   });
 
+  test("exact idempotent replay keeps the deterministic authorization", async () => {
+    const intent = makeIntent({ idempotencyKey: "api-auth-replay" });
+    auditLog.createOrReuseAuditRecordWithEvidence.mockImplementationOnce(async (_path: string, i: PaymentIntent, d: PolicyDecision) => ({
+      record: makeAuditRecord(i, d),
+      replayed: true
+    }));
+
+    const response = await safeEvaluatePaymentIntent(intent);
+    const body = (await response.json()) as {
+      replayEvidence: { replayed: boolean; replayMismatch: boolean | null; policyChanged: boolean | null };
+      executionAuthorization?: { authorizationId: string };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.replayEvidence).toMatchObject({ replayed: true, replayMismatch: false, policyChanged: false });
+    expect(body.executionAuthorization?.authorizationId).toMatch(/^auth_[0-9a-f]{64}$/);
+  });
+
+  test("a replayed key with a different intent never issues an authorization", async () => {
+    const intent = makeIntent({ idempotencyKey: "api-auth-mismatch" });
+    auditLog.createOrReuseAuditRecordWithEvidence.mockImplementationOnce(async (_path: string, i: PaymentIntent, d: PolicyDecision) => ({
+      record: makeAuditRecord({ ...i, intent: "Different intent text under the same key" } as unknown as PaymentIntent, d),
+      replayed: true
+    }));
+
+    const response = await safeEvaluatePaymentIntent(intent);
+    const body = (await response.json()) as {
+      replayEvidence: { replayed: boolean; replayMismatch: boolean | null };
+      executionAuthorization?: unknown;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.replayEvidence).toMatchObject({ replayed: true, replayMismatch: true });
+    expect(body).not.toHaveProperty("executionAuthorization");
+  });
+
   test("invalid nested route context never returns ALLOW or creates audit evidence", async () => {
     const response = await safeEvaluatePaymentIntent(
       makeIntent({
@@ -256,14 +297,14 @@ describe("safe payment intent evaluation", () => {
     expect(body.auditId).toBeNull();
     expect(body).not.toHaveProperty("executionAuthorization");
     expect(body.reason).not.toMatch(/stack|config|C:\\|node_modules/i);
-    expect(auditLog.createOrReuseAuditRecord).not.toHaveBeenCalled();
+    expect(auditLog.createOrReuseAuditRecordWithEvidence).not.toHaveBeenCalled();
     expect(JSON.stringify(body)).toContain('"policyVersion":null');
     expect(JSON.stringify(body)).toContain('"policyFingerprint":null');
     expect(JSON.stringify(body)).toContain('"executionStatus":"not_executed"');
   });
 
   test("storage failure remains fail-closed without partial audit evidence or internal details", async () => {
-    auditLog.createOrReuseAuditRecord.mockRejectedValueOnce(new Error("C:\\secret\\policy-config.json"));
+    auditLog.createOrReuseAuditRecordWithEvidence.mockRejectedValueOnce(new Error("C:\\secret\\policy-config.json"));
 
     const response = await safeEvaluatePaymentIntent(makeIntent({ idempotencyKey: "api-storage-failure" }));
     const body = (await response.json()) as { decision: string; auditId: string | null; reason: string };
@@ -278,6 +319,6 @@ describe("safe payment intent evaluation", () => {
     expect(JSON.stringify(body)).toContain('"policyVersion":null');
     expect(JSON.stringify(body)).toContain('"policyFingerprint":null');
     expect(JSON.stringify(body)).toContain('"executionStatus":"not_executed"');
-    expect(auditLog.createOrReuseAuditRecord).toHaveBeenCalledTimes(1);
+    expect(auditLog.createOrReuseAuditRecordWithEvidence).toHaveBeenCalledTimes(1);
   });
 });

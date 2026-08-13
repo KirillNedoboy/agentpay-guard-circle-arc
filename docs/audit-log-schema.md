@@ -32,8 +32,9 @@ Each line is a complete JSON object. The file is append-only, except that a repe
   "decision": "ALLOW",
   "riskScore": 10,
   "policyId": "default-agentpay-policy-v1",
-  "policyVersion": "1",
+  "policyVersion": "2",
   "policyFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "intentFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
   "executionStatus": "not_executed",
   "matchedRules": [
     "recipient_allowlisted",
@@ -116,6 +117,7 @@ Each line is a complete JSON object. The file is append-only, except that a repe
 - `policyId`
 - `policyVersion`
 - `policyFingerprint`
+- `intentFingerprint`
 - `executionStatus`
 - `matchedRules`
 - `reasonCodes`
@@ -129,11 +131,25 @@ Each line is a complete JSON object. The file is append-only, except that a repe
 
 New records persist three evidence fields:
 
-- `policyVersion` — the explicit `policyVersion` of the policy that produced the decision (`"1"` for the default policy). It is a revision identifier, never derived from `policyId`.
+- `policyVersion` — the explicit `policyVersion` of the policy that produced the decision (`"2"` for the default policy). It is a revision identifier, never derived from `policyId`.
 - `policyFingerprint` — a deterministic SHA-256 of the canonicalized policy object, formatted as `sha256:<64 lowercase hex>`. Object keys are recursively sorted before hashing so a semantically identical policy with different key order hashes equal; array order and exact values are preserved. The fingerprint is computed from the loaded policy at evaluation time and is never stored in the policy file.
 - `executionStatus` — always the literal `"not_executed"` in this MVP. It means the record is policy/evidence only: no funds moved, no transaction hash, no settlement or finality.
 
 Legacy JSONL lines written before these fields existed do not contain them. When read, they normalize in memory to `policyVersion: null` and `policyFingerprint: null` — a record predates policy attribution and that metadata was **not** reconstructed — and `executionStatus: "not_executed"`. Reading legacy evidence never rewrites or migrates the audit file.
+
+## Intent fingerprint and replay evidence
+
+New records also persist `intentFingerprint` — a deterministic `sha256:<64 lowercase hex>` over the **validated** payment intent (agentId, intent, amount, currency, recipient, scenario, paymentRail, idempotencyKey, and optional operation/spender/amountBaseUnits/routeContext). Key insertion order does not matter; array order and exact values do. It identifies the exact request, not the policy output.
+
+Legacy lines without it normalize in memory to `intentFingerprint: null`; the historical fingerprint is never reconstructed.
+
+Replay evidence is **not** appended as a duplicate audit event. Instead, each successful evaluation response carries a `replayEvidence` object computed at response time by comparing the stored record against the current evaluation:
+
+- `replayed` — whether an existing record for the same `idempotencyKey` was returned (true) or a new line was appended (false).
+- `replayMismatch` — `false` when the stored intent fingerprint equals the current intent fingerprint; `true` when a different intent reused the same key; `null` when the stored record has no `intentFingerprint` (legacy unknown state — never assumed to match).
+- `policyChanged` — `false` when stored policyVersion and policyFingerprint both equal the current policy; `true` when either differs; `null` when the stored record lacks policy attribution.
+
+The idempotency guarantee is unchanged: the same `idempotencyKey` still creates at most one original audit line. A mismatched replay returns the stored record as historical evidence (its persisted decision is not overwritten) and never produces an ExecutionAuthorization.
 
 `programmablePaymentContext` and `arcTestnetSimulation` are optional. Older JSONL lines do not contain them and remain valid.
 

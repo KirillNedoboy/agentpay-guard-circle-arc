@@ -1,6 +1,8 @@
-import { createOrReuseAuditRecord, readRecentAuditRecords } from "@/domain/audit/audit-log";
+import { createOrReuseAuditRecordWithEvidence, readRecentAuditRecords } from "@/domain/audit/audit-log";
 import type { AuditRecord } from "@/domain/audit/types";
+import { buildReplayEvidence, type ReplayEvidence } from "@/domain/audit/replay-evidence";
 import { buildExecutionAuthorization, type ExecutionAuthorization } from "@/domain/authorization/execution-authorization";
+import { fingerprintIntent } from "@/domain/payment-intent/intent-fingerprint";
 import type { ArcTestnetSimulation, CircleRailPreview, PolicyDecision } from "@/domain/payment-intent/types";
 import { validatePaymentIntent, ValidationError } from "@/domain/payment-intent/validation";
 import { evaluatePolicy } from "@/domain/policy/engine";
@@ -20,6 +22,7 @@ export type EvaluationResponse = Omit<PolicyDecision, "policyVersion" | "policyF
   spendControls?: SpendControls;
   arcTestnetSimulation?: ArcTestnetSimulation;
   executionAuthorization?: ExecutionAuthorization;
+  replayEvidence: ReplayEvidence;
 };
 
 export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationResponse> {
@@ -28,8 +31,13 @@ export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationR
   const recentRecords = readRecentAuditRecords(auditLogPath(), 250);
   const spendControls = calculateSpendControls(intent, policy, recentRecords);
   const decision = evaluatePolicy(intent, policy, recentRecords, spendControls);
-  const audit = await createOrReuseAuditRecord(auditLogPath(), intent, decision);
-  const executionAuthorization = buildExecutionAuthorization(audit, policy);
+  const { record: audit, replayed } = await createOrReuseAuditRecordWithEvidence(auditLogPath(), intent, decision);
+  const currentIntentFingerprint = fingerprintIntent(intent);
+  const replayEvidence = buildReplayEvidence(audit, currentIntentFingerprint, policy, replayed);
+  const executionAuthorization =
+    replayEvidence.replayMismatch === false && replayEvidence.policyChanged === false
+      ? buildExecutionAuthorization(audit, policy)
+      : null;
 
   return {
     decision: audit.decision,
@@ -47,7 +55,8 @@ export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationR
     railPreview: audit.railPreview,
     ...(audit.spendControls ? { spendControls: audit.spendControls } : {}),
     ...(audit.arcTestnetSimulation ? { arcTestnetSimulation: audit.arcTestnetSimulation } : {}),
-    ...(executionAuthorization ? { executionAuthorization } : {})
+    ...(executionAuthorization ? { executionAuthorization } : {}),
+    replayEvidence
   };
 }
 

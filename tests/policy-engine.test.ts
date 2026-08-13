@@ -767,6 +767,7 @@ function makeAuditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
     policyId: "default-agentpay-policy-v1",
     policyVersion: "1",
     policyFingerprint: null,
+    intentFingerprint: null,
     executionStatus: "not_executed",
     matchedRules: ["recipient_allowlisted"],
     reasonCodes: ["RECIPIENT_TRUSTED", "PURPOSE_ALLOWED", "AMOUNT_WITHIN_LIMIT", "RAIL_PREVIEW_ONLY"],

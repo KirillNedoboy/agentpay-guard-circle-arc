@@ -24,6 +24,7 @@ export type AuditRecord = {
   policyId: string;
   policyVersion: string | null;
   policyFingerprint: string | null;
+  intentFingerprint: string | null;
   executionStatus: "not_executed";
   matchedRules: string[];
   reasonCodes: string[];

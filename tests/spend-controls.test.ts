@@ -34,6 +34,7 @@ function makeAuditRecord(overrides: Partial<AuditRecord>): AuditRecord {
     policyId: policy.policyId,
     policyVersion: policy.policyVersion,
     policyFingerprint: null,
+    intentFingerprint: null,
     executionStatus: "not_executed",
     matchedRules: [],
     reasonCodes: [],

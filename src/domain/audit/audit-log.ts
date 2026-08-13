@@ -4,6 +4,7 @@ import { dirname } from "node:path";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
 import { buildArcTestnetSimulation } from "@/domain/payment-intent/arc-testnet-simulation";
 import { buildProgrammablePaymentContext } from "@/domain/payment-intent/programmable-payment-context";
+import { fingerprintIntent } from "@/domain/payment-intent/intent-fingerprint";
 import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/types";
 import type { AuditRecord } from "./types";
 
@@ -73,24 +74,25 @@ function normalizeAuditRecord(record: AuditRecord): AuditRecord {
     reasonCodes: record.reasonCodes ?? [],
     policyVersion: record.policyVersion ?? null,
     policyFingerprint: record.policyFingerprint ?? null,
+    intentFingerprint: record.intentFingerprint ?? null,
     executionStatus: record.executionStatus ?? "not_executed",
     executionMode: record.executionMode ?? railPreview.executionMode,
     railPreview
   };
 }
 
-export async function createOrReuseAuditRecord(
+export async function createOrReuseAuditRecordWithEvidence(
   auditPath: string,
   intent: PaymentIntent,
   decision: PolicyDecision
-): Promise<AuditRecord> {
+): Promise<{ record: AuditRecord; replayed: boolean }> {
   return withAuditLock(auditPath, async () => {
     await mkdir(dirname(auditPath), { recursive: true });
     const records = await readAuditFile(auditPath);
     const existing = records.find((record) => record.idempotencyKey === intent.idempotencyKey);
 
     if (existing) {
-      return existing;
+      return { record: existing, replayed: true };
     }
 
     const timestamp = new Date().toISOString();
@@ -120,6 +122,7 @@ export async function createOrReuseAuditRecord(
       policyId: decision.policyId,
       policyVersion: decision.policyVersion,
       policyFingerprint: decision.policyFingerprint,
+      intentFingerprint: fingerprintIntent(intent),
       executionStatus: "not_executed",
       matchedRules: decision.matchedRules,
       reasonCodes: decision.reasonCodes,
@@ -132,8 +135,16 @@ export async function createOrReuseAuditRecord(
     };
 
     await appendFile(auditPath, `${JSON.stringify(record)}\n`, "utf8");
-    return record;
+    return { record, replayed: false };
   });
+}
+
+export async function createOrReuseAuditRecord(
+  auditPath: string,
+  intent: PaymentIntent,
+  decision: PolicyDecision
+): Promise<AuditRecord> {
+  return (await createOrReuseAuditRecordWithEvidence(auditPath, intent, decision)).record;
 }
 
 export function readRecentAuditRecords(auditPath: string, limit: number): AuditRecord[] {

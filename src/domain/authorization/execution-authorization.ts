@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { AuditRecord } from "@/domain/audit/types";
 import type { CircleRail, ProgrammablePaymentContext } from "@/domain/payment-intent/types";
 import type { PolicyConfig } from "@/domain/policy/policy-config";
+import { fingerprintPolicy } from "@/domain/policy/policy-fingerprint";
 
 export type ExecutionAuthorization = {
   authorizationType: "execution_authorization";
@@ -45,7 +46,13 @@ export function buildExecutionAuthorization(
   if (audit.decision !== "ALLOW") {
     return null;
   }
-  if (audit.policyVersion === null || audit.policyFingerprint === null) {
+  if (audit.policyVersion === null || audit.policyFingerprint === null || audit.intentFingerprint === null) {
+    return null;
+  }
+  if (policy.policyVersion !== audit.policyVersion) {
+    return null;
+  }
+  if (fingerprintPolicy(policy) !== audit.policyFingerprint) {
     return null;
   }
   const rail = audit.rail ?? audit.railPreview?.rail;
