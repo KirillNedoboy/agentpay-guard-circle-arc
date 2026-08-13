@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, describe, expect, test } from "vitest";
 import { createOrReuseAuditRecord, readRecentAuditRecords } from "@/domain/audit/audit-log";
 import { evaluatePolicy } from "@/domain/policy/engine";
+import { fingerprintPolicy } from "@/domain/policy/policy-fingerprint";
 import { loadPolicyConfig } from "@/domain/policy/policy-config";
 import { validatePaymentIntent } from "@/domain/payment-intent/validation";
 
@@ -265,5 +266,83 @@ describe("audit log", () => {
       })
     ).toThrow("routeContext contains an unsupported field: providerId.");
     expect(readRecentAuditRecords(auditPath, 10)).toEqual([]);
+  });
+
+  test("persists policyVersion, policyFingerprint, and executionStatus on new records", async () => {
+    const auditPath = makeTempAuditPath();
+    const intent = validatePaymentIntent({
+      agentId: "agent_phase1_evidence_001",
+      intent: "Buy premium verification data from a trusted x402 API",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      idempotencyKey: "phase1-typed-evidence"
+    });
+
+    await createOrReuseAuditRecord(auditPath, intent, evaluatePolicy(intent, policy, []));
+
+    const [record] = readRecentAuditRecords(auditPath, 10);
+    expect(record.policyVersion).toBe(policy.policyVersion);
+    expect(record.policyFingerprint).toBe(fingerprintPolicy(policy));
+    expect(record.executionStatus).toBe("not_executed");
+    expect(JSON.stringify(record)).not.toMatch(/transactionHash|txHash|signature|privateKey|settlementStatus/i);
+  });
+
+  test("idempotent reuse returns the stored typed evidence without a duplicate line", async () => {
+    const auditPath = makeTempAuditPath();
+    const intent = validatePaymentIntent({
+      agentId: "agent_phase1_reuse_001",
+      intent: "Buy premium verification data from a trusted x402 API",
+      amount: "0.08",
+      currency: "USDC",
+      recipient: "trusted-x402-api.demo",
+      scenario: "api_access",
+      paymentRail: "mock_x402_service",
+      idempotencyKey: "phase1-idempotent-reuse"
+    });
+    const decision = evaluatePolicy(intent, policy, []);
+
+    const first = await createOrReuseAuditRecord(auditPath, intent, decision);
+    const second = await createOrReuseAuditRecord(auditPath, intent, decision);
+
+    expect(second.auditId).toBe(first.auditId);
+    expect(second.policyVersion).toBe("1");
+    expect(second.policyFingerprint).toBe(first.policyFingerprint);
+    expect(second.executionStatus).toBe("not_executed");
+    expect(readFileSync(auditPath, "utf8").trim().split("\n")).toHaveLength(1);
+  });
+
+  test("legacy records normalize to null policy attribution without mutating the file", () => {
+    const auditPath = makeTempAuditPath();
+    const legacyLine = JSON.stringify({
+      auditId: "audit_20260527_000001",
+      timestamp: "2026-05-27T20:25:26.560Z",
+      idempotencyKey: "legacy-phase1",
+      agentId: "agent_market_data_001",
+      intent: "Pay $0.005 USDC for market data API access",
+      amount: "0.005",
+      currency: "USDC",
+      recipient: "market-data-api.demo",
+      scenario: "api_access",
+      paymentRail: "x402_gateway_nanopayment",
+      decision: "ALLOW",
+      riskScore: 10,
+      policyId: "default-agentpay-policy-v1",
+      matchedRules: ["recipient_allowlisted", "scenario_allowed", "amount_below_per_payment_limit"],
+      reason: "Recipient is allowlisted, amount is below limits, and scenario is allowed."
+    });
+    writeFileSync(auditPath, `${legacyLine}\n`, "utf8");
+    const before = readFileSync(auditPath, "utf8");
+
+    const [record] = readRecentAuditRecords(auditPath, 10);
+
+    expect(record.policyVersion).toBeNull();
+    expect(record.policyFingerprint).toBeNull();
+    expect(record.executionStatus).toBe("not_executed");
+    expect(record.policyId).toBe("default-agentpay-policy-v1");
+    expect(readFileSync(auditPath, "utf8")).toBe(before);
+    expect(readFileSync(auditPath, "utf8").trim().split("\n")).toHaveLength(1);
   });
 });

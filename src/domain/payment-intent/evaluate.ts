@@ -8,7 +8,10 @@ import type { SpendControls } from "@/domain/policy/spend-controls";
 import { calculateSpendControls } from "@/domain/policy/spend-controls";
 import { auditLogPath, policyPath } from "@/lib/paths";
 
-export type EvaluationResponse = PolicyDecision & {
+export type EvaluationResponse = Omit<PolicyDecision, "policyVersion" | "policyFingerprint"> & {
+  policyVersion: string | null;
+  policyFingerprint: string | null;
+  executionStatus: "not_executed";
   auditId: string;
   createdAt: string;
   executionMode: CircleRailPreview["executionMode"];
@@ -32,6 +35,9 @@ export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationR
     matchedRules: audit.matchedRules,
     reasonCodes: audit.reasonCodes,
     policyId: audit.policyId,
+    policyVersion: audit.policyVersion ?? null,
+    policyFingerprint: audit.policyFingerprint ?? null,
+    executionStatus: audit.executionStatus ?? "not_executed",
     auditId: audit.auditId,
     createdAt: audit.timestamp,
     executionMode: audit.executionMode,
@@ -54,6 +60,9 @@ export async function safeEvaluatePaymentIntent(input: unknown): Promise<Respons
           reason: error.message,
           matchedRules: ["request_validation_failed"],
           policyId: "unloaded",
+          policyVersion: null,
+          policyFingerprint: null,
+          executionStatus: "not_executed",
           auditId: null,
           createdAt: new Date().toISOString()
         },
@@ -68,6 +77,9 @@ export async function safeEvaluatePaymentIntent(input: unknown): Promise<Respons
         reason: "Internal evaluation failure. Payment must not proceed.",
         matchedRules: ["internal_evaluation_failure"],
         policyId: "unloaded",
+        policyVersion: null,
+        policyFingerprint: null,
+        executionStatus: "not_executed",
         auditId: null,
         createdAt: new Date().toISOString()
       },

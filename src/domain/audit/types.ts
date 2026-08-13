@@ -22,6 +22,9 @@ export type AuditRecord = {
   decision: Decision;
   riskScore: number;
   policyId: string;
+  policyVersion: string | null;
+  policyFingerprint: string | null;
+  executionStatus: "not_executed";
   matchedRules: string[];
   reasonCodes: string[];
   reason: string;

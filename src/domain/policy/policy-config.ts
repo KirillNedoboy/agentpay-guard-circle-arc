@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 
 export type PolicyConfig = {
   policyId: string;
+  policyVersion: string;
   currency: {
     supported: string[];
   };

@@ -71,6 +71,9 @@ function normalizeAuditRecord(record: AuditRecord): AuditRecord {
     purpose: record.purpose ?? mapScenarioToPaymentPurpose(record.scenario),
     rail: record.rail ?? railPreview.rail,
     reasonCodes: record.reasonCodes ?? [],
+    policyVersion: record.policyVersion ?? null,
+    policyFingerprint: record.policyFingerprint ?? null,
+    executionStatus: record.executionStatus ?? "not_executed",
     executionMode: record.executionMode ?? railPreview.executionMode,
     railPreview
   };
@@ -115,6 +118,9 @@ export async function createOrReuseAuditRecord(
       decision: decision.decision,
       riskScore: decision.riskScore,
       policyId: decision.policyId,
+      policyVersion: decision.policyVersion,
+      policyFingerprint: decision.policyFingerprint,
+      executionStatus: "not_executed",
       matchedRules: decision.matchedRules,
       reasonCodes: decision.reasonCodes,
       reason: decision.reason,

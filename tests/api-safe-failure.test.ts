@@ -38,6 +38,9 @@ function makeAuditRecord(intent: PaymentIntent, decision: PolicyDecision): Audit
     decision: decision.decision,
     riskScore: decision.riskScore,
     policyId: decision.policyId,
+    policyVersion: decision.policyVersion,
+    policyFingerprint: decision.policyFingerprint,
+    executionStatus: "not_executed",
     matchedRules: decision.matchedRules,
     reasonCodes: decision.reasonCodes,
     reason: decision.reason,
@@ -157,6 +160,22 @@ describe("safe payment intent evaluation", () => {
     });
   });
 
+  test("exposes persisted policy version, fingerprint, and execution status on success", async () => {
+    const response = await safeEvaluatePaymentIntent(makeIntent({ idempotencyKey: "api-phase1-evidence" }));
+    const body = (await response.json()) as {
+      policyId: string;
+      policyVersion: string | null;
+      policyFingerprint: string | null;
+      executionStatus: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.policyId).toBe("default-agentpay-policy-v1");
+    expect(body.policyVersion).toBe("1");
+    expect(body.policyFingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(body.executionStatus).toBe("not_executed");
+  });
+
   test("invalid nested route context never returns ALLOW or creates audit evidence", async () => {
     const response = await safeEvaluatePaymentIntent(
       makeIntent({
@@ -175,6 +194,9 @@ describe("safe payment intent evaluation", () => {
     expect(body.auditId).toBeNull();
     expect(body.reason).not.toMatch(/stack|config|C:\\|node_modules/i);
     expect(auditLog.createOrReuseAuditRecord).not.toHaveBeenCalled();
+    expect(JSON.stringify(body)).toContain('"policyVersion":null');
+    expect(JSON.stringify(body)).toContain('"policyFingerprint":null');
+    expect(JSON.stringify(body)).toContain('"executionStatus":"not_executed"');
   });
 
   test("storage failure remains fail-closed without partial audit evidence or internal details", async () => {
@@ -189,6 +211,9 @@ describe("safe payment intent evaluation", () => {
     expect(body.auditId).toBeNull();
     expect(body.reason).toBe("Internal evaluation failure. Payment must not proceed.");
     expect(JSON.stringify(body)).not.toMatch(/secret|policy-config|stack|C:\\/i);
+    expect(JSON.stringify(body)).toContain('"policyVersion":null');
+    expect(JSON.stringify(body)).toContain('"policyFingerprint":null');
+    expect(JSON.stringify(body)).toContain('"executionStatus":"not_executed"');
     expect(auditLog.createOrReuseAuditRecord).toHaveBeenCalledTimes(1);
   });
 });

@@ -3,6 +3,7 @@ import type { PaymentIntent, PolicyDecision } from "@/domain/payment-intent/type
 import { addDecimalStrings, compareDecimalStrings, divideDecimalStringByTwo, isPositiveDecimal } from "@/lib/decimal";
 import type { PolicyConfig } from "./policy-config";
 import { calculateSpendControls, type SpendControls } from "./spend-controls";
+import { fingerprintPolicy } from "./policy-fingerprint";
 
 function clampRisk(score: number): number {
   return Math.max(0, Math.min(100, score));
@@ -28,6 +29,7 @@ export function evaluatePolicy(
   let riskScore = 10;
   let hasBlock = false;
   let hasReview = false;
+  const policyFingerprint = fingerprintPolicy(policy);
 
   const amountIsValid = isPositiveDecimal(intent.amount);
   const spendControls = providedSpendControls ?? (amountIsValid ? calculateSpendControls(intent, policy, recentAuditRecords) : undefined);
@@ -274,6 +276,8 @@ export function evaluatePolicy(
       matchedRules: uniqueStrings(matchedRules),
       reasonCodes: uniqueStrings(reasonCodes),
       policyId: policy.policyId,
+      policyVersion: policy.policyVersion,
+      policyFingerprint,
       ...(spendControls ? { spendControls } : {})
     };
   }
@@ -285,6 +289,8 @@ export function evaluatePolicy(
     matchedRules: uniqueStrings(matchedRules),
     reasonCodes: uniqueStrings(reasonCodes),
     policyId: policy.policyId,
+    policyVersion: policy.policyVersion,
+    policyFingerprint,
     ...(spendControls ? { spendControls } : {})
   };
 }

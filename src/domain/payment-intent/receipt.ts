@@ -22,6 +22,7 @@ export type AgentPayReceipt = {
   arcTestnetSimulation?: ArcTestnetSimulation;
   railPreview: CircleRailPreview;
   executionMode: CircleRailPreview["executionMode"];
+  executionStatus: "not_executed";
   fundsMoved: false;
   auditId: string;
   timestamp: string;
@@ -58,6 +59,7 @@ export function buildAgentPayReceipt(record: AuditRecord): AgentPayReceipt {
     ...(record.arcTestnetSimulation ? { arcTestnetSimulation: record.arcTestnetSimulation } : {}),
     railPreview,
     executionMode: record.executionMode ?? railPreview.executionMode,
+    executionStatus: record.executionStatus ?? "not_executed",
     fundsMoved: false,
     auditId: record.auditId,
     timestamp: record.timestamp,

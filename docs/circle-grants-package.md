@@ -54,6 +54,23 @@ baseline (`eb28fe7973cdd3d770de155556c23ee214c6ef33`):
   risky-block scenarios) and 13 test files / 147 tests in `tests/`, all passing on this
   baseline (2026-08-13 run: 13 files, 147 tests, all passed; lint, typecheck, and build
   also pass).
+- Phase 1 typed evidence baseline (commit `feat: add versioned policy evidence`):
+  explicit `policyVersion` (`"1"`) on `PolicyConfig` and `data/policies.default.json`;
+  deterministic `policyFingerprint` — `sha256:<64 hex>` of the canonicalized policy
+  (recursively key-sorted SHA-256, array order and values preserved, computed at
+  evaluation time, never stored in the policy file, same content always hashes equal,
+  any value change changes the hash) via
+  [`src/domain/policy/policy-fingerprint.ts`](../src/domain/policy/policy-fingerprint.ts);
+  every `PolicyDecision` carries `policyId` + `policyVersion` + `policyFingerprint`;
+  new audit records persist all three plus explicit top-level
+  `executionStatus: "not_executed"`; legacy JSONL lines normalize in memory to
+  `policyVersion: null` / `policyFingerprint: null` / `executionStatus: "not_executed"`
+  with no historical fingerprint fabricated and no rewrite of `data/audit-log.jsonl`
+  (byte-identical); `AgentPayReceipt` exposes `executionStatus: "not_executed"` with
+  `fundsMoved: false`; successful `EvaluationResponse` sources these fields from the
+  persisted audit record so idempotent reuse reflects stored evidence; failure
+  responses carry honest `null` / `"not_executed"` evidence. Validation after Phase 1:
+  14 test files / 162 tests, lint, typecheck, build, and `git diff --check` all passing.
 
 ## 3. PROPOSED
 
@@ -125,8 +142,6 @@ Confirmed present in the current checkout at `eb28fe7973cdd3d770de155556c23ee214
 - `.env.example` uses `AUDIT_LOG_PATH` and `POLICY_CONFIG_PATH`, while
   `src/lib/paths.ts` reads `AGENTPAY_AUDIT_LOG_PATH` and has no `POLICY_CONFIG_PATH`
   override (policy path is hardcoded to `data/policies.default.json`) — naming drift.
-- `docs/audit-log-schema.md` example shows `velocityWindowSeconds: 3600`, while
-  `data/policies.default.json` configures `velocity.windowSeconds: 60` — sample drift.
 - Live demo: probe returned HTTP 200 on 2026-08-13; whether the deployed demo matches
   current `main` is NOT YET VALIDATED (README states the deployed baseline predates
   the x402-first screen).

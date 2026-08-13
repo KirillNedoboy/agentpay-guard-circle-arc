@@ -1,9 +1,8 @@
 # Circle Grants 2026 — Roadmap
 
-Phase 0 is the current phase and is complete on this branch. Phases 1–9 are NOT yet
-implemented. Each phase lists objective, main deliverable, dependencies, and
-Definition of Done. This roadmap is planning documentation only; no future phase is
-implemented here.
+Phase 0 and Phase 1 are complete on this branch. Phases 2–9 are NOT yet implemented.
+Each phase lists objective, main deliverable, dependencies, and Definition of Done.
+This roadmap is planning documentation only; no future phase is implemented here.
 
 ## Phase 0 — Grant isolation and source of truth (CURRENT)
 
@@ -15,7 +14,7 @@ implemented here.
 - Definition of Done: package doc distinguishes VERIFIED / PROPOSED / NOT YET
   VALIDATED; branch pushed; no source changes.
 
-## Phase 1 — Typed evidence baseline (NOT IMPLEMENTED)
+## Phase 1 — Typed evidence baseline (IMPLEMENTED — 2026-08-13)
 
 - Objective: make audit evidence self-describing about policy version and execution
   status.
@@ -24,6 +23,21 @@ implemented here.
 - Dependencies: Phase 0.
 - Definition of Done: new records carry policy version and an explicit
   not-executed status; legacy records remain readable; tests cover both.
+- Evidence (commit `feat: add versioned policy evidence`): explicit `policyVersion`
+  (`"1"`) on `PolicyConfig` and `data/policies.default.json`; deterministic
+  `policyFingerprint` (`sha256:<64 hex>`, canonicalized key-sorted SHA-256 via
+  `src/domain/policy/policy-fingerprint.ts`, computed at evaluation time, never
+  stored in policy JSON); `PolicyDecision` and every `evaluatePolicy` result carry
+  `policyId` + `policyVersion` + `policyFingerprint`; new audit records persist the
+  three fields with `executionStatus: "not_executed"`; legacy JSONL lines normalize
+  in memory to `policyVersion: null` / `policyFingerprint: null` (metadata not
+  reconstructed) / `executionStatus: "not_executed"` without rewriting the file;
+  `AgentPayReceipt` exposes `executionStatus: "not_executed"` with `fundsMoved: false`;
+  successful `EvaluationResponse` sources the fields from the persisted audit record
+  (idempotent reuse reflects stored evidence); failure responses expose honest
+  `null` / `"not_executed"` evidence. Validation: 162 tests / 14 files passing
+  (was 147 / 13), lint, typecheck, build, `git diff --check` all green; historical
+  `data/audit-log.jsonl` byte-identical.
 
 ## Phase 2 — ExecutionAuthorization Envelope (NOT IMPLEMENTED)
 

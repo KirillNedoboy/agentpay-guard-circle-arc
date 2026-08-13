@@ -1,5 +1,6 @@
 {
   "policyId": "default-agentpay-policy-v1",
+  "policyVersion": "1",
   "currency": {
     "supported": [
       "USDC"

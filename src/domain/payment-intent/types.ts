@@ -131,5 +131,7 @@ export type PolicyDecision = {
   matchedRules: string[];
   reasonCodes: string[];
   policyId: string;
+  policyVersion: string;
+  policyFingerprint: string;
   spendControls?: import("@/domain/policy/spend-controls").SpendControls;
 };

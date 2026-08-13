@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { evaluatePolicy } from "@/domain/policy/engine";
+import { fingerprintPolicy } from "@/domain/policy/policy-fingerprint";
 import { loadPolicyConfig } from "@/domain/policy/policy-config";
+import type { PolicyConfig } from "@/domain/policy/policy-config";
 import { validatePaymentIntent } from "@/domain/payment-intent/validation";
 import type { AuditRecord } from "@/domain/audit/types";
 
@@ -623,6 +625,46 @@ describe("policy engine", () => {
     expect(result.decision).toBe("REVIEW");
     expect(result.matchedRules).toContain("velocity_limit_exceeded");
   });
+
+  test("every decision carries policyId, policyVersion, and policyFingerprint", () => {
+    const intents = [
+      makeCctpIntent(),
+      makePaymasterIntent(),
+      makeAuthorityIntent({ operation: "approve" }),
+      makeAuthorityIntent({ operation: "transferFrom", spender: "new-spender" }),
+      validatePaymentIntent({
+        ...loadScenario("scenario-allow-api.json"),
+        idempotencyKey: "typed-evidence-allow"
+      }),
+      validatePaymentIntent({
+        ...loadScenario("scenario-block-risky.json"),
+        idempotencyKey: "typed-evidence-block"
+      })
+    ];
+
+    for (const intent of intents) {
+      const result = evaluatePolicy(intent, policy, []);
+      expect(result.policyId).toBe(policy.policyId);
+      expect(result.policyVersion).toBe(policy.policyVersion);
+      expect(result.policyVersion).toBe("1");
+      expect(result.policyFingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
+      expect(result.policyFingerprint).toBe(fingerprintPolicy(policy));
+    }
+  });
+
+  test("policy fingerprint reflects the exact loaded policy and changes with any value", () => {
+    const base = evaluatePolicy(makeCctpIntent(), policy, []);
+    expect(base.policyFingerprint).toBe(fingerprintPolicy(policy));
+
+    const changed: PolicyConfig = {
+      ...policy,
+      limits: { ...policy.limits, maxAmountPerPayment: "10.01" }
+    };
+    const changedResult = evaluatePolicy(makeCctpIntent(), changed, []);
+
+    expect(changedResult.policyFingerprint).not.toBe(base.policyFingerprint);
+    expect(changedResult.policyVersion).toBe("1");
+  });
 });
 
 function makeCctpIntent(overrides: Record<string, unknown> = {}) {
@@ -697,6 +739,9 @@ function makeAuditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
     decision: "ALLOW",
     riskScore: 10,
     policyId: "default-agentpay-policy-v1",
+    policyVersion: "1",
+    policyFingerprint: null,
+    executionStatus: "not_executed",
     matchedRules: ["recipient_allowlisted"],
     reasonCodes: ["RECIPIENT_TRUSTED", "PURPOSE_ALLOWED", "AMOUNT_WITHIN_LIMIT", "RAIL_PREVIEW_ONLY"],
     reason: "test record",

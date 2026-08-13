@@ -24,6 +24,9 @@ function makeAuditRecord(overrides: Partial<AuditRecord> = {}): AuditRecord {
     decision: "ALLOW",
     riskScore: 10,
     policyId: "default-agentpay-policy-v1",
+    policyVersion: null,
+    policyFingerprint: null,
+    executionStatus: "not_executed",
     matchedRules: ["recipient_allowlisted", "scenario_allowed", "amount_below_per_payment_limit"],
     reasonCodes: ["RECIPIENT_TRUSTED", "AMOUNT_WITHIN_LIMIT", "RAIL_PREVIEW_ONLY"],
     reason: "Recipient is allowlisted, amount is below limits, and scenario is allowed.",
@@ -177,6 +180,26 @@ describe("AgentPay Receipt", () => {
     expect(receipt.purpose).toBe("api_data_purchase");
     expect(receipt.executionMode).toBe("mock_preview");
     expect(receipt.railPreview.recipientId).toBe("trusted-x402-api.demo");
+    expect(receipt.fundsMoved).toBe(false);
+  });
+
+  test("exposes executionStatus not_executed with fundsMoved false on typed records", () => {
+    const receipt = buildAgentPayReceipt(
+      makeAuditRecord({
+        policyVersion: "1",
+        policyFingerprint: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+      })
+    );
+
+    expect(receipt.executionStatus).toBe("not_executed");
+    expect(receipt.fundsMoved).toBe(false);
+    expect(JSON.stringify(receipt)).not.toMatch(/transactionHash|txHash|signature|privateKey|settlementStatus/i);
+  });
+
+  test("builds the same receipt from legacy-normalized evidence", () => {
+    const receipt = buildAgentPayReceipt(makeAuditRecord({ policyVersion: null, policyFingerprint: null }));
+
+    expect(receipt.executionStatus).toBe("not_executed");
     expect(receipt.fundsMoved).toBe(false);
   });
 });

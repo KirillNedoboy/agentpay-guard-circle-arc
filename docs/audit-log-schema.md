@@ -32,6 +32,9 @@ Each line is a complete JSON object. The file is append-only, except that a repe
   "decision": "ALLOW",
   "riskScore": 10,
   "policyId": "default-agentpay-policy-v1",
+  "policyVersion": "1",
+  "policyFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "executionStatus": "not_executed",
   "matchedRules": [
     "recipient_allowlisted",
     "scenario_allowed",
@@ -53,7 +56,7 @@ Each line is a complete JSON object. The file is append-only, except that a repe
     "dailyAllowedSpend": "0.30",
     "dailyRemainingBefore": "24.70",
     "projectedDailySpend": "0.38",
-    "velocityWindowSeconds": 3600,
+    "velocityWindowSeconds": 60,
     "velocityAttemptCount": 2,
     "velocityMaxAttempts": 5
   },
@@ -111,6 +114,9 @@ Each line is a complete JSON object. The file is append-only, except that a repe
 - `decision`
 - `riskScore`
 - `policyId`
+- `policyVersion`
+- `policyFingerprint`
+- `executionStatus`
 - `matchedRules`
 - `reasonCodes`
 - `reason`
@@ -118,6 +124,18 @@ Each line is a complete JSON object. The file is append-only, except that a repe
 - `railPreview`
 
 `programmablePaymentContext`, `spendControls`, and `arcTestnetSimulation` are optional. Older JSONL lines do not contain them and remain valid.
+
+## Typed policy evidence
+
+New records persist three evidence fields:
+
+- `policyVersion` — the explicit `policyVersion` of the policy that produced the decision (`"1"` for the default policy). It is a revision identifier, never derived from `policyId`.
+- `policyFingerprint` — a deterministic SHA-256 of the canonicalized policy object, formatted as `sha256:<64 lowercase hex>`. Object keys are recursively sorted before hashing so a semantically identical policy with different key order hashes equal; array order and exact values are preserved. The fingerprint is computed from the loaded policy at evaluation time and is never stored in the policy file.
+- `executionStatus` — always the literal `"not_executed"` in this MVP. It means the record is policy/evidence only: no funds moved, no transaction hash, no settlement or finality.
+
+Legacy JSONL lines written before these fields existed do not contain them. When read, they normalize in memory to `policyVersion: null` and `policyFingerprint: null` — a record predates policy attribution and that metadata was **not** reconstructed — and `executionStatus: "not_executed"`. Reading legacy evidence never rewrites or migrates the audit file.
+
+`programmablePaymentContext` and `arcTestnetSimulation` are optional. Older JSONL lines do not contain them and remain valid.
 
 ## Optional spend-control and adapter evidence
 
