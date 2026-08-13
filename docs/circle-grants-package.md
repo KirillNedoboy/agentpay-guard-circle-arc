@@ -4,14 +4,21 @@
 
 - Grant track: Circle Grants / pre-pilot infrastructure grant
 - Repository: https://github.com/KirillNedoboy/agentpay-guard-circle-arc
-- Canonical baseline commit: `eb28fe7973cdd3d770de155556c23ee214c6ef33`
-- Date: 2026-08-13
-- Working branch: `grant/circle-grants-pilot-2026` (grant development track; no PR opened)
+- Stable product base: `main` @ `eb28fe7973cdd3d770de155556c23ee214c6ef33` (merge of PR #3, integration/ignyte-circle-arc-preview)
+- Grant development branch: `grant/circle-grants-pilot-2026` (grant development track; no PR opened)
+- Phase 7 evidence checkpoint: `068c579848f204bfcaf5b67d148ad5d772f4f415`
+- Date: 2026-08-14
 
 This package describes a proposed pre-pilot infrastructure grant: a deterministic
 policy-and-audit control plane for autonomous USDC payment intents. Policy is evaluated
 before execution; evidence is recorded after every decision. Nothing in this repository
 moves funds.
+
+**Source-of-truth distinction.** The stable main baseline (`eb28fe7…`) and the current
+grant evidence line are different facts. The Phase 1–7 capabilities described in §2
+were implemented LATER on `grant/circle-grants-pilot-2026` (commit range
+46cfbab…068c579) and did NOT exist on `eb28fe7…`. Capability claims below refer to the
+grant branch; `main` remains at the Phase 0 baseline unless a later merge is recorded.
 
 Canonical product documentation (linked, not duplicated):
 
@@ -26,8 +33,26 @@ Canonical product documentation (linked, not duplicated):
 
 ## 2. VERIFIED
 
-Facts below are directly supported by the current code, tests, and assets on this
-baseline (`eb28fe7973cdd3d770de155556c23ee214c6ef33`):
+Facts below are directly supported by the current code, tests, and assets on the
+grant development branch (`grant/circle-grants-pilot-2026`), evidence checkpoint
+`068c579848f204bfcaf5b67d148ad5d772f4f415`.
+
+### Current grant-track state (2026-08-14)
+
+- Phases 0–7 implemented on `grant/circle-grants-pilot-2026`; Phase 7 evidence
+  checkpoint `068c579…`.
+- Latest test baseline: 20 test files / 270 tests, all passing (verified run
+  2026-08-14; lint, typecheck, and build also pass).
+- Active `policyVersion`: `"2"` (`data/policies.default.json`; `policyId`
+  unchanged).
+- Threat-model state: Phase 7 — internal engineering verification (21 threat
+  classes, residual-risk register, 14 unchecked future-execution preconditions);
+  NOT an independent external security audit.
+- Pilot observability state: Phase 5 — local evaluation-observation log and
+  `PilotMetricsSummary` (p95 policy-evaluation latency, replay counters,
+  policy-gap signals, evidence coverage).
+- The per-phase records below are VALID-HISTORICAL evidence and are kept as
+  recorded; the current-state lines above are the authoritative summary.
 
 - Deterministic `ALLOW` / `REVIEW` / `BLOCK` engine with `BLOCK` > `REVIEW` > `ALLOW`
   precedence, stable matched-rule names and reason codes
@@ -196,9 +221,11 @@ Future grant/pilot targets only. None of these are current traction:
 
 - 3–5 design partners for a 12-week pilot (target).
 - 100–500 proposed payment intents evaluated during the pilot (target).
-- Pilot metrics: policy decision latency, decision reproducibility (same intent, same
-  decision), integration time for a new policy context, and policy-gap signals from
-  REVIEW/BLOCK outcomes (target).
+- Pilot metrics targets to measure during a future pilot: policy decision latency
+  (a local p95 is already produced, Phase 5), independent decision reproducibility
+  (a PROPOSED pilot protocol — exact replay consistency is not the same claim as
+  reproducing a historical policy decision), integration time for a new policy
+  context, and policy-gap signals from REVIEW/BLOCK outcomes (targets).
 - Future controlled testnet work (proposal only; requires separate authorization).
 - Proposed grant budget (proposal only; amount to be defined with the grant program —
   verify against official sources).
@@ -210,12 +237,18 @@ Every item above is a target or proposal, not a current achievement.
 External facts requiring verification:
 
 - Current live-demo availability at https://138-124-108-146.nip.io — probed on
-  2026-08-13 with a short-timeout HTTP request: returned HTTP 200. Availability is
-  time-dependent; re-verify before any submission.
-- Whether the deployed demo matches current `main` — cannot be confirmed from this
-  repository. The README states the deployed baseline predates the x402-first screen.
-- Whether the YouTube/MP4 walkthroughs match the x402-first reviewer path — the media
-  is preserved as an earlier CitePay-led walkthrough; it has not been re-recorded.
+  2026-08-13 with a short-timeout HTTP request: returned HTTP 200. That probe is a
+  point-in-time check, not a permanent availability claim; re-verify before any
+  submission.
+- Deployed-demo parity with the grant branch — NOT YET VALIDATED. The deployed
+  baseline does not reflect the current grant-branch judge-first UI; whether it
+  matches the grant branch cannot be confirmed from this repository.
+- Whether the YouTube/MP4 walkthroughs match the judge-first reviewer path — the
+  media is preserved as an earlier CitePay-led walkthrough; it has not been
+  re-recorded.
+- Phase 6 evidence PNG captures — pending: `docs/screenshots.md` records the planned
+  capture set ("PNG captures for these states are pending capture"); the PNG files
+  have not been committed yet.
 - Design partners, actual pilot usage, grant acceptance, and external integrations —
   none exist yet; verify against official sources when claimed.
 
@@ -243,30 +276,29 @@ future adapter could be considered — it never means funds moved.
 
 ## 7. Follow-up items
 
-Confirmed present in the current checkout at `eb28fe7973cdd3d770de155556c23ee214c6ef33`
-(recorded only; not edited in Phase 0):
+Resolved in Phase 8 (2026-08-14):
 
-- `docs/internal/STATE.md` still states phase `CANONICAL_SUBMISSION_POLISH_READY_FOR_PR_REVIEW`
-  and lists "Review and merge the updated integration PR into `main`" as a next action,
-  although PR #3 is merged — pending-review wording drift.
-- `docs/internal/CHECKPOINT.md` still says release checks apply "before this branch is
-  proposed for merge" and that the live demo must be redeployed and the video reviewed
-  "before final submission" — pending-review wording drift.
-- `docs/internal/TASKS.md` still has unchecked items: "Review and merge the integration
-  PR", "Redeploy the public demo from merged `main`", and "Review the existing YouTube
-  and fallback MP4 against the new x402-first click path; re-record if needed".
-- `docs/screenshots.md` still states "The current reviewer path is CitePay first",
-  which is stale against the x402-first README.
-- `.env.example` uses `AUDIT_LOG_PATH` and `POLICY_CONFIG_PATH`, while
-  `src/lib/paths.ts` reads `AGENTPAY_AUDIT_LOG_PATH` and has no `POLICY_CONFIG_PATH`
-  override (policy path is hardcoded to `data/policies.default.json`) — naming drift.
-- Live demo: probe returned HTTP 200 on 2026-08-13; whether the deployed demo matches
-  current `main` is NOT YET VALIDATED (README states the deployed baseline predates
-  the x402-first screen).
-- README video caveat wording is current and honest: the YouTube link and fallback MP4
-  are described as "earlier CitePay-led walkthrough, preserved for reference"; the
-  media itself still needs review/re-recording for the x402-first path (TASKS.md item).
+- `.env.example` naming drift (`AUDIT_LOG_PATH` / `POLICY_CONFIG_PATH` vs
+  `AGENTPAY_*`) — fixed in Phase 5; `.env.example` now declares
+  `AGENTPAY_AUDIT_LOG_PATH` and `AGENTPAY_OBSERVATION_LOG_PATH`, and no
+  `AUDIT_LOG_PATH` / `POLICY_CONFIG_PATH` reference remains in the repository.
+- `docs/screenshots.md` CitePay-first wording — fixed (Phase 6); the doc now states
+  the current reviewer path is x402 first.
+- `docs/internal/STATE.md`, `docs/internal/CHECKPOINT.md`, and
+  `docs/internal/TASKS.md` pending-review wording — reconciled in Phase 8
+  (current grant-track facts recorded; legacy items labeled historical).
+
+Still open (NOT YET VALIDATED / manual actions):
+
+- Live demo: probe returned HTTP 200 on 2026-08-13 (point-in-time); whether the
+  deployed demo matches the current grant-branch judge-first UI is NOT YET
+  VALIDATED (README states the deployed baseline predates the grant-branch UI).
+- README video caveat wording is current and honest: the YouTube link and fallback
+  MP4 are described as "earlier CitePay-led walkthrough, preserved for reference";
+  the media itself still needs review/re-recording for the judge-first path
+  (TASKS.md manual action).
+- Phase 6 evidence PNG capture — pending (`docs/screenshots.md`).
 
 See also [requirements](./grants/circle-grants-2026/requirements.md),
 [limitations](./grants/circle-grants-2026/limitations.md), and
-[roadmap](./grants/circle-grants-2026/roadmap.md) for the Phase 0 grant scope.
+[roadmap](./grants/circle-grants-2026/roadmap.md) for the grant scope.

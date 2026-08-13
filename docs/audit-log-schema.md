@@ -33,8 +33,8 @@ Each line is a complete JSON object. The file is append-only, except that a repe
   "riskScore": 10,
   "policyId": "default-agentpay-policy-v1",
   "policyVersion": "2",
-  "policyFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-  "intentFingerprint": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "policyFingerprint": "sha256:<64-hex-policy-digest>",
+  "intentFingerprint": "sha256:<64-hex-intent-digest>",
   "executionStatus": "not_executed",
   "matchedRules": [
     "recipient_allowlisted",
@@ -52,7 +52,7 @@ Each line is a complete JSON object. The file is append-only, except that a repe
     "currency": "USDC",
     "requestedAmount": "0.08",
     "maxAmountPerPayment": "10.00",
-    "reviewThreshold": "5.00",
+    "reviewThreshold": "0.20",
     "dailyLimit": "25.00",
     "dailyAllowedSpend": "0.30",
     "dailyRemainingBefore": "24.70",
@@ -93,7 +93,14 @@ Each line is a complete JSON object. The file is append-only, except that a repe
 }
 ```
 
-## Required fields
+The `policyFingerprint` and `intentFingerprint` values above are illustrative
+schema placeholders, not runtime evidence. Real digests are computed at evaluation
+time via stable-JSON canonicalization and appear as `sha256:<64 lowercase hex>`.
+
+## Fields on every new record
+
+Every record written by the current writer (`createOrReuseAuditRecordWithEvidence`)
+carries these 30 fields:
 
 - `eventType`
 - `auditId`
@@ -122,10 +129,33 @@ Each line is a complete JSON object. The file is append-only, except that a repe
 - `matchedRules`
 - `reasonCodes`
 - `reason`
+- `arcTestnetSimulation`
 - `executionMode`
 - `railPreview`
 
-`programmablePaymentContext`, `spendControls`, and `arcTestnetSimulation` are optional. Older JSONL lines do not contain them and remain valid.
+Two further fields are conditional on new records: `programmablePaymentContext`
+(when derived from proposal context) and `spendControls` (when the decision carries
+spend controls). `arcTestnetSimulation` is always written on new records.
+
+Older JSONL lines may lack any of the optional/conditional fields and remain valid.
+
+### TS-optional and legacy-normalized fields
+
+- `intentId`, `amountUSDC`, `recipientId`, `recipientLabel`, `purpose`, and `rail`
+  are optional (`?`) in the TypeScript type; the writer always sets them on new
+  records. On legacy lines they are backfilled **in memory** by
+  `normalizeAuditRecord` (`intentId` ← `idempotencyKey`, `amountUSDC` ← `amount`,
+  `recipientId`/`recipientLabel` ← `recipient`, `purpose` ← deterministic scenario
+  mapping, `rail` ← `railPreview.rail`).
+- `policyVersion`, `policyFingerprint`, and `intentFingerprint` are
+  `string | null`: present on new records, `null` on legacy lines (attribution is
+  never reconstructed).
+- `executionStatus`, `executionMode`, and `railPreview` are backfilled in memory on
+  legacy lines (`"not_executed"`, the rebuilt preview's execution mode, and a
+  rebuilt preview).
+
+Backfilling happens in memory only: reading legacy evidence never rewrites or
+migrates `data/audit-log.jsonl`.
 
 ## Typed policy evidence
 
@@ -150,8 +180,6 @@ Replay evidence is **not** appended as a duplicate audit event. Instead, each su
 - `policyChanged` — `false` when stored policyVersion and policyFingerprint both equal the current policy; `true` when either differs; `null` when the stored record lacks policy attribution.
 
 The idempotency guarantee is unchanged: the same `idempotencyKey` still creates at most one original audit line. A mismatched replay returns the stored record as historical evidence (its persisted decision is not overwritten) and never produces an ExecutionAuthorization.
-
-`programmablePaymentContext` and `arcTestnetSimulation` are optional. Older JSONL lines do not contain them and remain valid.
 
 ## Optional spend-control and adapter evidence
 

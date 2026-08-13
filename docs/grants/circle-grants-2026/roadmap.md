@@ -1,8 +1,8 @@
 # Circle Grants 2026 — Roadmap
 
-Phases 0–7 are complete on this branch. Phases 8 and 9 are NOT yet implemented.
+Phases 0–8 are complete on this branch. Phase 9 is NOT yet implemented.
 Each phase lists objective, main deliverable, dependencies, and Definition of
-Done. This roadmap is planning documentation only; no phase beyond 7 is
+Done. This roadmap is planning documentation only; no phase beyond 8 is
 implemented here.
 
 ## Phase 0 — Grant isolation and source of truth (IMPLEMENTED)
@@ -212,14 +212,27 @@ implemented here.
   build, and `git diff --check` green; this phase changes docs only — `src/`,
   `data/`, and `package.json` untouched.
 
-## Phase 8 — Grant evidence package (NOT IMPLEMENTED)
+## Phase 8 — Grant evidence package (IMPLEMENTED — 2026-08-14)
 
 - Objective: assemble the pilot-ready evidence package.
 - Main deliverable: updated `docs/circle-grants-package.md` with validated pilot
-  evidence.
+  evidence, plus the grant evidence package under `docs/grants/circle-grants-2026/`.
 - Dependencies: Phases 1–7.
 - Definition of Done: every claim is VERIFIED / PROPOSED / NOT YET VALIDATED; no fake
   claims.
+- Deliverables (2026-08-14):
+  - `docs/grants/circle-grants-2026/evidence.md` — compiled Phase 1–7 evidence with
+    commit references.
+  - `docs/grants/circle-grants-2026/submission.md` — grant submission draft.
+  - `docs/grants/circle-grants-2026/pilot-plan.md` — proposed pilot protocol.
+  - `docs/grants/circle-grants-2026/demo-script.md` — judge-first demo walkthrough.
+  - Requirements reconciliation (`requirements.md`), audit-schema reconciliation
+    (`docs/audit-log-schema.md`), canonical package reconciliation
+    (`docs/circle-grants-package.md`), and internal state reconciliation
+    (`docs/internal/STATE.md`, `CHECKPOINT.md`, `TASKS.md`).
+- Validation: final suite 20 test files / 270 tests, all passing (verified run
+  2026-08-14); lint, typecheck, and build green; docs-only phase — `src/`, `data/`,
+  and `package.json` untouched.
 
 ## Phase 9 — Fresh-clone / release readiness (NOT IMPLEMENTED)
 

@@ -10,7 +10,7 @@ AgentPay Guard gives builders and reviewers a deterministic decision before an A
 
 ## Judge links
 
-- [Live demo](https://138-124-108-146.nip.io) — deployed baseline; this PR's x402-first screen requires deployment before it is reflected there.
+- [Live demo](https://138-124-108-146.nip.io) — deployed baseline; it does not reflect the current grant-branch judge-first UI. Deployed-demo parity with the grant branch is NOT YET VALIDATED.
 - [Demo video on YouTube](https://youtu.be/Zj_sK3MY9kQ) — earlier CitePay-led walkthrough, preserved for reference.
 - [Fallback MP4](./docs/videos/agentpay-guard-demo-en.mp4) — the same earlier walkthrough.
 - [Submission deck (PDF)](./docs/agentpay-guard-deck.pdf)
