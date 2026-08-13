@@ -1,8 +1,8 @@
 # Circle Grants 2026 — Roadmap
 
-Phases 0, 1, 2, 3, 4, 5, and 6 are complete on this branch. Phases 7–9 are NOT yet
-implemented. Each phase lists objective, main deliverable, dependencies, and
-Definition of Done. This roadmap is planning documentation only; no future phase is
+Phases 0–7 are complete on this branch. Phases 8 and 9 are NOT yet implemented.
+Each phase lists objective, main deliverable, dependencies, and Definition of
+Done. This roadmap is planning documentation only; no phase beyond 7 is
 implemented here.
 
 ## Phase 0 — Grant isolation and source of truth (IMPLEMENTED)
@@ -178,12 +178,39 @@ implemented here.
   replay ×3 → same auditId, same deterministic authorizationId, one canonical
   record; REVIEW/BLOCK → no authorization; metrics reflect the API).
 
-## Phase 7 — Threat-model verification (NOT IMPLEMENTED)
+## Phase 7 — Threat-model verification (IMPLEMENTED — 2026-08-14)
 
 - Objective: verify the boundary against the stated threat model.
 - Main deliverable: threat-model review of the boundary, evidence, and fixtures.
 - Dependencies: Phases 2, 3.
 - Definition of Done: documented review; no boundary regressions.
+- Evidence: engineering threat-model delivered at
+  [threat-model.md](./threat-model.md) (internal engineering verification, NOT an
+  independent external security audit), covering 21 threat classes — 15 core
+  (T01–T15) plus 6 additional (ADD-1..ADD-6) — each with a current control,
+  status, file:line verification, and residual risk. The threat model is written
+  against the verified code, not the other way around; every claim cites source
+  lines. Verified current controls (each checked in code): exact-replay
+  idempotency (one canonical line per key, in-process); replay-mismatch
+  suppression of authorization; policy-drift suppression of authorization; legacy
+  fail-closed (missing attribution → null → no authorization); literal
+  prepare/simulate-only authorization scope (`executionScope: ["prepare",
+  "simulate"]`, `executionStatus: "not_executed"`, `fundsMoved: false`);
+  decimal-safe BigInt spend limits (per-request 10.00 / daily 25.00 / velocity
+  5 per 60s); in-process per-path write lock. Explicit residual-risk register
+  with severities calibrated to the current no-execution scope (audit log not
+  tamper-evident; expiry metadata-only with no runtime enforcement; no
+  cross-process concurrency control; no authenticated agent identity; policy
+  fingerprint proves content identity only — none of these are claimed as
+  implemented controls). Future execution precondition checklist: 14 items,
+  all unchecked, with the explicit statement that none are complete because no
+  execution adapter exists and all must be implemented and tested before ANY
+  testnet adapter can move funds. Security regression suite
+  `tests/security-boundaries.test.ts` (22 tests, all passing). Full suite now
+  20 files / 270 tests (baseline 19 files / 248 tests + 22 new
+  security-boundary tests; verified run 2026-08-14); lint, typecheck,
+  build, and `git diff --check` green; this phase changes docs only — `src/`,
+  `data/`, and `package.json` untouched.
 
 ## Phase 8 — Grant evidence package (NOT IMPLEMENTED)
 

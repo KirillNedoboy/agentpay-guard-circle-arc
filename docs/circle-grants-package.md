@@ -51,9 +51,10 @@ baseline (`eb28fe7973cdd3d770de155556c23ee214c6ef33`):
 - CI workflow runs test, lint, typecheck, and build on push to `main` and pull requests
   (`.github/workflows/ci.yml`).
 - Deterministic fixtures under `examples/` (CCTP, ERC-20, Paymaster, x402, machine,
-  risky-block scenarios) and 13 test files / 147 tests in `tests/`, all passing on this
-  baseline (2026-08-13 run: 13 files, 147 tests, all passed; lint, typecheck, and build
-  also pass).
+  risky-block scenarios). Test suite on this branch: 19 files / 248 tests + 22 new
+  security-boundary tests (`tests/security-boundaries.test.ts`) = 20 files / 270
+  tests, all passing (verified run 2026-08-14; lint, typecheck, and build also
+  pass).
 - Phase 1 typed evidence baseline (commit `feat: add versioned policy evidence`):
   explicit `policyVersion` (`"1"`) on `PolicyConfig` and `data/policies.default.json`;
   deterministic `policyFingerprint` — `sha256:<64 hex>` of the canonicalized policy
@@ -164,6 +165,30 @@ baseline (`eb28fe7973cdd3d770de155556c23ee214c6ef33`):
   settlement is claimed — those remain PROPOSED / NOT YET VALIDATED. Validation
   after Phase 6: 19 test files / 248 tests, lint, typecheck, build, and
   `git diff --check` all passing; no domain/backend or policy changes.
+- Phase 7 threat-model verification (docs-only change): documented engineering
+  threat model at
+  [threat-model.md](../docs/grants/circle-grants-2026/threat-model.md) covering 21
+  threat classes (T01–T15 + ADD-1..ADD-6), each with a verified control, status,
+  and residual risk, cited to source lines. Verified controls include
+  replay/mismatch/policy-drift authorization suppression (an authorization is
+  issued only when `replayMismatch === false && policyChanged === false`), exact
+  single-intent recipient/amount binding (`maxAmountUSDC` = persisted proposed
+  amount), prepare/simulate-only authorization scope (literal
+  `["prepare","simulate"]`, `not_executed`, `fundsMoved: false`), legacy
+  fail-closed behavior, decimal-safe spend limits, and in-process audit write
+  locking. Explicit residual-risk register (audit log not tamper-evident; expiry
+  metadata-only with no runtime enforcement; no cross-process concurrency
+  control; no authenticated agent identity; policy fingerprint proves content
+  identity, not authenticity) and a 14-item future execution security
+  precondition checklist, all unchecked because no execution adapter exists.
+  This is an **internal engineering threat-model verification, NOT an
+  independent external security audit** — no claim of "production secure",
+  "fully audited", "formally verified", "penetration tested", or "compliant" is
+  made. Security regression suite `tests/security-boundaries.test.ts`
+  (22 tests, all passing) brings the suite to 19 files / 248 tests + 22 new
+  security-boundary tests = 20 files / 270 tests total; docs only — `src/`,
+  `data/`, `package.json`
+  untouched.
 
 ## 3. PROPOSED
 
