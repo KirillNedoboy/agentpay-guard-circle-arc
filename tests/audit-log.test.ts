@@ -308,7 +308,7 @@ describe("audit log", () => {
     const second = await createOrReuseAuditRecord(auditPath, intent, decision);
 
     expect(second.auditId).toBe(first.auditId);
-    expect(second.policyVersion).toBe("1");
+    expect(second.policyVersion).toBe(policy.policyVersion);
     expect(second.policyFingerprint).toBe(first.policyFingerprint);
     expect(second.executionStatus).toBe("not_executed");
     expect(readFileSync(auditPath, "utf8").trim().split("\n")).toHaveLength(1);

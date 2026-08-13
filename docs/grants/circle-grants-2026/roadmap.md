@@ -1,10 +1,10 @@
 # Circle Grants 2026 — Roadmap
 
-Phase 0 and Phase 1 are complete on this branch. Phases 2–9 are NOT yet implemented.
+Phases 0, 1, and 2 are complete on this branch. Phases 3–9 are NOT yet implemented.
 Each phase lists objective, main deliverable, dependencies, and Definition of Done.
 This roadmap is planning documentation only; no future phase is implemented here.
 
-## Phase 0 — Grant isolation and source of truth (CURRENT)
+## Phase 0 — Grant isolation and source of truth (IMPLEMENTED)
 
 - Objective: isolate grant work on its own branch and establish a canonical, honest
   grant source of truth.
@@ -39,7 +39,7 @@ This roadmap is planning documentation only; no future phase is implemented here
   (was 147 / 13), lint, typecheck, build, `git diff --check` all green; historical
   `data/audit-log.jsonl` byte-identical.
 
-## Phase 2 — ExecutionAuthorization Envelope (NOT IMPLEMENTED)
+## Phase 2 — ExecutionAuthorization Envelope (IMPLEMENTED — 2026-08-13)
 
 - Objective: formal boundary between policy decision and any future adapter execution.
 - Main deliverable: typed envelope (intent, decision, evidence reference) that an
@@ -47,6 +47,23 @@ This roadmap is planning documentation only; no future phase is implemented here
 - Dependencies: Phase 1.
 - Definition of Done: envelope is deterministic, replayable, and testable; it performs
   no execution.
+- Evidence (commit `feat: add execution authorization envelope`): deterministic,
+  typed `ExecutionAuthorization` in
+  `src/domain/authorization/execution-authorization.ts`, built purely from the
+  normalized persisted `AuditRecord` + current `PolicyConfig` (never from the raw
+  request); ALLOW-only (REVIEW/BLOCK return no envelope); exact single-intent binding
+  (`maxAmountUSDC` = proposed amount, not the policy cap; recipient/agentId from
+  persisted audit); deterministic `auth_<64 hex>` SHA-256 id bound to intent/audit/
+  agent/recipient/amount/rail/policy evidence/timestamps; `issuedAt` = persisted
+  audit timestamp, `expiresAt` = issuedAt + `policy.authorization.ttlSeconds` (300s,
+  local preview setting, no `Date.now()`); `executionScope: ["prepare", "simulate"]`
+  only, `executionStatus: "not_executed"`, `fundsMoved: false`; legacy records
+  without policy attribution produce no authorization; `programmablePaymentContext`
+  carried when persisted; `EvaluationResponse.executionAuthorization` optional field
+  (absent on REVIEW/BLOCK/failures); nothing persisted to JSONL (fully derivable);
+  policy bumped to `policyVersion: "2"` with `authorization.ttlSeconds: 300`.
+  Validation: 180 tests / 15 files passing (was 162 / 14), lint, typecheck, build,
+  `git diff --check` all green.
 
 ## Phase 3 — Replay and policy-drift evidence (NOT IMPLEMENTED)
 

@@ -6,6 +6,9 @@ export type PolicyConfig = {
   currency: {
     supported: string[];
   };
+  authorization: {
+    ttlSeconds: number;
+  };
   limits: {
     maxAmountPerPayment: string;
     dailyLimitPerAgent: string;

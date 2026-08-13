@@ -1,10 +1,13 @@
 {
   "policyId": "default-agentpay-policy-v1",
-  "policyVersion": "1",
+  "policyVersion": "2",
   "currency": {
     "supported": [
       "USDC"
     ]
+  },
+  "authorization": {
+    "ttlSeconds": 300
   },
   "limits": {
     "maxAmountPerPayment": "10.00",

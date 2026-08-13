@@ -646,7 +646,6 @@ describe("policy engine", () => {
       const result = evaluatePolicy(intent, policy, []);
       expect(result.policyId).toBe(policy.policyId);
       expect(result.policyVersion).toBe(policy.policyVersion);
-      expect(result.policyVersion).toBe("1");
       expect(result.policyFingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
       expect(result.policyFingerprint).toBe(fingerprintPolicy(policy));
     }
@@ -663,7 +662,34 @@ describe("policy engine", () => {
     const changedResult = evaluatePolicy(makeCctpIntent(), changed, []);
 
     expect(changedResult.policyFingerprint).not.toBe(base.policyFingerprint);
-    expect(changedResult.policyVersion).toBe("1");
+    expect(changedResult.policyVersion).toBe(policy.policyVersion);
+  });
+
+  test("loads the explicit authorization TTL section", () => {
+    expect(policy.policyVersion).toBe("2");
+    expect(policy.authorization).toEqual({ ttlSeconds: 300 });
+  });
+
+  test("changing the authorization TTL changes the policy fingerprint", () => {
+    const base = fingerprintPolicy(policy);
+    const changed: PolicyConfig = {
+      ...policy,
+      authorization: { ...policy.authorization, ttlSeconds: 600 }
+    };
+
+    expect(fingerprintPolicy(changed)).not.toBe(base);
+  });
+
+  test("decision outcomes and reason codes are unchanged by the authorization section", () => {
+    const allow = evaluatePolicy(makeCctpIntent(), policy, []);
+    const review = evaluatePolicy(makePaymasterIntent(), policy, []);
+    const block = evaluatePolicy(makeAuthorityIntent({ operation: "approve" }), policy, []);
+
+    expect(allow.decision).toBe("ALLOW");
+    expect(review.decision).toBe("REVIEW");
+    expect(block.decision).toBe("BLOCK");
+    expect(allow.reasonCodes).toEqual(expect.arrayContaining(["RAIL_PREVIEW_ONLY"]));
+    expect(block.reasonCodes).toContain("ALLOWANCE_SPENDER_REQUIRED");
   });
 });
 

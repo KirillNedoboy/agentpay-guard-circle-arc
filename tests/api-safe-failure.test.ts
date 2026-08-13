@@ -171,9 +171,71 @@ describe("safe payment intent evaluation", () => {
 
     expect(response.status).toBe(200);
     expect(body.policyId).toBe("default-agentpay-policy-v1");
-    expect(body.policyVersion).toBe("1");
+    expect(body.policyVersion).toBe("2");
     expect(body.policyFingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(body.executionStatus).toBe("not_executed");
+  });
+
+  test("ALLOW returns a deterministic execution authorization without changing decision fields", async () => {
+    const response = await safeEvaluatePaymentIntent(makeIntent({ idempotencyKey: "api-auth-allow" }));
+    const body = (await response.json()) as {
+      decision: string;
+      reasonCodes: string[];
+      executionAuthorization?: {
+        authorizationType: string;
+        authorizationId: string;
+        decision: string;
+        scope: string;
+        maxAmountUSDC: string;
+        recipient: string;
+        policyVersion: string;
+        executionScope: string[];
+        executionStatus: string;
+        fundsMoved: boolean;
+        issuedAt: string;
+        expiresAt: string;
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.decision).toBe("ALLOW");
+    expect(body.reasonCodes).toContain("RAIL_PREVIEW_ONLY");
+    expect(body.executionAuthorization).toMatchObject({
+      authorizationType: "execution_authorization",
+      decision: "ALLOW",
+      scope: "single_intent",
+      maxAmountUSDC: "0.08",
+      recipient: "trusted-x402-api.demo",
+      executionScope: ["prepare", "simulate"],
+      executionStatus: "not_executed",
+      fundsMoved: false
+    });
+    expect(body.executionAuthorization?.authorizationId).toMatch(/^auth_[0-9a-f]{64}$/);
+    expect(body.executionAuthorization?.policyVersion).toBe("2");
+    expect(body.executionAuthorization?.issuedAt).toBe("2026-07-16T12:00:00.000Z");
+    expect(body.executionAuthorization?.expiresAt).toBe("2026-07-16T12:05:00.000Z");
+  });
+
+  test("REVIEW returns no execution authorization", async () => {
+    const response = await safeEvaluatePaymentIntent(
+      makeIntent({ idempotencyKey: "api-auth-review", recipient: "new-api.demo" })
+    );
+    const body = (await response.json()) as { decision: string; executionAuthorization?: unknown };
+
+    expect(response.status).toBe(200);
+    expect(body.decision).toBe("REVIEW");
+    expect(body).not.toHaveProperty("executionAuthorization");
+  });
+
+  test("BLOCK returns no execution authorization", async () => {
+    const response = await safeEvaluatePaymentIntent(
+      makeIntent({ idempotencyKey: "api-auth-block", recipient: "blocked-recipient.demo" })
+    );
+    const body = (await response.json()) as { decision: string; executionAuthorization?: unknown };
+
+    expect(response.status).toBe(200);
+    expect(body.decision).toBe("BLOCK");
+    expect(body).not.toHaveProperty("executionAuthorization");
   });
 
   test("invalid nested route context never returns ALLOW or creates audit evidence", async () => {
@@ -192,6 +254,7 @@ describe("safe payment intent evaluation", () => {
     expect(response.status).toBe(400);
     expect(body.decision).toBe("BLOCK");
     expect(body.auditId).toBeNull();
+    expect(body).not.toHaveProperty("executionAuthorization");
     expect(body.reason).not.toMatch(/stack|config|C:\\|node_modules/i);
     expect(auditLog.createOrReuseAuditRecord).not.toHaveBeenCalled();
     expect(JSON.stringify(body)).toContain('"policyVersion":null');
@@ -209,6 +272,7 @@ describe("safe payment intent evaluation", () => {
     expect(body.decision).toBe("REVIEW");
     expect(body.decision).not.toBe("ALLOW");
     expect(body.auditId).toBeNull();
+    expect(body).not.toHaveProperty("executionAuthorization");
     expect(body.reason).toBe("Internal evaluation failure. Payment must not proceed.");
     expect(JSON.stringify(body)).not.toMatch(/secret|policy-config|stack|C:\\/i);
     expect(JSON.stringify(body)).toContain('"policyVersion":null');

@@ -6,7 +6,7 @@
 - Repository: https://github.com/KirillNedoboy/agentpay-guard-circle-arc
 - Canonical baseline commit: `eb28fe7973cdd3d770de155556c23ee214c6ef33`
 - Date: 2026-08-13
-- Working branch: `grant/circle-grants-pilot-2026` (Phase 0; no PR opened)
+- Working branch: `grant/circle-grants-pilot-2026` (grant development track; no PR opened)
 
 This package describes a proposed pre-pilot infrastructure grant: a deterministic
 policy-and-audit control plane for autonomous USDC payment intents. Policy is evaluated
@@ -71,6 +71,23 @@ baseline (`eb28fe7973cdd3d770de155556c23ee214c6ef33`):
   persisted audit record so idempotent reuse reflects stored evidence; failure
   responses carry honest `null` / `"not_executed"` evidence. Validation after Phase 1:
   14 test files / 162 tests, lint, typecheck, build, and `git diff --check` all passing.
+- Phase 2 ExecutionAuthorization envelope (commit `feat: add execution authorization
+  envelope`): deterministic, typed, ALLOW-only `ExecutionAuthorization`
+  (`src/domain/authorization/execution-authorization.ts`) built purely from the
+  normalized persisted audit record + current policy config; exact single-intent
+  binding (`maxAmountUSDC` equals the proposed amount, never the per-payment policy
+  cap; recipient/agentId from the persisted audit); deterministic `auth_<64 hex>`
+  SHA-256 id bound to immutable envelope identity (no randomness, no wall clock);
+  `issuedAt` from the persisted audit timestamp and `expiresAt` from
+  `policy.authorization.ttlSeconds` (300s local preview setting — not claimed as a
+  Circle/security standard); `executionScope` exactly `["prepare", "simulate"]`,
+  `executionStatus: "not_executed"`, `fundsMoved: false`; programmable payment
+  context carried when persisted; legacy records without policy attribution produce
+  no authorization; exposed as optional `EvaluationResponse.executionAuthorization`
+  (absent on REVIEW/BLOCK/failures); nothing persisted to JSONL. Active
+  `policyVersion` is now `"2"` (`policyId` unchanged). Validation after Phase 2:
+  15 test files / 180 tests, lint, typecheck, build, and `git diff --check` all
+  passing; historical `data/audit-log.jsonl` byte-identical.
 
 ## 3. PROPOSED
 
