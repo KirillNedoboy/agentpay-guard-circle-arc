@@ -1,6 +1,6 @@
 # Circle Grants 2026 — Roadmap
 
-Phases 0, 1, 2, 3, and 4 are complete on this branch. Phases 5–9 are NOT yet
+Phases 0, 1, 2, 3, 4, and 5 are complete on this branch. Phases 6–9 are NOT yet
 implemented. Each phase lists objective, main deliverable, dependencies, and
 Definition of Done. This roadmap is planning documentation only; no future phase is
 implemented here.
@@ -121,13 +121,32 @@ implemented here.
   dependencies, and historical audit log untouched. See
   [canonical-scenarios.md](./canonical-scenarios.md).
 
-## Phase 5 — Minimal pilot observability (NOT IMPLEMENTED)
+## Phase 5 — Minimal pilot observability (IMPLEMENTED — 2026-08-13)
 
 - Objective: measure what a pilot needs without touching execution.
 - Main deliverable: decision latency, reproducibility, integration-time, and
   policy-gap metrics on top of the existing audit trail.
 - Dependencies: Phase 1.
 - Definition of Done: metrics computed from audit records; documented in the package.
+- Evidence (commit `feat: add minimal pilot observability`): privacy-safe local
+  observability with no external telemetry — two evidence layers (canonical audit
+  log unchanged; new append-only evaluation-observation log with one line per
+  successful validated evaluation including idempotent replays, referencing the
+  canonical decision only by `auditId`, never raw intent/recipient/agent/amount);
+  `policyEvaluationDurationMs` measured with monotonic `performance.now()` around
+  `evaluatePolicy` only (3-decimal precision, never affects policy/fingerprints/
+  authorization IDs); observation write failure is secondary-evidence-only
+  (`pilotObservability.observationRecorded: false`, decision and authorization
+  unchanged); pure `buildPilotMetrics` over canonical records + observations
+  (decision counts, reason-code counts, selected policy-gap signals, evidence
+  coverage from canonical; attempt/replay/drift/authorization counters and
+  nearest-rank p95 duration from observations); read-only `GET /api/pilot-metrics`;
+  `.env.example` drift fixed (`AGENTPAY_AUDIT_LOG_PATH`,
+  `AGENTPAY_OBSERVATION_LOG_PATH`); `data/evaluation-observations.jsonl`
+  gitignored. Validation: 227 tests / 19 files passing (was 212 / 17), lint,
+  typecheck, build, `git diff --check` all green; policy config, dependencies, and
+  historical audit log untouched. See
+  [pilot-observability.md](./pilot-observability.md).
 
 ## Phase 6 — Judge-first UI delta (NOT IMPLEMENTED)
 

@@ -158,3 +158,15 @@ export function readRecentAuditRecords(auditPath: string, limit: number): AuditR
     throw error;
   }
 }
+
+export function readAllAuditRecords(auditPath: string): AuditRecord[] {
+  try {
+    const content = readFileSync(auditPath, "utf8");
+    return parseAuditLines(content);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+}

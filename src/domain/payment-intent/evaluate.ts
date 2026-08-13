@@ -1,3 +1,4 @@
+import { performance } from "node:perf_hooks";
 import { createOrReuseAuditRecordWithEvidence, readRecentAuditRecords } from "@/domain/audit/audit-log";
 import type { AuditRecord } from "@/domain/audit/types";
 import { buildReplayEvidence, type ReplayEvidence } from "@/domain/audit/replay-evidence";
@@ -9,7 +10,8 @@ import { evaluatePolicy } from "@/domain/policy/engine";
 import { loadPolicyConfig } from "@/domain/policy/policy-config";
 import type { SpendControls } from "@/domain/policy/spend-controls";
 import { calculateSpendControls } from "@/domain/policy/spend-controls";
-import { auditLogPath, policyPath } from "@/lib/paths";
+import { appendEvaluationObservation } from "@/domain/observability/evaluation-observation-log";
+import { auditLogPath, observationLogPath, policyPath } from "@/lib/paths";
 
 export type EvaluationResponse = Omit<PolicyDecision, "policyVersion" | "policyFingerprint"> & {
   policyVersion: string | null;
@@ -23,6 +25,7 @@ export type EvaluationResponse = Omit<PolicyDecision, "policyVersion" | "policyF
   arcTestnetSimulation?: ArcTestnetSimulation;
   executionAuthorization?: ExecutionAuthorization;
   replayEvidence: ReplayEvidence;
+  pilotObservability: { observationRecorded: boolean };
 };
 
 export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationResponse> {
@@ -30,7 +33,9 @@ export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationR
   const policy = loadPolicyConfig(policyPath());
   const recentRecords = readRecentAuditRecords(auditLogPath(), 250);
   const spendControls = calculateSpendControls(intent, policy, recentRecords);
+  const startedAt = performance.now();
   const decision = evaluatePolicy(intent, policy, recentRecords, spendControls);
+  const policyEvaluationDurationMs = Math.max(0, Math.round((performance.now() - startedAt) * 1000) / 1000);
   const { record: audit, replayed } = await createOrReuseAuditRecordWithEvidence(auditLogPath(), intent, decision);
   const currentIntentFingerprint = fingerprintIntent(intent);
   const replayEvidence = buildReplayEvidence(audit, currentIntentFingerprint, policy, replayed);
@@ -38,6 +43,25 @@ export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationR
     replayEvidence.replayMismatch === false && replayEvidence.policyChanged === false
       ? buildExecutionAuthorization(audit, policy)
       : null;
+  const authorizationIssued = executionAuthorization !== null;
+
+  let observationRecorded = false;
+  try {
+    await appendEvaluationObservation(observationLogPath(), {
+      eventType: "agentpay_evaluation_observed",
+      timestamp: new Date().toISOString(),
+      auditId: audit.auditId,
+      decision: audit.decision,
+      replayed,
+      replayMismatch: replayEvidence.replayMismatch,
+      policyChanged: replayEvidence.policyChanged,
+      authorizationIssued,
+      policyEvaluationDurationMs
+    });
+    observationRecorded = true;
+  } catch {
+    observationRecorded = false;
+  }
 
   return {
     decision: audit.decision,
@@ -56,7 +80,8 @@ export async function evaluatePaymentIntent(input: unknown): Promise<EvaluationR
     ...(audit.spendControls ? { spendControls: audit.spendControls } : {}),
     ...(audit.arcTestnetSimulation ? { arcTestnetSimulation: audit.arcTestnetSimulation } : {}),
     ...(executionAuthorization ? { executionAuthorization } : {}),
-    replayEvidence
+    replayEvidence,
+    pilotObservability: { observationRecorded }
   };
 }
 

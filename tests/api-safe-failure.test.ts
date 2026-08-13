@@ -1,4 +1,7 @@
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { buildCircleRailPreview } from "@/domain/payment-intent/rail-preview";
 import { buildArcTestnetSimulation } from "@/domain/payment-intent/arc-testnet-simulation";
 import { buildProgrammablePaymentContext } from "@/domain/payment-intent/programmable-payment-context";
@@ -68,6 +71,9 @@ function makeIntent(overrides: Record<string, unknown> = {}) {
   };
 }
 
+const tempDirs: string[] = [];
+const previousObservationPath = process.env.AGENTPAY_OBSERVATION_LOG_PATH;
+
 beforeEach(() => {
   auditLog.createOrReuseAuditRecordWithEvidence.mockReset();
   auditLog.readRecentAuditRecords.mockReset();
@@ -76,6 +82,20 @@ beforeEach(() => {
     record: makeAuditRecord(intent, decision),
     replayed: false
   }));
+  const dir = mkdtempSync(join(tmpdir(), "agentpay-api-obs-"));
+  tempDirs.push(dir);
+  process.env.AGENTPAY_OBSERVATION_LOG_PATH = join(dir, "evaluation-observations.jsonl");
+});
+
+afterEach(() => {
+  if (previousObservationPath === undefined) {
+    delete process.env.AGENTPAY_OBSERVATION_LOG_PATH;
+  } else {
+    process.env.AGENTPAY_OBSERVATION_LOG_PATH = previousObservationPath;
+  }
+  for (const dir of tempDirs.splice(0)) {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 describe("safe payment intent evaluation", () => {
@@ -171,6 +191,7 @@ describe("safe payment intent evaluation", () => {
       policyFingerprint: string | null;
       executionStatus: string;
       replayEvidence: { replayed: boolean; replayMismatch: boolean | null; policyChanged: boolean | null };
+      pilotObservability: { observationRecorded: boolean };
     };
 
     expect(response.status).toBe(200);
@@ -179,6 +200,7 @@ describe("safe payment intent evaluation", () => {
     expect(body.policyFingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(body.executionStatus).toBe("not_executed");
     expect(body.replayEvidence).toMatchObject({ replayed: false, replayMismatch: false, policyChanged: false });
+    expect(body.pilotObservability).toEqual({ observationRecorded: true });
   });
 
   test("ALLOW returns a deterministic execution authorization without changing decision fields", async () => {
@@ -296,6 +318,7 @@ describe("safe payment intent evaluation", () => {
     expect(body.decision).toBe("BLOCK");
     expect(body.auditId).toBeNull();
     expect(body).not.toHaveProperty("executionAuthorization");
+    expect(body).not.toHaveProperty("pilotObservability");
     expect(body.reason).not.toMatch(/stack|config|C:\\|node_modules/i);
     expect(auditLog.createOrReuseAuditRecordWithEvidence).not.toHaveBeenCalled();
     expect(JSON.stringify(body)).toContain('"policyVersion":null');
@@ -314,6 +337,7 @@ describe("safe payment intent evaluation", () => {
     expect(body.decision).not.toBe("ALLOW");
     expect(body.auditId).toBeNull();
     expect(body).not.toHaveProperty("executionAuthorization");
+    expect(body).not.toHaveProperty("pilotObservability");
     expect(body.reason).toBe("Internal evaluation failure. Payment must not proceed.");
     expect(JSON.stringify(body)).not.toMatch(/secret|policy-config|stack|C:\\/i);
     expect(JSON.stringify(body)).toContain('"policyVersion":null');

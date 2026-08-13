@@ -124,6 +124,26 @@ baseline (`eb28fe7973cdd3d770de155556c23ee214c6ef33`):
   These are deterministic product evidence fixtures, not pilot usage. Validation
   after Phase 4: 17 test files / 212 tests, lint, typecheck, build, and
   `git diff --check` all passing; no source, policy, or UI changes.
+- Phase 5 minimal pilot observability (commit `feat: add minimal pilot
+  observability`): privacy-safe local observability with no external telemetry,
+  databases, or queues — two evidence layers: the canonical audit log (unchanged,
+  one record per idempotency key) plus an append-only evaluation-observation log
+  (one line per successful validated evaluation including idempotent replays;
+  references the canonical decision only by `auditId`, never raw intent/recipient/
+  agent/amount); `policyEvaluationDurationMs` from monotonic `performance.now()`
+  around `evaluatePolicy` only; a failed observation append never changes the
+  persisted decision or authorization (`pilotObservability.observationRecorded:
+  false` reported honestly); deterministic `PilotMetricsSummary` (canonical
+  decision/reason-code/gap/coverage counts from audit records; attempt, replay
+  exact/mismatch/drift/unknown, authorization-issued counters and nearest-rank p95
+  from observations); read-only `GET /api/pilot-metrics`. Documented in
+  [pilot-observability.md](../docs/grants/circle-grants-2026/pilot-observability.md)
+  with SYSTEM-DERIVED NOW vs NOT AUTOMATICALLY MEASURED explicitly separated and a
+  statement that exact replay consistency is not independent decision
+  reproducibility (that pilot target remains PROPOSED). Validation after Phase 5:
+  19 test files / 227 tests, lint, typecheck, build, and `git diff --check` all
+  passing; policy config, dependencies, and historical audit log untouched; no
+  pilot usage claimed from local tests.
 
 ## 3. PROPOSED
 

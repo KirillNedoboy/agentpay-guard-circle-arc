@@ -28,3 +28,6 @@ yarn-debug.log*
 
 # local generated audit log can be kept or reset deliberately
 # data/audit-log.jsonl
+
+# local generated evaluation observations (secondary evidence)
+data/evaluation-observations.jsonl
