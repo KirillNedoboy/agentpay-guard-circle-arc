@@ -144,6 +144,26 @@ baseline (`eb28fe7973cdd3d770de155556c23ee214c6ef33`):
   19 test files / 227 tests, lint, typecheck, build, and `git diff --check` all
   passing; policy config, dependencies, and historical audit log untouched; no
   pilot usage claimed from local tests.
+- Phase 6 judge-first UI delta (commit `feat: surface grant evidence in judge UI`):
+  presentation-only — reviewer-visible exact replay evidence ("First evaluation" /
+  "Exact replay" / mismatch / drift / legacy states) driven by the real API
+  `replayEvidence`; reviewer-visible bounded ExecutionAuthorization panel
+  (`single_intent` scope, maximum amount equal to the proposed amount,
+  `prepare + simulate only`, `not_executed`, `fundsMoved: false`) with an explicit
+  safety line and honest no-authorization states; explicit policy attribution
+  (policy ID, version, deterministic shortened fingerprint with full value in
+  title/aria); explicit not-executed presentation; local/demo pilot metrics panel
+  (canonical intents, attempts, decision counts, replay counters, p95, gap signals,
+  coverage) with a "Local/demo evidence only — not partner traction or production
+  usage" qualifier; "Replay exact intent" action that re-submits an immutable
+  snapshot of the last successfully evaluated intent (same idempotency key).
+  Verified in a live production-server + automated-browser session (x402-first
+  reviewer flow, replay idempotency across repeated clicks, REVIEW/BLOCK
+  no-authorization states, 1440 px and 390 px no-overflow responsive states).
+  No live pilot usage, users, customers, design partners, production traffic, or
+  settlement is claimed — those remain PROPOSED / NOT YET VALIDATED. Validation
+  after Phase 6: 19 test files / 248 tests, lint, typecheck, build, and
+  `git diff --check` all passing; no domain/backend or policy changes.
 
 ## 3. PROPOSED
 

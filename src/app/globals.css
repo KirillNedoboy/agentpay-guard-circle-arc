@@ -2384,3 +2384,193 @@ tr:hover td {
     font-size: 0.84rem;
   }
 }
+
+/* ===== Phase 6: grant evidence presentation ===== */
+
+.x402-replay-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.65);
+}
+
+.grant-evidence {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.replay-evidence-block {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid rgba(10, 112, 69, 0.3);
+  border-radius: 8px;
+  background: var(--allow-soft);
+}
+
+.replay-evidence-block.warning {
+  border-color: rgba(138, 90, 5, 0.34);
+  background: var(--review-soft);
+}
+
+.replay-evidence-block strong {
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.replay-evidence-block span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.35;
+}
+
+.policy-attribution-panel,
+.authorization-panel {
+  padding: 16px;
+}
+
+.policy-evidence-grid,
+.authorization-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.policy-evidence-grid > div,
+.authorization-grid > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.75);
+  padding: 10px 11px;
+}
+
+.policy-evidence-grid dt,
+.authorization-grid dt {
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  margin: 0 0 4px;
+}
+
+.policy-evidence-grid dd,
+.authorization-grid dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.88rem;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.authorization-safety-line {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.no-authorization-status {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-soft);
+  color: var(--text);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.no-authorization-status.mismatch,
+.no-authorization-status.policy-drift {
+  border-color: rgba(138, 90, 5, 0.34);
+  background: var(--review-soft);
+}
+
+.observability-status {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.pilot-evidence-panel {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.pilot-metric-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pilot-metric-card {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  padding: 10px 12px;
+}
+
+.pilot-metric-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.pilot-metric-card strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--text);
+  font-size: 1.05rem;
+  overflow-wrap: anywhere;
+}
+
+.pilot-coverage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.pilot-coverage-grid > div {
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--panel-soft);
+  padding: 9px 10px;
+}
+
+.pilot-coverage-grid dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  margin: 0 0 4px;
+}
+
+.pilot-coverage-grid dd {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.88rem;
+}
+
+@media (max-width: 780px) {
+  .x402-replay-row,
+  .pilot-metric-cards,
+  .pilot-coverage-grid,
+  .policy-evidence-grid,
+  .authorization-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .x402-replay-row {
+    display: grid;
+    align-items: start;
+  }
+}

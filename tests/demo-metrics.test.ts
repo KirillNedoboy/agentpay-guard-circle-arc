@@ -3,15 +3,89 @@ import {
   buildAuditPreview,
   buildCctpRouteExplanation,
   buildDemoSummary,
+  buildExecutionAuthorizationRows,
+  buildNoAuthorizationExplanation,
+  buildPilotCoverageRows,
+  buildPilotMetricCards,
+  buildPolicyEvidenceRows,
   buildProposedIntentRows,
   buildProgrammableEvidenceRows,
   buildQuickCaseDefinitions,
   buildQuickCaseTransition,
   buildRailPreviewRows,
   buildReasonCodeRows,
-  buildSettlementBoundary
+  buildReplayEvidenceView,
+  buildSettlementBoundary,
+  formatPilotP95,
+  shortenFingerprint
 } from "@/app/demo-metrics";
 import type { AuditRecord } from "@/domain/audit/types";
+import type { ReplayEvidence } from "@/domain/audit/replay-evidence";
+import type { ExecutionAuthorization } from "@/domain/authorization/execution-authorization";
+import type { PilotMetricsSummary } from "@/domain/observability/pilot-metrics";
+
+function makeReplayEvidence(overrides: Partial<ReplayEvidence> = {}): ReplayEvidence {
+  return {
+    replayed: false,
+    replayMismatch: false,
+    policyChanged: false,
+    storedIntentFingerprint: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    currentIntentFingerprint: "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    storedPolicyVersion: "2",
+    currentPolicyVersion: "2",
+    storedPolicyFingerprint: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    currentPolicyFingerprint: "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    ...overrides
+  };
+}
+
+function makeAuthorization(overrides: Partial<ExecutionAuthorization> = {}): ExecutionAuthorization {
+  return {
+    authorizationType: "execution_authorization",
+    version: "v1",
+    authorizationId: "auth_1111111111111111111111111111111111111111111111111111111111111111",
+    scope: "single_intent",
+    intentId: "intent_x402",
+    idempotencyKey: "judge-x402-api-micropayment-001",
+    auditId: "audit_20260813_000001",
+    agentId: "agent_ignyte_demo_001",
+    recipient: "trusted-x402-api.demo",
+    asset: "USDC",
+    maxAmountUSDC: "0.08",
+    paymentRail: "mock_x402_service",
+    rail: "mock_x402_service",
+    decision: "ALLOW",
+    policyId: "default-agentpay-policy-v1",
+    policyVersion: "2",
+    policyFingerprint: "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    issuedAt: "2026-08-13T12:00:00.000Z",
+    expiresAt: "2026-08-13T12:05:00.000Z",
+    executionScope: ["prepare", "simulate"],
+    executionStatus: "not_executed",
+    fundsMoved: false,
+    ...overrides
+  };
+}
+
+function makeMetrics(overrides: Partial<PilotMetricsSummary> = {}): PilotMetricsSummary {
+  return {
+    schemaVersion: "v1",
+    canonicalIntentCount: 3,
+    decisionCounts: { ALLOW: 2, REVIEW: 1, BLOCK: 0 },
+    observedEvaluationAttemptCount: 5,
+    replayAttemptCount: 2,
+    exactReplayAttemptCount: 1,
+    replayMismatchAttemptCount: 1,
+    policyDriftAttemptCount: 0,
+    unknownReplayStateAttemptCount: 0,
+    authorizationIssuedAttemptCount: 3,
+    p95PolicyEvaluationDurationMs: 1.5,
+    reasonCodeCounts: { RECIPIENT_TRUSTED: 2, RECIPIENT_REVIEW_REQUIRED: 1 },
+    policyGapSignals: { RECIPIENT_UNKNOWN_REQUIRES_REVIEW: 1 },
+    evidenceCoverage: { intentFingerprintKnown: 3, policyFingerprintKnown: 2, policyVersionKnown: 3 },
+    ...overrides
+  };
+}
 
 describe("buildDemoSummary", () => {
   test("returns zeroed summary before any selection or evaluations", () => {
@@ -461,5 +535,195 @@ describe("buildAuditPreview", () => {
         recipientId: "market-data-api.demo"
       }
     });
+  });
+});
+
+describe("buildReplayEvidenceView", () => {
+  test("returns null without replay evidence", () => {
+    expect(buildReplayEvidenceView(undefined)).toBeNull();
+  });
+
+  test("first evaluation", () => {
+    expect(buildReplayEvidenceView(makeReplayEvidence())).toEqual({
+      label: "First evaluation",
+      detail: "This intent was evaluated for the first time.",
+      isWarning: false
+    });
+  });
+
+  test("exact replay", () => {
+    expect(buildReplayEvidenceView(makeReplayEvidence({ replayed: true }))).toEqual({
+      label: "Exact replay",
+      detail: "Same intent and same policy; stored evidence reused.",
+      isWarning: false
+    });
+  });
+
+  test("replay mismatch", () => {
+    expect(
+      buildReplayEvidenceView(makeReplayEvidence({ replayed: true, replayMismatch: true }))
+    ).toEqual({
+      label: "Replay mismatch",
+      detail: "The current request does not match the stored intent.",
+      isWarning: true
+    });
+  });
+
+  test("policy drift", () => {
+    expect(
+      buildReplayEvidenceView(makeReplayEvidence({ replayed: true, policyChanged: true }))
+    ).toEqual({
+      label: "Policy changed",
+      detail: "Stored evidence differs from the active policy.",
+      isWarning: true
+    });
+  });
+
+  test("legacy unknown state", () => {
+    expect(
+      buildReplayEvidenceView(
+        makeReplayEvidence({ replayed: true, replayMismatch: null, policyChanged: null })
+      )
+    ).toEqual({
+      label: "Legacy evidence",
+      detail: "Exact comparison unavailable.",
+      isWarning: false
+    });
+  });
+});
+
+describe("buildPolicyEvidenceRows and shortenFingerprint", () => {
+  const full = "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789";
+
+  test("shortens a long fingerprint deterministically without altering the original", () => {
+    expect(shortenFingerprint(full)).toBe("sha256:abcdef01…6789");
+    expect(shortenFingerprint(full)).toBe(shortenFingerprint(full));
+  });
+
+  test("leaves short or unusual values untouched", () => {
+    expect(shortenFingerprint("sha256:abc")).toBe("sha256:abc");
+    expect(shortenFingerprint(null)).toBe("Unavailable / legacy evidence");
+  });
+
+  test("exposes full values for accessibility", () => {
+    const rows = buildPolicyEvidenceRows("default-agentpay-policy-v1", "2", full);
+    expect(rows).toEqual([
+      { label: "Policy ID", display: "default-agentpay-policy-v1", full: "default-agentpay-policy-v1" },
+      { label: "Policy version", display: "2", full: "2" },
+      { label: "Policy fingerprint", display: "sha256:abcdef01…6789", full }
+    ]);
+  });
+
+  test("maps missing attribution to legacy wording", () => {
+    const rows = buildPolicyEvidenceRows(undefined, null, null);
+    expect(rows.every((row) => row.display === "Unavailable / legacy evidence")).toBe(true);
+    expect(rows.every((row) => row.full === null)).toBe(true);
+  });
+});
+
+describe("buildExecutionAuthorizationRows", () => {
+  test("returns the full bounded-authorization evidence", () => {
+    const rows = buildExecutionAuthorizationRows(makeAuthorization());
+    const map = Object.fromEntries(rows);
+
+    expect(map["Authorization ID"]).toBe("auth_1111111111111111111111111111111111111111111111111111111111111111");
+    expect(map["Scope"]).toBe("single_intent");
+    expect(map["Agent"]).toBe("agent_ignyte_demo_001");
+    expect(map["Recipient"]).toBe("trusted-x402-api.demo");
+    expect(map["Asset"]).toBe("USDC");
+    expect(map["Maximum amount"]).toBe("0.08 USDC");
+    expect(map["Policy version"]).toBe("2");
+    expect(map["Execution scope"]).toBe("prepare, simulate");
+    expect(map["Execution status"]).toBe("not_executed");
+    expect(map["Funds moved"]).toBe("false");
+  });
+
+  test("returns no rows without an authorization", () => {
+    expect(buildExecutionAuthorizationRows(null)).toEqual([]);
+  });
+});
+
+describe("buildNoAuthorizationExplanation", () => {
+  test("REVIEW and BLOCK produce the plain explanation", () => {
+    expect(buildNoAuthorizationExplanation("REVIEW", makeReplayEvidence())).toEqual({
+      message: "No Execution Authorization issued.",
+      reason: "review-block"
+    });
+    expect(buildNoAuthorizationExplanation("BLOCK", makeReplayEvidence())).toEqual({
+      message: "No Execution Authorization issued.",
+      reason: "review-block"
+    });
+  });
+
+  test("ALLOW with a replay mismatch explains the withheld authorization", () => {
+    expect(
+      buildNoAuthorizationExplanation(
+        "ALLOW",
+        makeReplayEvidence({ replayed: true, replayMismatch: true })
+      )
+    ).toEqual({ message: "Authorization withheld: replay mismatch.", reason: "mismatch" });
+  });
+
+  test("ALLOW with policy drift explains the withheld authorization", () => {
+    expect(
+      buildNoAuthorizationExplanation(
+        "ALLOW",
+        makeReplayEvidence({ replayed: true, policyChanged: true })
+      )
+    ).toEqual({
+      message: "Authorization withheld: active policy differs from stored evidence.",
+      reason: "policy-drift"
+    });
+  });
+
+  test("returns null without a decision", () => {
+    expect(buildNoAuthorizationExplanation(undefined, makeReplayEvidence())).toBeNull();
+  });
+});
+
+describe("pilot metric presentation", () => {
+  test("renders cards from the server summary", () => {
+    const cards = buildPilotMetricCards(makeMetrics());
+    const map = Object.fromEntries(cards.map((card) => [card.label, card.value]));
+
+    expect(map["Canonical intents"]).toBe("3");
+    expect(map["Evaluation attempts"]).toBe("5");
+    expect(map["ALLOW"]).toBe("2");
+    expect(map["REVIEW"]).toBe("1");
+    expect(map["BLOCK"]).toBe("0");
+    expect(map["Replay attempts"]).toBe("2");
+    expect(map["Exact replays"]).toBe("1");
+    expect(map["Replay mismatches"]).toBe("1");
+    expect(map["Authorizations issued"]).toBe("3");
+    expect(map["p95 policy evaluation"]).toBe("1.5 ms");
+  });
+
+  test("null p95 renders as no observations", () => {
+    expect(formatPilotP95(null)).toBe("No observations yet");
+    expect(formatPilotP95(0.932)).toBe("0.932 ms");
+  });
+
+  test("coverage rows use zero denominators when no canonical intents exist", () => {
+    const rows = buildPilotCoverageRows(makeMetrics({ canonicalIntentCount: 0, evidenceCoverage: { intentFingerprintKnown: 0, policyFingerprintKnown: 0, policyVersionKnown: 0 } }));
+    const map = Object.fromEntries(rows);
+
+    expect(map["Intent fingerprints"]).toBe("0 / 0");
+    expect(map["Policy fingerprints"]).toBe("0 / 0");
+    expect(map["Policy versions"]).toBe("0 / 0");
+  });
+
+  test("coverage rows report known attribution and gap signals", () => {
+    const rows = buildPilotCoverageRows(makeMetrics());
+    const map = Object.fromEntries(rows);
+
+    expect(map["Intent fingerprints"]).toBe("3 / 3");
+    expect(map["Policy fingerprints"]).toBe("2 / 3");
+    expect(map["Policy versions"]).toBe("3 / 3");
+    expect(map["Policy-gap signals"]).toBe("1");
+  });
+
+  test("returns empty cards without metrics", () => {
+    expect(buildPilotMetricCards(null)).toEqual([]);
+    expect(buildPilotCoverageRows(null)).toEqual([]);
   });
 });

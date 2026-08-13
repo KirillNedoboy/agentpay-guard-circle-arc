@@ -5,6 +5,9 @@ import {
 } from "@/domain/citepay/source-selection";
 import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/citepay/types";
 import type { AuditRecord } from "@/domain/audit/types";
+import type { ReplayEvidence } from "@/domain/audit/replay-evidence";
+import type { ExecutionAuthorization } from "@/domain/authorization/execution-authorization";
+import type { PilotMetricsSummary } from "@/domain/observability/pilot-metrics";
 import { buildCircleRailPreview, mapScenarioToPaymentPurpose } from "@/domain/payment-intent/rail-preview";
 import type { CircleRailPreview, PaymentIntent, ProgrammablePaymentContext } from "@/domain/payment-intent/types";
 import { addDecimalStrings } from "@/lib/decimal";
@@ -307,4 +310,181 @@ export function buildAuditPreview(record: AuditRecord | undefined): StructuredAu
     railPreview,
     ...(record.programmablePaymentContext ? { programmablePaymentContext: record.programmablePaymentContext } : {})
   };
+}
+
+export type ReplayEvidenceView = {
+  label: string;
+  detail: string;
+  isWarning: boolean;
+};
+
+export function buildReplayEvidenceView(replayEvidence: ReplayEvidence | undefined | null): ReplayEvidenceView | null {
+  if (!replayEvidence) {
+    return null;
+  }
+  if (replayEvidence.replayed === false) {
+    return {
+      label: "First evaluation",
+      detail: "This intent was evaluated for the first time.",
+      isWarning: false
+    };
+  }
+  if (replayEvidence.replayMismatch === true) {
+    return {
+      label: "Replay mismatch",
+      detail: "The current request does not match the stored intent.",
+      isWarning: true
+    };
+  }
+  if (replayEvidence.policyChanged === true) {
+    return {
+      label: "Policy changed",
+      detail: "Stored evidence differs from the active policy.",
+      isWarning: true
+    };
+  }
+  if (replayEvidence.replayMismatch === null || replayEvidence.policyChanged === null) {
+    return {
+      label: "Legacy evidence",
+      detail: "Exact comparison unavailable.",
+      isWarning: false
+    };
+  }
+  return {
+    label: "Exact replay",
+    detail: "Same intent and same policy; stored evidence reused.",
+    isWarning: false
+  };
+}
+
+export type PolicyEvidenceRow = {
+  label: string;
+  display: string;
+  full: string | null;
+};
+
+export function shortenFingerprint(fingerprint: string | null | undefined): string {
+  if (!fingerprint) {
+    return "Unavailable / legacy evidence";
+  }
+  if (!fingerprint.startsWith("sha256:") || fingerprint.length <= 16) {
+    return fingerprint;
+  }
+  const prefix = "sha256:";
+  const hex = fingerprint.slice(prefix.length);
+  return `${prefix}${hex.slice(0, 8)}…${hex.slice(-4)}`;
+}
+
+export function buildPolicyEvidenceRows(
+  policyId: string | undefined,
+  policyVersion: string | null | undefined,
+  policyFingerprint: string | null | undefined
+): PolicyEvidenceRow[] {
+  return [
+    { label: "Policy ID", display: policyId ?? "Unavailable / legacy evidence", full: policyId ?? null },
+    { label: "Policy version", display: policyVersion ?? "Unavailable / legacy evidence", full: policyVersion ?? null },
+    {
+      label: "Policy fingerprint",
+      display: policyFingerprint ? shortenFingerprint(policyFingerprint) : "Unavailable / legacy evidence",
+      full: policyFingerprint ?? null
+    }
+  ];
+}
+
+export type AuthorizationRow = [label: string, value: string];
+
+export function buildExecutionAuthorizationRows(
+  authorization: ExecutionAuthorization | undefined | null
+): AuthorizationRow[] {
+  if (!authorization) {
+    return [];
+  }
+
+  return [
+    ["Authorization ID", authorization.authorizationId],
+    ["Scope", authorization.scope],
+    ["Agent", authorization.agentId],
+    ["Recipient", authorization.recipient],
+    ["Asset", authorization.asset],
+    ["Maximum amount", `${authorization.maxAmountUSDC} ${authorization.asset}`],
+    ["Policy version", authorization.policyVersion],
+    ["Issued at", authorization.issuedAt],
+    ["Expires at", authorization.expiresAt],
+    ["Execution scope", authorization.executionScope.join(", ")],
+    ["Execution status", authorization.executionStatus],
+    ["Funds moved", String(authorization.fundsMoved)]
+  ];
+}
+
+export type NoAuthorizationExplanation = {
+  message: string;
+  reason: "review-block" | "mismatch" | "policy-drift";
+};
+
+export function buildNoAuthorizationExplanation(
+  decision: string | undefined,
+  replayEvidence: ReplayEvidence | undefined | null
+): NoAuthorizationExplanation | null {
+  if (!decision) {
+    return null;
+  }
+  if (decision === "REVIEW" || decision === "BLOCK") {
+    return { message: "No Execution Authorization issued.", reason: "review-block" };
+  }
+  if (replayEvidence?.replayMismatch === true) {
+    return { message: "Authorization withheld: replay mismatch.", reason: "mismatch" };
+  }
+  if (replayEvidence?.policyChanged === true) {
+    return { message: "Authorization withheld: active policy differs from stored evidence.", reason: "policy-drift" };
+  }
+  return null;
+}
+
+export type PilotMetricCard = {
+  label: string;
+  value: string;
+};
+
+export function formatPilotP95(p95: number | null): string {
+  if (p95 === null) {
+    return "No observations yet";
+  }
+  return `${p95} ms`;
+}
+
+export function buildPilotMetricCards(metrics: PilotMetricsSummary | null): PilotMetricCard[] {
+  if (!metrics) {
+    return [];
+  }
+
+  return [
+    { label: "Canonical intents", value: String(metrics.canonicalIntentCount) },
+    { label: "Evaluation attempts", value: String(metrics.observedEvaluationAttemptCount) },
+    { label: "ALLOW", value: String(metrics.decisionCounts.ALLOW) },
+    { label: "REVIEW", value: String(metrics.decisionCounts.REVIEW) },
+    { label: "BLOCK", value: String(metrics.decisionCounts.BLOCK) },
+    { label: "Replay attempts", value: String(metrics.replayAttemptCount) },
+    { label: "Exact replays", value: String(metrics.exactReplayAttemptCount) },
+    { label: "Replay mismatches", value: String(metrics.replayMismatchAttemptCount) },
+    { label: "Policy drift observations", value: String(metrics.policyDriftAttemptCount) },
+    { label: "Authorizations issued", value: String(metrics.authorizationIssuedAttemptCount) },
+    { label: "p95 policy evaluation", value: formatPilotP95(metrics.p95PolicyEvaluationDurationMs) }
+  ];
+}
+
+export type PilotCoverageRow = [label: string, value: string];
+
+export function buildPilotCoverageRows(metrics: PilotMetricsSummary | null): PilotCoverageRow[] {
+  if (!metrics) {
+    return [];
+  }
+
+  const total = metrics.canonicalIntentCount;
+  const gapSignalCount = Object.values(metrics.policyGapSignals).reduce((sum, count) => sum + count, 0);
+  return [
+    ["Intent fingerprints", total === 0 ? "0 / 0" : `${metrics.evidenceCoverage.intentFingerprintKnown} / ${total}`],
+    ["Policy fingerprints", total === 0 ? "0 / 0" : `${metrics.evidenceCoverage.policyFingerprintKnown} / ${total}`],
+    ["Policy versions", total === 0 ? "0 / 0" : `${metrics.evidenceCoverage.policyVersionKnown} / ${total}`],
+    ["Policy-gap signals", String(gapSignalCount)]
+  ];
 }

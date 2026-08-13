@@ -2,7 +2,30 @@
 
 All PNG files are real captures from the local AgentPay Guard UI. They document policy decisions and proposal evidence only; none shows payment execution or a live protocol integration.
 
-The current reviewer path is CitePay first, then the proposed payment intent, Guard decision, receipt/audit evidence, and the future settlement boundary. The older generic captures remain preserved for compatibility.
+The current reviewer path is x402 first: the trusted `0.08 USDC` API intent is the primary judge flow, followed by the proposed intent, Guard decision, replay and policy evidence, Execution Authorization (when issued), receipt/audit evidence, and the future settlement boundary. CitePay remains a collapsed illustrative local source-selection flow. The older generic captures remain preserved for compatibility.
+
+## Grant evidence capture guidance (Phase 6)
+
+The Phase 6 UI surfaces grant evidence: exact replay evidence, policy attribution
+(Policy ID / version / fingerprint), the bounded ExecutionAuthorization, explicit
+not-executed states, and local pilot metrics. PNG captures for these states are
+pending capture from the live judge flow. Guidance for the planned captures:
+
+1. x402 ALLOW decision with policy evidence (decision, matched rules, reason codes,
+   policy ID, policy version, shortened policy fingerprint, "First evaluation").
+2. Exact replay evidence: "Exact replay" label, stored audit ID unchanged, same
+   execution authorization, and a one-record canonical audit context.
+3. Execution Authorization panel: scope `single_intent`, maximum amount equal to the
+   proposed `0.08 USDC`, execution scope `prepare + simulate only`,
+   `executionStatus: not_executed`, `fundsMoved: false`, and the safety line that
+   authorization does not sign, broadcast, submit, or settle a payment.
+4. REVIEW and BLOCK states with "No Execution Authorization issued." (no empty
+   authorization object).
+5. Local pilot evidence panel with the "Local/demo evidence only" qualifier, decision
+   counts, replay counters, p95 policy-evaluation duration, and evidence coverage.
+
+The live states above were verified in an automated browser session on 2026-08-13
+(see Phase 6 report); the PNG files themselves have not been committed yet.
 
 ## Legacy generic evidence
 

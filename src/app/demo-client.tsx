@@ -8,6 +8,9 @@ import {
 } from "@/domain/citepay/source-selection";
 import type { CitePaySelectedSource, CitePaySelectionResult } from "@/domain/citepay/types";
 import type { AuditRecord } from "@/domain/audit/types";
+import type { ReplayEvidence } from "@/domain/audit/replay-evidence";
+import type { ExecutionAuthorization } from "@/domain/authorization/execution-authorization";
+import type { PilotMetricsSummary } from "@/domain/observability/pilot-metrics";
 import { createX402JudgePreset } from "@/domain/payment-intent/judge-preset";
 import { buildAgentPayReceipt, type AgentPayReceipt } from "@/domain/payment-intent/receipt";
 import type { CircleRailPreview, PaymentIntent } from "@/domain/payment-intent/types";
@@ -16,12 +19,18 @@ import {
   buildAuditPreview,
   buildCctpRouteExplanation,
   buildDemoSummary,
+  buildExecutionAuthorizationRows,
+  buildNoAuthorizationExplanation,
+  buildPilotCoverageRows,
+  buildPilotMetricCards,
+  buildPolicyEvidenceRows,
   buildProposedIntentRows,
   buildProgrammableEvidenceRows,
   buildQuickCaseDefinitions,
   buildQuickCaseTransition,
   buildRailPreviewRows,
   buildReasonCodeRows,
+  buildReplayEvidenceView,
   buildSettlementBoundary,
   type QuickCaseDefinition
 } from "./demo-metrics";
@@ -40,11 +49,17 @@ type EvaluationResult = {
   matchedRules: string[];
   reasonCodes?: string[];
   policyId: string;
+  policyVersion: string | null;
+  policyFingerprint: string | null;
+  executionStatus: "not_executed";
   auditId: string | null;
   createdAt: string;
   executionMode?: CircleRailPreview["executionMode"];
   railPreview?: CircleRailPreview;
   spendControls?: SpendControls;
+  executionAuthorization?: ExecutionAuthorization;
+  replayEvidence?: ReplayEvidence;
+  pilotObservability?: { observationRecorded: boolean };
 };
 
 type FieldName =
@@ -97,6 +112,29 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
   const [citePayIsSubmitting, setCitePayIsSubmitting] = useState(false);
   const [citePayError, setCitePayError] = useState<string | null>(null);
   const [activeQuickCaseId, setActiveQuickCaseId] = useState<QuickCaseDefinition["id"] | null>(null);
+  const [pilotMetrics, setPilotMetrics] = useState<PilotMetricsSummary | null>(null);
+  const [metricsUnavailable, setMetricsUnavailable] = useState(false);
+  const [lastEvaluatedIntent, setLastEvaluatedIntent] = useState<PaymentIntent | null>(null);
+  const [isReplaying, setIsReplaying] = useState(false);
+
+  function cloneIntent(intent: PaymentIntent): PaymentIntent {
+    return {
+      ...intent,
+      ...(intent.routeContext ? { routeContext: { ...intent.routeContext } } : {})
+    };
+  }
+
+  async function refreshPilotMetrics() {
+    try {
+      const response = await fetch("/api/pilot-metrics", { cache: "no-store" });
+      const data = (await response.json()) as { metrics: PilotMetricsSummary };
+      setPilotMetrics(data.metrics);
+      setMetricsUnavailable(false);
+    } catch {
+      setPilotMetrics(null);
+      setMetricsUnavailable(true);
+    }
+  }
 
   useEffect(() => {
     setForm(selectedScenario.intent);
@@ -115,6 +153,7 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
 
   useEffect(() => {
     void refreshAuditLog();
+    void refreshPilotMetrics();
   }, []);
 
   function selectReceipt(auditId: string | null) {
@@ -134,17 +173,39 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
       });
       const data = (await response.json()) as EvaluationResult;
       setResult(data);
+      if (response.ok) {
+        setLastEvaluatedIntent(cloneIntent(intent));
+      }
       selectReceipt(data.auditId);
       if (!response.ok) {
         setError(data.reason);
       }
       await refreshAuditLog();
+      if (response.ok) {
+        await refreshPilotMetrics();
+      }
       return data;
     } catch {
       setError("Evaluation request failed locally.");
       return null;
     } finally {
       setIsSubmitting(false);
+    }
+  }
+
+  async function replayExactIntent() {
+    if (!lastEvaluatedIntent) {
+      return;
+    }
+    setIsReplaying(true);
+    try {
+      const evaluation = await evaluateIntent(cloneIntent(lastEvaluatedIntent));
+      if (evaluation) {
+        setJudgeResult(evaluation);
+        scrollToId("evidence");
+      }
+    } finally {
+      setIsReplaying(false);
     }
   }
 
@@ -387,6 +448,85 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
     ));
   }
 
+  function renderGrantEvidence(result: EvaluationResult | null) {
+    if (!result?.replayEvidence) {
+      return null;
+    }
+
+    const replayView = buildReplayEvidenceView(result.replayEvidence);
+    const policyRows = buildPolicyEvidenceRows(result.policyId, result.policyVersion, result.policyFingerprint);
+    const authorizationRows = buildExecutionAuthorizationRows(result.executionAuthorization);
+    const noAuthExplanation = buildNoAuthorizationExplanation(result.decision, result.replayEvidence);
+
+    return (
+      <section className="grant-evidence" aria-label="Replay, policy, and authorization evidence">
+        {replayView ? (
+          <div className={`replay-evidence-block ${replayView.isWarning ? "warning" : ""}`}>
+            <strong>{replayView.label}</strong>
+            <span>{replayView.detail}</span>
+            {result.replayEvidence.replayed ? (
+              <span className="muted-copy">Stored audit ID: {result.auditId ?? "not written"}</span>
+            ) : null}
+          </div>
+        ) : null}
+
+        <article className="panel policy-attribution-panel">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Policy attribution</p>
+              <h3>Active policy evidence</h3>
+            </div>
+          </div>
+          <dl className="policy-evidence-grid">
+            {policyRows.map((row) => (
+              <div key={row.label}>
+                <dt>{row.label}</dt>
+                <dd
+                  aria-label={row.full ? `${row.label}: ${row.full}` : row.display}
+                  className="mono-text"
+                  title={row.full ?? undefined}
+                >
+                  {row.display}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </article>
+
+        {authorizationRows.length ? (
+          <article className="panel authorization-panel">
+            <div className="section-heading">
+              <div>
+                <p className="eyebrow">Future-adapter evidence</p>
+                <h3>Execution Authorization</h3>
+              </div>
+              <span className="execution-chip mock_preview">prepare + simulate only</span>
+            </div>
+            <dl className="authorization-grid">
+              {authorizationRows.map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd className={label === "Authorization ID" || label === "Agent" || label === "Recipient" ? "mono-text" : ""}>{value}</dd>
+                </div>
+              ))}
+            </dl>
+            <p className="authorization-safety-line">Authorization is bounded evidence for a future adapter. It does not sign, broadcast, submit, or settle a payment.</p>
+          </article>
+        ) : noAuthExplanation ? (
+          <p className={`no-authorization-status ${noAuthExplanation.reason}`}>{noAuthExplanation.message}</p>
+        ) : null}
+
+        <p className="observability-status">
+          {result.pilotObservability
+            ? result.pilotObservability.observationRecorded
+              ? "Observation recorded"
+              : "Policy evidence persisted; secondary observation was not recorded."
+            : "Observability status unavailable for this response."}
+        </p>
+      </section>
+    );
+  }
+
   return (
     <main className="shell">
       <header className="topbar" aria-label="Demo status">
@@ -505,6 +645,12 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
                   <span>{judgeReceipt?.arcTestnetSimulation ? "Arc Testnet local simulation: broadcast false, not executed" : "no signing, broadcast, or funds moved"}</span>
                 </div>
                 <button onClick={() => scrollToId("evidence")} type="button">View receipt</button>
+              </div>
+              <div className="x402-replay-row">
+                <button className="secondary-action" disabled={isSubmitting || isReplaying} onClick={() => void replayExactIntent()} type="button">
+                  {isReplaying ? "Replaying exact intent..." : "Replay exact intent"}
+                </button>
+                <span className="muted-copy">Re-submits the exact evaluated intent with the same idempotency key to prove idempotent evidence reuse.</span>
               </div>
             </>
           ) : (
@@ -863,6 +1009,8 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
           </dl>
         </article>
 
+        {renderGrantEvidence(primaryResult)}
+
         <article className="panel receipt-panel" aria-label="AgentPay Receipt">
           <div className="section-heading receipt-heading">
             <div>
@@ -1033,6 +1181,44 @@ export default function DemoClient({ scenarios }: { scenarios: Scenario[] }) {
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="pilot-evidence-panel" aria-label="Local pilot evidence">
+          <div className="section-heading">
+            <div>
+              <p className="eyebrow">Local evaluation evidence</p>
+              <h3>Local pilot evidence</h3>
+              <p className="section-subtitle">Local/demo evidence only — not partner traction or production usage.</p>
+            </div>
+            <button onClick={() => void refreshPilotMetrics()} type="button">
+              Refresh
+            </button>
+          </div>
+          {metricsUnavailable ? (
+            <p className="muted-copy">Local metrics unavailable.</p>
+          ) : pilotMetrics ? (
+            <>
+              <div className="pilot-metric-cards">
+                {buildPilotMetricCards(pilotMetrics).map((card) => (
+                  <div className="pilot-metric-card" key={card.label}>
+                    <span>{card.label}</span>
+                    <strong>{card.value}</strong>
+                  </div>
+                ))}
+              </div>
+              <dl className="pilot-coverage-grid">
+                {buildPilotCoverageRows(pilotMetrics).map(([label, value]) => (
+                  <div key={label}>
+                    <dt>{label}</dt>
+                    <dd className="mono-text">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="muted-copy">No funds move. All evidence is local and deterministic.</p>
+            </>
+          ) : (
+            <p className="muted-copy">Loading local metrics…</p>
+          )}
         </section>
       </section>
 

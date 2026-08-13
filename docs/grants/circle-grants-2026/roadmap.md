@@ -1,6 +1,6 @@
 # Circle Grants 2026 — Roadmap
 
-Phases 0, 1, 2, 3, 4, and 5 are complete on this branch. Phases 6–9 are NOT yet
+Phases 0, 1, 2, 3, 4, 5, and 6 are complete on this branch. Phases 7–9 are NOT yet
 implemented. Each phase lists objective, main deliverable, dependencies, and
 Definition of Done. This roadmap is planning documentation only; no future phase is
 implemented here.
@@ -148,13 +148,35 @@ implemented here.
   historical audit log untouched. See
   [pilot-observability.md](./pilot-observability.md).
 
-## Phase 6 — Judge-first UI delta (NOT IMPLEMENTED)
+## Phase 6 — Judge-first UI delta (IMPLEMENTED — 2026-08-13)
 
 - Objective: surface grant evidence in the existing judge-first demo without scope creep.
 - Main deliverable: UI presentation of the Phase 1–5 evidence additions.
 - Dependencies: Phases 1, 4, 5.
 - Definition of Done: reviewer path shows typed evidence and replay status; no policy
   or execution behavior changes.
+- Evidence (commit `feat: surface grant evidence in judge UI`): presentation-only
+  changes under `src/app/` — client result type now models the real API
+  (policyVersion, policyFingerprint, executionStatus, ExecutionAuthorization,
+  ReplayEvidence, pilotObservability) via imported domain types; "Replay exact
+  intent" action re-submitting an immutable snapshot of the last successfully
+  evaluated intent (same idempotency key), disabled until evidence exists and while
+  evaluation runs; Replay Evidence block (First evaluation / Exact replay / Replay
+  mismatch / Policy changed / Legacy evidence); policy attribution panel (ID,
+  version, fingerprint — deterministically shortened for display with full value in
+  title/aria); Execution Authorization panel (scope single_intent, max amount =
+  proposed amount, prepare + simulate only, not_executed, fundsMoved false, safety
+  line) and explicit no-authorization states for REVIEW/BLOCK/mismatch/drift;
+  observability status ("Observation recorded" / not recorded); local pilot evidence
+  panel (canonical intents, attempts, decision counts, replay counters, p95 with
+  sub-millisecond precision, gap signals, evidence coverage) with
+  "Local/demo evidence only" qualifier and honest failure state; responsive at 1440
+  and 390 px (no horizontal overflow, cards stack, hashes wrap); `page.tsx` and
+  `src/domain/` untouched. Validation: 248 tests / 19 files passing (was 227 / 19),
+  lint, typecheck, build, `git diff --check` all green; live judge-flow smoke via
+  production server + automated browser (ALLOW → First evaluation + authorization;
+  replay ×3 → same auditId, same deterministic authorizationId, one canonical
+  record; REVIEW/BLOCK → no authorization; metrics reflect the API).
 
 ## Phase 7 — Threat-model verification (NOT IMPLEMENTED)
 
