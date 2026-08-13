@@ -1,8 +1,9 @@
 # Circle Grants 2026 — Roadmap
 
-Phases 0, 1, 2, and 3 are complete on this branch. Phases 4–9 are NOT yet implemented.
-Each phase lists objective, main deliverable, dependencies, and Definition of Done.
-This roadmap is planning documentation only; no future phase is implemented here.
+Phases 0, 1, 2, 3, and 4 are complete on this branch. Phases 5–9 are NOT yet
+implemented. Each phase lists objective, main deliverable, dependencies, and
+Definition of Done. This roadmap is planning documentation only; no future phase is
+implemented here.
 
 ## Phase 0 — Grant isolation and source of truth (IMPLEMENTED)
 
@@ -95,12 +96,30 @@ This roadmap is planning documentation only; no future phase is implemented here
   180 / 15), lint, typecheck, build, `git diff --check` all green; policy config,
   dependencies, and historical audit log untouched.
 
-## Phase 4 — Canonical ALLOW / REVIEW / BLOCK / REPLAY scenarios (NOT IMPLEMENTED)
+## Phase 4 — Canonical ALLOW / REVIEW / BLOCK / REPLAY scenarios (IMPLEMENTED — 2026-08-13)
 
 - Objective: fixture-and-test canon for every decision class plus replay.
 - Main deliverable: canonical scenario set covering ALLOW, REVIEW, BLOCK, and REPLAY.
 - Dependencies: Phase 3.
 - Definition of Done: scenarios are deterministic, documented, and green in CI.
+- Evidence (commit `test: add canonical grant scenarios`): canonical decision set is
+  the existing generic fixtures — ALLOW `examples/scenario-allow-api.json`, REVIEW
+  `examples/scenario-review-machine.json`, BLOCK `examples/scenario-block-risky.json`
+  (CCTP/ERC-20/Paymaster remain compatibility/evidence scenarios, not canonical);
+  replay descriptor `examples/scenario-replay.json` (metadata only — never a
+  PaymentIntent) referencing the ALLOW fixture; end-to-end proof in
+  `tests/canonical-grant-scenarios.test.ts` through `evaluatePaymentIntent` with
+  isolated temp audit files: ALLOW issues a single-intent authorization
+  (maxAmountUSDC = proposed amount, `["prepare","simulate"]`, `not_executed`,
+  `fundsMoved: false`), REVIEW and BLOCK produce no authorization with stable reason
+  codes (`RECIPIENT_REVIEW_REQUIRED`, `RECIPIENT_BLOCKED`), REPLAY runs the same
+  validated intent twice and preserves `auditId`, `authorizationId`, and exactly one
+  JSONL line; canonical fixtures also explicitly evaluated at policy-engine level in
+  `tests/scenario-fixtures.test.ts` plus descriptor consistency check. No source,
+  policy, or UI changes. Validation: 212 tests / 17 files passing (was 204 / 16),
+  lint, typecheck, build, `git diff --check` all green; `src/`, policy config,
+  dependencies, and historical audit log untouched. See
+  [canonical-scenarios.md](./canonical-scenarios.md).
 
 ## Phase 5 — Minimal pilot observability (NOT IMPLEMENTED)
 

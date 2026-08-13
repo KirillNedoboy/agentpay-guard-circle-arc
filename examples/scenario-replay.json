@@ -1,0 +1,9 @@
+{
+  "scenarioType": "replay",
+  "replayOf": "scenario-allow-api.json",
+  "expectedDecision": "ALLOW",
+  "expectedReplay": true,
+  "expectedReplayMismatch": false,
+  "expectedPolicyChanged": false,
+  "expectedAuthorization": true
+}

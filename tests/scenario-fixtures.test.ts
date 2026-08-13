@@ -48,4 +48,41 @@ describe("programmable payment demo fixtures", () => {
     expect(result.decision).toBe(expectedDecision);
     expect(JSON.stringify(fixture.intent)).not.toMatch(/transactionHash|txHash|signature|privateKey|settlement/i);
   });
+
+  const canonicalFixtures = [
+    ["scenario-allow-api.json", "ALLOW"],
+    ["scenario-review-machine.json", "REVIEW"],
+    ["scenario-block-risky.json", "BLOCK"]
+  ] as const;
+
+  test.each(canonicalFixtures)("canonical scenario %s evaluates to %s", (fileName, expectedDecision) => {
+    const fixture = loadFixture(fileName);
+    const result = evaluatePolicy(fixture.intent, policy, []);
+
+    expect(fixture.expectedDecision).toBe(expectedDecision);
+    expect(result.decision).toBe(expectedDecision);
+    expect(JSON.stringify(fixture.intent)).not.toMatch(/transactionHash|txHash|signature|privateKey|seedPhrase|settled|settlementStatus|confirmed/i);
+  });
+
+  test("the replay descriptor references an existing ALLOW fixture consistently", () => {
+    const descriptor = JSON.parse(readFileSync(join(examplesPath, "scenario-replay.json"), "utf8")) as {
+      scenarioType: string;
+      replayOf: string;
+      expectedDecision: string;
+      expectedReplay: boolean;
+      expectedReplayMismatch: boolean;
+      expectedPolicyChanged: boolean;
+      expectedAuthorization: boolean;
+    };
+
+    expect(descriptor.scenarioType).toBe("replay");
+    expect(descriptor.expectedDecision).toBe("ALLOW");
+    expect(descriptor.expectedReplay).toBe(true);
+    expect(descriptor.expectedReplayMismatch).toBe(false);
+    expect(descriptor.expectedPolicyChanged).toBe(false);
+    expect(descriptor.expectedAuthorization).toBe(true);
+
+    const referenced = loadFixture(descriptor.replayOf);
+    expect(referenced.expectedDecision).toBe("ALLOW");
+  });
 });

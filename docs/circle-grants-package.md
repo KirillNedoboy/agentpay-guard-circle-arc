@@ -109,6 +109,21 @@ baseline (`eb28fe7973cdd3d770de155556c23ee214c6ef33`):
   build, and `git diff --check` all passing; `data/policies.default.json`
   (`policyVersion: "2"`, unchanged), `package.json`, `pnpm-lock.yaml`, and
   historical `data/audit-log.jsonl` byte-identical.
+- Phase 4 canonical scenario set (commit `test: add canonical grant scenarios`):
+  canonical ALLOW / REVIEW / BLOCK decision fixtures
+  (`examples/scenario-allow-api.json`, `scenario-review-machine.json`,
+  `scenario-block-risky.json`) explicitly evaluated at policy-engine level and
+  end-to-end through `evaluatePaymentIntent`; canonical deterministic REPLAY proof —
+  the same validated intent evaluated twice on an isolated temp audit log yields the
+  same `auditId`, the same deterministic `authorizationId`, `replayed: true` with no
+  mismatch or policy change, exactly one JSONL record, and `not_executed` /
+  `fundsMoved: false` throughout; replay descriptor
+  `examples/scenario-replay.json` is metadata only and never a payment intent.
+  Documented in
+  [canonical-scenarios.md](../docs/grants/circle-grants-2026/canonical-scenarios.md).
+  These are deterministic product evidence fixtures, not pilot usage. Validation
+  after Phase 4: 17 test files / 212 tests, lint, typecheck, build, and
+  `git diff --check` all passing; no source, policy, or UI changes.
 
 ## 3. PROPOSED
 
