@@ -46,8 +46,9 @@ From the VERIFIED list in [`docs/circle-grants-package.md`](../../circle-grants-
 
 Capabilities added after the stable main baseline `eb28fe7…` on branch
 `grant/circle-grants-pilot-2026` (Phases 1–7; commit range 46cfbab…068c579). The
-per-phase evidence records live in the [canonical package](../../../circle-grants-package.md);
-a compiled evidence index is planned in [evidence.md](./evidence.md).
+per-phase evidence records live in the [canonical package](../../circle-grants-package.md);
+a compiled evidence index is assembled in [evidence.md](./evidence.md) (Phase 8,
+commit `09b400f`).
 
 - ExecutionAuthorization envelope (Phase 2, commit b3aa97e) — typed, deterministic,
   ALLOW-only authorization boundary between policy decision and any future adapter

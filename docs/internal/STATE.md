@@ -6,21 +6,29 @@ AgentPay Guard is a deterministic policy-and-evidence control plane before auton
 
 ## Current phase
 
-`GRANT_TRACK_PHASE_8` — Circle Grants evidence package (grant/circle-grants-pilot-2026).
+`GRANT_TRACK_INTEGRATION_FEASIBILITY_GATE` — Circle/Arc integration feasibility gate
+(grant/circle-grants-pilot-2026). Phases 0–8 are complete; Phase 9 is deferred. The
+integration feasibility gate decision is recorded (GO WITH BLOCKERS —
+docs/grants/circle-grants-2026/integration-feasibility.md); no integration
+implementation has started.
 
 ## Current grant-track facts
 
 - Stable main base: `eb28fe7973cdd3d770de155556c23ee214c6ef33` (merge of PR #3,
   integration/ignyte-circle-arc-preview). `main` does NOT contain the grant-branch
-  Phase 1–7 work.
-- Current grant development branch: `grant/circle-grants-pilot-2026`.
-- Phases 0–7 complete on the grant branch (commit range 46cfbab…068c579): typed
+  Phase 1–8 work.
+- Current grant development branch: `grant/circle-grants-pilot-2026`; HEAD baseline
+  `09b400f` (commit `docs: assemble Circle Grants evidence package`).
+- Phases 0–8 complete on the grant branch (commit range 46cfbab…09b400f): typed
   policy evidence, ExecutionAuthorization envelope, replay and policy-drift
   evidence, canonical grant scenarios, pilot observability, judge-first evidence
-  UI, and threat-model verification (internal engineering verification, not an
-  external audit).
-- Phase 8 = grant evidence package (docs reconciliation; evidence.md, submission.md,
-  pilot-plan.md, demo-script.md). Phase 9 = fresh-clone / release readiness next.
+  UI, threat-model verification (internal engineering verification, not an
+  external audit), and the grant evidence package.
+- Phase 9 (fresh-clone / release readiness) is intentionally DEFERRED pending the
+  integration decision; it is NOT in progress.
+- Current task: Circle/Arc integration feasibility gate — determine whether a
+  bounded real Circle Gateway/x402 → Arc Testnet integration can be implemented
+  without violating the documented execution-security boundary.
 - External deployment and video work remain manual actions, NOT YET VALIDATED (see
   TASKS.md).
 

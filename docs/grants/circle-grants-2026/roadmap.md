@@ -234,6 +234,28 @@ implemented here.
   2026-08-14); lint, typecheck, and build green; docs-only phase — `src/`, `data/`,
   and `package.json` untouched.
 
+## Pre-Phase-9 Integration Feasibility Gate
+
+Status at the START of this task: IN PROGRESS. Current status: DECISION RECORDED — GO WITH BLOCKERS (see integration-feasibility.md).
+
+Purpose:
+determine whether a bounded real Circle Gateway/x402 → Arc Testnet integration can be implemented without violating the documented execution-security boundary.
+
+Phase 9 remains:
+NOT IMPLEMENTED
+
+and:
+DEFERRED until this gate produces a decision.
+
+After the research in this task is complete, this gate may become:
+DECISION RECORDED — GO
+
+or:
+
+DECISION RECORDED — NO-GO
+
+This gate is not a numbered engineering phase.
+
 ## Phase 9 — Fresh-clone / release readiness (NOT IMPLEMENTED)
 
 - Objective: a new clone can reproduce every claim.

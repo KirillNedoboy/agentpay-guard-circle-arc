@@ -6,7 +6,7 @@
 - Repository: https://github.com/KirillNedoboy/agentpay-guard-circle-arc
 - Stable product base: `main` @ `eb28fe7973cdd3d770de155556c23ee214c6ef33` (merge of PR #3, integration/ignyte-circle-arc-preview)
 - Grant development branch: `grant/circle-grants-pilot-2026` (grant development track; no PR opened)
-- Phase 7 evidence checkpoint: `068c579848f204bfcaf5b67d148ad5d772f4f415`
+- Phase 8 evidence checkpoint: `09b400fbc5919aff13ce27c2d6ceb685916c80ec`
 - Date: 2026-08-14
 
 This package describes a proposed pre-pilot infrastructure grant: a deterministic
@@ -35,12 +35,12 @@ Canonical product documentation (linked, not duplicated):
 
 Facts below are directly supported by the current code, tests, and assets on the
 grant development branch (`grant/circle-grants-pilot-2026`), evidence checkpoint
-`068c579848f204bfcaf5b67d148ad5d772f4f415`.
+`09b400fbc5919aff13ce27c2d6ceb685916c80ec`.
 
-### Current grant-track state (2026-08-14)
+### Current grant-track state (2026-08-16)
 
-- Phases 0–7 implemented on `grant/circle-grants-pilot-2026`; Phase 7 evidence
-  checkpoint `068c579…`.
+- Phases 0–8 implemented on `grant/circle-grants-pilot-2026`; Phase 8 evidence
+  checkpoint `09b400f…`.
 - Latest test baseline: 20 test files / 270 tests, all passing (verified run
   2026-08-14; lint, typecheck, and build also pass).
 - Active `policyVersion`: `"2"` (`data/policies.default.json`; `policyId`
@@ -51,6 +51,10 @@ grant development branch (`grant/circle-grants-pilot-2026`), evidence checkpoint
 - Pilot observability state: Phase 5 — local evaluation-observation log and
   `PilotMetricsSummary` (p95 policy-evaluation latency, replay counters,
   policy-gap signals, evidence coverage).
+- Phase 9 (fresh-clone / release readiness) is intentionally DEFERRED pending the
+  Circle/Arc integration feasibility decision; it is NOT in progress. No real
+  Circle/Gateway/x402/Arc settlement is implemented and no testnet funds movement
+  occurs.
 - The per-phase records below are VALID-HISTORICAL evidence and are kept as
   recorded; the current-state lines above are the authoritative summary.
 
@@ -73,7 +77,8 @@ grant development branch (`grant/circle-grants-pilot-2026`), evidence checkpoint
   deterministic local rules ([integration status](../docs/integration-status.md)).
 - x402-style judge preset: trusted `0.08 USDC` API micropayment intent
   ([`src/domain/payment-intent/judge-preset.ts`](../src/domain/payment-intent/judge-preset.ts)).
-- CI workflow runs test, lint, typecheck, and build on push to `main` and pull requests
+- CI workflow runs test, lint, typecheck, and build on push to `main` and
+  `grant/circle-grants-pilot-2026`, and on pull requests targeting `main`
   (`.github/workflows/ci.yml`).
 - Deterministic fixtures under `examples/` (CCTP, ERC-20, Paymaster, x402, machine,
   risky-block scenarios). Test suite on this branch: 19 files / 248 tests + 22 new

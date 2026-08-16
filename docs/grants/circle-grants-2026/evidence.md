@@ -2,7 +2,7 @@
 
 This file is the reviewer-readable proof index for the Circle Grants pilot track on
 branch `grant/circle-grants-pilot-2026`. It collects the internal engineering
-evidence produced by Phases 1–7 of that branch: deterministic policy decisions,
+evidence produced by Phases 1–8 of that branch: deterministic policy decisions,
 fingerprint-based attribution, replay and policy-drift evidence, a bounded
 ExecutionAuthorization envelope, local pilot observability, judge-first UI
 presentation, and a documented engineering threat model. This is **internal
@@ -37,14 +37,14 @@ not traction), **NOT YET VALIDATED** (external, unverified), **NOT IMPLEMENTED**
 | Judge-first UI evidence (replay evidence, authorization panel, policy attribution, local pilot metrics) | VERIFIED | [`src/app/demo-client.tsx`](../../../src/app/demo-client.tsx), [`src/app/page.tsx`](../../../src/app/page.tsx); Phase 6 commit `feat: surface grant evidence in judge UI` | Presentation of server-persisted records; not independent server attestation. |
 | Threat-model verification (21 threat classes: T01–T15 + ADD-1..ADD-6, each with control, status, verification, residual risk) | VERIFIED | [threat-model.md](./threat-model.md); Phase 7 commit `test: verify payment security boundaries` | **Internal engineering threat-model verification**, NOT an independent external security audit; no "production secure" claim. |
 | Security regression suite (22 tests covering replay substitution, binding, drift, legacy, scope, limits, tamper, concurrency, junk input) | VERIFIED | [`tests/security-boundaries.test.ts`](../../../tests/security-boundaries.test.ts); Phase 7 commit | Documents residual risks (expiry metadata-only, no tamper-evidence, self-asserted identity) as well as mitigations. |
-| CI and full test suite | VERIFIED | [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml); 20 test files / 270 tests, all passing (re-verified 2026-08-14 on this branch); lint, typecheck, build, `git diff --check` green | CI runs on push to `main` and pull requests; suite reflects the grant branch at checkpoint `068c579`. |
+| CI and full test suite | VERIFIED | [`.github/workflows/ci.yml`](../../../.github/workflows/ci.yml); 20 test files / 270 tests, all passing (re-verified 2026-08-14 on this branch); lint, typecheck, build, `git diff --check` green | CI runs on push to `main` and `grant/circle-grants-pilot-2026`, and on pull requests targeting `main`; suite reflects the grant branch at checkpoint `09b400f`. |
 
 ## Phase implementation ledger
 
 Verified commit ledger for the grant track, in order, on branch
 `grant/circle-grants-pilot-2026` (stable main base:
 `eb28fe7973cdd3d770de155556c23ee214c6ef33` — merge of PR #3
-`integration/ignyte-circle-arc-preview`). Phases 0–7 are on the grant branch only,
+`integration/ignyte-circle-arc-preview`). Phases 0–8 are on the grant branch only,
 NOT on `main`.
 
 | Phase | Commit | Subject |
@@ -57,11 +57,9 @@ NOT on `main`.
 | 5 | `25630d4` | feat: add minimal pilot observability |
 | 6 | `65d9ef8` | feat: surface grant evidence in judge UI |
 | 7 | `068c579` | test: verify payment security boundaries |
+| 8 | `09b400f` | docs: assemble Circle Grants evidence package |
 
-This ledger is current through the Phase 7 checkpoint `068c579`. Phase 8 (the
-evidence-package assembly documented in [roadmap.md](./roadmap.md)) must not
-reference its own future commit hash; this file will be updated when a Phase 8
-commit exists.
+This ledger is current through the Phase 8 checkpoint `09b400f`.
 
 ## Evidence status matrix
 
