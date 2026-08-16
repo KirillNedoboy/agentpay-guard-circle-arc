@@ -726,7 +726,46 @@ No Gateway integration, no Arc settlement, and no x402 payment are implemented.
   after I3: 23 test files / 494 tests, all passing (baseline 22 / 445; +1
   file, +49 tests — `tests/x402-execution-store.test.ts` 47 tests +
   `tests/paths.test.ts` +2).
-- **I4 — External Signer Adapter: NOT IMPLEMENTED.**
+- **I4 — External Signer Adapter: IMPLEMENTED** (local, offline external EOA
+  signer boundary; real local EIP-3009 signature; verified cryptographically;
+  **no Gateway / no network / no settlement / no funds moved**). I4 builds a
+  strict non-secret `X402Eip3009SigningRequest` from prepared-record evidence +
+  trusted payer + explicit `now` (`signingRequestDigest = sha256:<64 hex>`),
+  passes it to a bounded `X402ExternalSigner` interface implemented by the
+  offline reference signer `scripts/x402-external-signer.mjs` (key from its own
+  `AGENTPAY_X402_SIGNER_PRIVATE_KEY` env, never in the repo / `.env.example` /
+  `src/`; derives account, verifies address == `request.payerAddress`, signs
+  exactly the supplied EIP-712 typed data, no network, never prints the key),
+  strictly verifies the response shape, `signingRequestDigest` equality,
+  signature encoding, and the signature cryptographically (viem
+  `recoverTypedDataAddress`) against the exact locally constructed typed data
+  with recovered address == trusted `X402PayerBinding.payerAddress` (wrong
+  signer / tampered fields rejected with stable `X402_SIGNER_*` reason codes),
+  builds a transient x402 v2 `PaymentPayload`, and commits its
+  `signerPayloadDigest = sha256:<64 hex>` (includes the signature) via the I3
+  `markX402ExecutionSubmitted({ nonce, signerPayloadDigest, occurredAt })`
+  transition — "submitted" is a lifecycle label, NOT a Gateway acceptance
+  claim. Guard expiry rechecked (`now < prepared.authorizationExpiresAt`
+  strictly) immediately before the signer call; Guard expiry and EIP-3009
+  `validBefore` remain separate controls. Confirmed EIP-712 facts (re-verified
+  from the official `@circle-fin/x402-batching` SDK v3.3.0): primary type
+  `TransferWithAuthorization`; domain `{ name: "GatewayWalletBatched",
+  version: "1", chainId, verifyingContract }` — **the domain DOES include
+  `chainId`** (an addition to the pinned feasibility record S17);
+  `validAfter = now − 600 s`, `validBefore = now +
+  max(maxTimeoutSeconds, 604900)` (604900 = 7 days + 100 s buffer); EOA-only
+  (ecrecover, no ERC-1271). Artifacts:
+  `src/domain/x402/eip3009-signing-request.ts`,
+  `src/domain/x402/external-signer.ts`,
+  `src/domain/x402/sign-prepared-x402-execution.ts` (orchestrator
+  `signPreparedX402Execution`),
+  `scripts/x402-external-signer.mjs`,
+  `tests/x402-external-signer.test.ts` (63 tests),
+  `tests/x402-external-signer-cli.test.ts` (6 tests), the `viem` dependency
+  (`^2.55.16`), and the record
+  `docs/grants/circle-grants-2026/x402-external-signer.md`. Full suite after
+  I4: 25 test files / 563 tests, all passing (baseline 22 / 445; +3 files —
+  `tests/x402-external-signer.test.ts` 63 + `tests/x402-external-signer-cli.test.ts` 6 + other I4-adjacent additions — verified by the implementation worker).
 - **I5 — Settlement Evidence: NOT IMPLEMENTED.**
 - **I6 — Positive + Negative Proof: NOT IMPLEMENTED.**
 

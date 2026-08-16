@@ -264,7 +264,11 @@ This gate is not a numbered engineering phase.
   signer/network/settlement; see
   `x402-execution-security-gate.md`); I3 implemented (local, durable,
   restart-safe execution-state store — no signer/network/settlement; see
-  `x402-execution-store.md`); I4–I6 not implemented
+  `x402-execution-store.md`); I4 implemented (offline external EOA signer
+  boundary — real local EIP-712 signature, cryptographic verification,
+  transient signed payload digest committed via the I3 submitted transition;
+  **no Gateway / no network / no settlement / no funds moved**; see
+  `x402-external-signer.md`); I5–I6 not implemented
 - Phase 9: still deferred
 
 ## Phase 9 — Fresh-clone / release readiness (NOT IMPLEMENTED)

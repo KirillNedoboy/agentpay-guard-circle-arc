@@ -286,6 +286,42 @@ both implementation and test evidence.
 > pre-broadcast threat-model re-review. The 14-precondition gate is **not**
 > complete.
 
+> I4 note (2026-08-16): the offline external EOA signer boundary now exists as
+> an I4 artifact
+> (`src/domain/x402/eip3009-signing-request.ts`,
+> `src/domain/x402/external-signer.ts`,
+> `src/domain/x402/sign-prepared-x402-execution.ts` (orchestrator
+> `signPreparedX402Execution`),
+> `scripts/x402-external-signer.mjs`,
+> `tests/x402-external-signer.test.ts`,
+> `tests/x402-external-signer-cli.test.ts`, the `viem` dependency, and the
+> record `docs/grants/circle-grants-2026/x402-external-signer.md`). I4 creates
+> a **real cryptographic EIP-3009 signature locally** via a bounded external
+> EOA signer boundary, verifies it cryptographically, builds a transient x402
+> v2 `PaymentPayload`, and commits its digest via the I3 `prepared → submitted`
+> transition. Marked **IMPLEMENTED LOCALLY for the I4 reference boundary**:
+> external signer/key isolation (key only in `scripts/x402-external-signer.mjs`
+> from its own `AGENTPAY_X402_SIGNER_PRIVATE_KEY` env, never in `src/` /
+> `.env.example` / repo / execution store / audit logs; Guard core knows only
+> the `X402ExternalSigner` interface); signature-field integrity verification
+> (strict response shape, `signingRequestDigest` equality, signature encoding,
+> viem `recoverTypedDataAddress` against the exact locally constructed typed
+> data); payer EOA verification (recovered address == trusted
+> `X402PayerBinding.payerAddress`; wrong signer / tampered fields rejected with
+> stable `X402_SIGNER_*` reason codes). Confirmed EIP-712 facts: primary type
+> `TransferWithAuthorization`; domain includes `chainId`; `validBefore = now +
+> max(maxTimeoutSeconds, 604900)` (7 days + 100 s buffer).
+> I4 is **offline / non-network** — zero Gateway, RPC, HTTP payment, balance,
+> faucet, or broadcast calls; it does NOT submit the signature anywhere, does
+> NOT prove payment, and does NOT move funds. **I4 does NOT complete the gate**:
+> real Gateway submission, Gateway nonce enforcement in a real call,
+> SettlementEvidence, executed-spend reconciliation, production authenticated
+> agent identity, the pre-broadcast security re-review, and full testnet
+> positive proof remain unchecked and unimplemented (I5/I6). I4 claims **no**
+> universal custody solution, no production key-management, no hardware-wallet
+> support, and no production wallet security. The 14-precondition gate is
+> **not** complete.
+
 - [ ] **Runtime authorization expiry enforcement** — adapter MUST reject when
   `now >= expiresAt` (T09). **I2 IMPLEMENTED LOCALLY / END-TO-END ENFORCEMENT
   PENDING I4/I6** (`now < expiresAt` strictly; `now === expiresAt` rejects;
