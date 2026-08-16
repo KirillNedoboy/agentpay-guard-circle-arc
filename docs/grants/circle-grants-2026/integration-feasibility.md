@@ -700,7 +700,32 @@ No Gateway integration, no Arc settlement, and no x402 payment are implemented.
   local-only, no signer/nonce/settlement. I2 test file
   `tests/x402-execution-security-gate.test.ts` (85 tests). Full suite after
   I2: 22 test files / 445 tests, all passing.
-- **I3 — Durable Execution Idempotency: NOT IMPLEMENTED.**
+- **I3 — Durable Execution Idempotency: IMPLEMENTED** (local, durable,
+  restart-safe, filesystem-backed execution state store; no signer, no
+  Gateway, no settlement). An ELIGIBLE v2 authorization becomes a durable
+  single-use execution claim: a prepared execution record plus a bound
+  deterministic EIP-3009 nonce, written exclusively
+  (`fs.open(path, "wx")`, O_CREAT|O_EXCL, first process wins) and durably,
+  then STOP. Artifacts:
+  `src/domain/x402/execution-store.ts`,
+  `tests/x402-execution-store.test.ts`, and the record
+  `docs/grants/circle-grants-2026/x402-execution-store.md`; plus
+  `src/lib/paths.ts` (`executionStorePath()`, `AGENTPAY_EXECUTION_STORE_PATH`
+  env override, default beside the active audit log),
+  `.env.example` (`AGENTPAY_EXECUTION_STORE_PATH`), and `.gitignore`
+  (default execution-store location). Semantics: first prepared event
+  permanently consumes the v2 authorization (duplicate prepare →
+  `X402_EXECUTION_ALREADY_CONSUMED`); deterministic nonce =
+  `0x` + SHA-256(stable JSON of `{ purpose: "agentpay_eip3009_nonce_v1",
+  authorizationId, paymentRequirementDigest }`), one-to-one
+  authorizationId ↔ nonce, exclusive registry claims (same-auth claim =
+  recovery, different-auth = `X402_EXECUTION_NONCE_CONFLICT`); state machine
+  `prepared | submitted | confirmed | failed` with `submitted`/`confirmed`
+  as storage primitives only for I4/I5; fail-closed strict parsing with no
+  automatic repair and no further writes after corrupt history. Full suite
+  after I3: 23 test files / 494 tests, all passing (baseline 22 / 445; +1
+  file, +49 tests — `tests/x402-execution-store.test.ts` 47 tests +
+  `tests/paths.test.ts` +2).
 - **I4 — External Signer Adapter: NOT IMPLEMENTED.**
 - **I5 — Settlement Evidence: NOT IMPLEMENTED.**
 - **I6 — Positive + Negative Proof: NOT IMPLEMENTED.**

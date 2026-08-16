@@ -262,7 +262,9 @@ This gate is not a numbered engineering phase.
 - Implementation track: I1 implemented (x402 payment requirement contract +
   evidence); I2 implemented (local, pure execution security gate — no
   signer/network/settlement; see
-  `x402-execution-security-gate.md`); I3–I6 not implemented
+  `x402-execution-security-gate.md`); I3 implemented (local, durable,
+  restart-safe execution-state store — no signer/network/settlement; see
+  `x402-execution-store.md`); I4–I6 not implemented
 - Phase 9: still deferred
 
 ## Phase 9 — Fresh-clone / release readiness (NOT IMPLEMENTED)

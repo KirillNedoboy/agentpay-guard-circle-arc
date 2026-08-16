@@ -31,3 +31,6 @@ yarn-debug.log*
 
 # local generated evaluation observations (secondary evidence)
 data/evaluation-observations.jsonl
+
+# local generated execution state store (single-use execution claims) — never commit populated execution state
+data/execution-store/

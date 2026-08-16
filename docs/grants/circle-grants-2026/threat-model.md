@@ -268,6 +268,24 @@ both implementation and test evidence.
 > proof, durable settlement outcome evidence, and the final pre-broadcast
 > threat-model re-review remain unchecked and unimplemented until I4/I6.
 
+> I3 note (2026-08-16): the durable execution state store now exists as an I3
+> artifact (`src/domain/x402/execution-store.ts`,
+> `tests/x402-execution-store.test.ts`,
+> `docs/grants/circle-grants-2026/x402-execution-store.md`, plus
+> `src/lib/paths.ts` `executionStorePath()` and `.env.example` /
+> `.gitignore` entries). I3 implements **local** code — single-use v2
+> authorization consumption, durable execution-state idempotency on a shared
+> filesystem, deterministic EIP-3009 nonce binding/registry, and
+> cross-process exclusive execution-state transitions (`fs.open(path, "wx")`,
+> O_CREAT|O_EXCL) — marked **I3 IMPLEMENTED LOCALLY / END-TO-END PENDING**
+> below. **I3 does NOT fix the T14 canonical-audit cross-process concurrency**:
+> that store still uses the in-process promise-lock pattern; I3 fixes only the
+> NEW execution-state store. Still NOT COMPLETE: the external signer/key
+> boundary, real Gateway submission, Gateway nonce-enforcement proof,
+> SettlementEvidence, executed-spend reconciliation, and the final
+> pre-broadcast threat-model re-review. The 14-precondition gate is **not**
+> complete.
+
 - [ ] **Runtime authorization expiry enforcement** — adapter MUST reject when
   `now >= expiresAt` (T09). **I2 IMPLEMENTED LOCALLY / END-TO-END ENFORCEMENT
   PENDING I4/I6** (`now < expiresAt` strictly; `now === expiresAt` rejects;
@@ -283,8 +301,18 @@ both implementation and test evidence.
   gate).
 - [ ] **Single-use / duplicate-execution protection** — consume/check
   `authorizationId`; single-use semantics where required (T10).
+  **I3 IMPLEMENTED LOCALLY / END-TO-END PENDING** (the NEW execution-state
+  store: first prepared event permanently consumes the v2 authorization;
+  duplicate prepare → `X402_EXECUTION_ALREADY_CONSUMED`; retry after terminal
+  failure requires a fresh Guard lineage).
 - [ ] **Durable cross-process idempotency** — atomic append / datastore-backed
-  audit writes; no `auditId` collisions (T14).
+  audit writes; no `auditId` collisions (T14). **I3 IMPLEMENTED LOCALLY /
+  END-TO-END PENDING** for the NEW execution-state store only (`fs.open(path,
+  "wx")` O_CREAT|O_EXCL exclusive creation of numbered events and nonce
+  claims; restart-safe reconstruction from persisted immutable events;
+  deterministic EIP-3009 nonce binding/registry). The **canonical audit log
+  still uses the in-process promise-lock** — its cross-process concurrency
+  (T14) remains unfixed by I3.
 - [ ] **Actual executed-spend accounting** — reconcile authorized vs executed
   spend; daily limits reflect settled funds (T11).
 - [ ] **Authenticated principal / agent identity model** — no self-asserted

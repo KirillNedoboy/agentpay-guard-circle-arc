@@ -1,7 +1,7 @@
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { auditLogPath } from "@/lib/paths";
+import { auditLogPath, executionStorePath } from "@/lib/paths";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -13,5 +13,18 @@ describe("audit log path", () => {
     vi.stubEnv("AGENTPAY_AUDIT_LOG_PATH", temporaryAuditPath);
 
     expect(auditLogPath()).toBe(temporaryAuditPath);
+  });
+});
+
+describe("execution store path", () => {
+  test("uses AGENTPAY_EXECUTION_STORE_PATH when set", () => {
+    const temporaryStorePath = join(tmpdir(), "agentpay-guard-smoke", "execution-store");
+    vi.stubEnv("AGENTPAY_EXECUTION_STORE_PATH", temporaryStorePath);
+
+    expect(executionStorePath()).toBe(temporaryStorePath);
+  });
+
+  test("defaults to the audit-log directory with an execution-store suffix", () => {
+    expect(executionStorePath()).toBe(join(dirname(auditLogPath()), "execution-store"));
   });
 });
