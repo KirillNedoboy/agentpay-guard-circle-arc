@@ -235,6 +235,16 @@ no execution adapter exists in this repository, and every item must be implement
 and tested before ANY testnet adapter is allowed to move funds.** Marking a
 precondition complete requires both implementation and test evidence.
 
+> I1 note (2026-08-16): the x402 payment-requirement contract and deterministic
+> requirement digest now exist as an I1 artifact
+> (`src/domain/x402/payment-requirement.ts`,
+> `src/domain/x402/payment-requirement-evidence.ts`,
+> `tests/x402-payment-requirement.test.ts`,
+> `docs/grants/circle-grants-2026/x402-payment-requirement-contract.md`). This
+> does **not** check off any precondition below: exact
+> authorization-to-adapter execution binding (preconditions 2 and 3) remains
+> unchecked and unimplemented until I2 (Execution Security Gate) exists.
+
 - [ ] **Runtime authorization expiry enforcement** — adapter MUST reject when
   `now >= expiresAt` (T09).
 - [ ] **Exact authorization-to-adapter input binding** — the adapter consumes the

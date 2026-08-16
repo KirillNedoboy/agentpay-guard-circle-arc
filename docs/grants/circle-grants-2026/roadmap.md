@@ -256,6 +256,13 @@ DECISION RECORDED — NO-GO
 
 This gate is not a numbered engineering phase.
 
+**Integration-track status (2026-08-16):**
+
+- Decision: GO WITH BLOCKERS
+- Implementation track: I1 implemented (x402 payment requirement contract +
+  evidence); I2–I6 not implemented
+- Phase 9: still deferred
+
 ## Phase 9 — Fresh-clone / release readiness (NOT IMPLEMENTED)
 
 - Objective: a new clone can reproduce every claim.

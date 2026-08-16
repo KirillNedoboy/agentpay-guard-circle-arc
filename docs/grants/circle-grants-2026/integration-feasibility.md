@@ -660,6 +660,29 @@ no preserved incorrect assumptions.)
   Acceptance Criteria A–L); screenshot/demo evidence; explorer link for the
   batch `txHash`.
 
+## Implementation status
+
+Updated 2026-08-16. This records what is actually built in this repository.
+No Gateway integration, no Arc settlement, and no x402 payment are implemented.
+
+- **I1 — Payment Requirement Contract: IMPLEMENTED.** Artifacts:
+  `src/domain/x402/payment-requirement.ts` (exports
+  `X402PaymentRequirement`, `X402ExactExtra`, `validateX402PaymentRequirement`,
+  `fingerprintX402PaymentRequirement`, `x402NetworkChainId`,
+  `X402PaymentRequirementValidationError`),
+  `src/domain/x402/payment-requirement-evidence.ts` (exports
+  `PaymentRequirementEvidence`, `AuthorizedPaymentRequirementEvidence`,
+  `buildPaymentRequirementEvidence`, `buildAuthorizedPaymentRequirementEvidence`),
+  `tests/x402-payment-requirement.test.ts` (90 tests, 33 logical bodies via
+  `test.each`), and the contract record
+  `docs/grants/circle-grants-2026/x402-payment-requirement-contract.md`.
+  Full suite after I1: 21 test files / 360 tests, all passing.
+- **I2 — Execution Security Gate: NOT IMPLEMENTED.**
+- **I3 — Durable Execution Idempotency: NOT IMPLEMENTED.**
+- **I4 — External Signer Adapter: NOT IMPLEMENTED.**
+- **I5 — Settlement Evidence: NOT IMPLEMENTED.**
+- **I6 — Positive + Negative Proof: NOT IMPLEMENTED.**
+
 # Explicit Non-Goals
 
 - No custody, no key storage inside AgentPay Guard core, no private keys in
