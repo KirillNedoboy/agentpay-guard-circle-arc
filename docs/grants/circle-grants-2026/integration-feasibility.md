@@ -677,7 +677,29 @@ No Gateway integration, no Arc settlement, and no x402 payment are implemented.
   `test.each`), and the contract record
   `docs/grants/circle-grants-2026/x402-payment-requirement-contract.md`.
   Full suite after I1: 21 test files / 360 tests, all passing.
-- **I2 — Execution Security Gate: NOT IMPLEMENTED.**
+- **I2 — Execution Security Gate: IMPLEMENTED** (local pure gate; no
+  signer/network/settlement). Active `policyVersion` is now `"3"` with a new
+  `x402Execution` allowlist section in `data/policies.default.json`. Artifacts:
+  `src/domain/x402/execution-security-gate.ts` (fail-closed gate),
+  `src/domain/x402/execution-authorization-v2.ts` (deterministic v2
+  authorization artifact bound to the v1 parent + requirement digest),
+  `tests/x402-execution-security-gate.test.ts`, and the record
+  `docs/grants/circle-grants-2026/x402-execution-security-gate.md`. Binding
+  semantics: direct requirement-digest commitment (recomputed vs
+  `paymentRequirementEvidence.requirementDigest`); runtime expiry gate
+  (`now < expiresAt` strictly, `now === expiresAt` rejects, unparseable
+  expiresAt fails closed); Arc Testnet network/asset/EIP-712-domain allowlist
+  (`eip155:5042002`, USDC
+  `0x3600000000000000000000000000000000000000`, `GatewayWalletBatched` v1 /
+  `0x0077777d7EBA4688BDeF3E311b846F25870A19B9`); trusted
+  `X402RecipientBinding { recipient, payTo }` gate; exact 6-decimal
+  decimal→atomic amount conversion (no float, no rounding, >6 meaningful
+  decimals not representable). Rejection reason codes are the deterministic
+  security contract (not free-form strings; 17 rejection codes +
+  `X402_EXECUTION_GATE_ALLOWED`). No live integration claim: I2 is
+  local-only, no signer/nonce/settlement. I2 test file
+  `tests/x402-execution-security-gate.test.ts` (85 tests). Full suite after
+  I2: 22 test files / 445 tests, all passing.
 - **I3 — Durable Execution Idempotency: NOT IMPLEMENTED.**
 - **I4 — External Signer Adapter: NOT IMPLEMENTED.**
 - **I5 — Settlement Evidence: NOT IMPLEMENTED.**

@@ -260,7 +260,9 @@ This gate is not a numbered engineering phase.
 
 - Decision: GO WITH BLOCKERS
 - Implementation track: I1 implemented (x402 payment requirement contract +
-  evidence); I2–I6 not implemented
+  evidence); I2 implemented (local, pure execution security gate — no
+  signer/network/settlement; see
+  `x402-execution-security-gate.md`); I3–I6 not implemented
 - Phase 9: still deferred
 
 ## Phase 9 — Fresh-clone / release readiness (NOT IMPLEMENTED)

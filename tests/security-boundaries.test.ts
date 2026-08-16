@@ -359,7 +359,7 @@ describe("security boundaries: policy drift and legacy records (T06–T07)", () 
     // policy must be injected at the domain layer (in-memory clone, never a
     // change to data/policies.default.json).
     const driftedPolicy: PolicyConfig = { ...policy, limits: { ...policy.limits, maxAmountPerPayment: "10.01" } };
-    expect(driftedPolicy.policyVersion).toBe(policy.policyVersion); // same version "2", different fingerprint
+    expect(driftedPolicy.policyVersion).toBe(policy.policyVersion); // same version as the base policy, different fingerprint
 
     const firstDecision = evaluatePolicy(intent, policy, []);
     const { record, replayed } = await createOrReuseAuditRecordWithEvidence(auditPath, intent, firstDecision);

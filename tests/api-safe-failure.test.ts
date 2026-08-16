@@ -196,7 +196,7 @@ describe("safe payment intent evaluation", () => {
 
     expect(response.status).toBe(200);
     expect(body.policyId).toBe("default-agentpay-policy-v1");
-    expect(body.policyVersion).toBe("2");
+    expect(body.policyVersion).toBe("3");
     expect(body.policyFingerprint).toMatch(/^sha256:[0-9a-f]{64}$/);
     expect(body.executionStatus).toBe("not_executed");
     expect(body.replayEvidence).toMatchObject({ replayed: false, replayMismatch: false, policyChanged: false });
@@ -238,7 +238,7 @@ describe("safe payment intent evaluation", () => {
       fundsMoved: false
     });
     expect(body.executionAuthorization?.authorizationId).toMatch(/^auth_[0-9a-f]{64}$/);
-    expect(body.executionAuthorization?.policyVersion).toBe("2");
+    expect(body.executionAuthorization?.policyVersion).toBe("3");
     expect(body.executionAuthorization?.issuedAt).toBe("2026-07-16T12:00:00.000Z");
     expect(body.executionAuthorization?.expiresAt).toBe("2026-07-16T12:05:00.000Z");
   });

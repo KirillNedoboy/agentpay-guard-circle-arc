@@ -20,7 +20,7 @@ Submit the x402-style API intent ([`examples/scenario-allow-api.json`](../../../
 see [canonical-scenarios.md](./canonical-scenarios.md)): a proposed **0.08 USDC**
 API micropayment against a trusted recipient → **ALLOW**. Show:
 
-- policy attribution: `policyId`, `policyVersion` `"2"`, and the deterministic
+- policy attribution: `policyId`, `policyVersion` `"3"`, and the deterministic
   `policyFingerprint` (sha256 over the canonicalized policy);
 - the audit ID (`auditId`) of the single canonical record;
 - `executionStatus: "not_executed"`, `fundsMoved: false`.

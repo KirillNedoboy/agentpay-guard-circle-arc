@@ -666,7 +666,7 @@ describe("policy engine", () => {
   });
 
   test("loads the explicit authorization TTL section", () => {
-    expect(policy.policyVersion).toBe("2");
+    expect(policy.policyVersion).toBe("3");
     expect(policy.authorization).toEqual({ ttlSeconds: 300 });
   });
 

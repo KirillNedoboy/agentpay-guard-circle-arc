@@ -1,6 +1,6 @@
 {
   "policyId": "default-agentpay-policy-v1",
-  "policyVersion": "2",
+  "policyVersion": "3",
   "currency": {
     "supported": [
       "USDC"
@@ -83,6 +83,25 @@
     ],
     "denied": [
       "blocked-spender"
+    ]
+  },
+  "x402Execution": {
+    "allowedRequirements": [
+      {
+        "network": "eip155:5042002",
+        "scheme": "exact",
+        "asset": "0x3600000000000000000000000000000000000000",
+        "assetSymbol": "USDC",
+        "assetDecimals": 6,
+        "maxTimeoutSeconds": 604900,
+        "eip712": {
+          "name": "GatewayWalletBatched",
+          "version": "1",
+          "verifyingContract": "0x0077777d7EBA4688BDeF3E311b846F25870A19B9"
+        },
+        "assetTransferMethod": "eip3009",
+        "paymentFlow": "authorization"
+      }
     ]
   }
 }

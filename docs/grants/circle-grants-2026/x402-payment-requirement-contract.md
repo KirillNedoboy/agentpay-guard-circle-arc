@@ -236,9 +236,10 @@ Additionally, I1 adds:
 - **No API routes.**
 - **No SDKs or new dependencies** (the repo keeps `next`/`react`/`react-dom`
   only).
-- **No policy changes** — `policyVersion` stays `"2"`; the policy config and
-  its fingerprint are unchanged (a network allowlist / fee-bound policy change
-  is I2 scope).
+- **No policy changes were made in I1** — `policyVersion` stayed `"2"` at the
+  time; the policy config and its fingerprint were unchanged (a network
+  allowlist / fee-bound policy change is I2 scope; I2 bumps `policyVersion`
+  to `"3"`).
 - **No `PaymentIntent` changes.**
 - **No `ExecutionAuthorization` changes** (v1 envelope and id unchanged).
 - **No Phase 9** — payment execution remains deferred.

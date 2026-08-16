@@ -141,10 +141,10 @@ misleading local evidence or a withheld authorization — never fund movement.
 | T03 | Recipient substitution under the same key | Recipient is a fingerprint field (`intent-fingerprint.ts:10`); substitution → `replayMismatch:true` → no authorization, historical decision preserved | MITIGATED | `intent-fingerprint.ts:5-18`; `evaluate.ts:42-45` | Same as T02: string-level binding, not identity-level |
 | T04 | Amount substitution under the same key | Amount is a fingerprint field; `maxAmountUSDC` = persisted proposed amount (`audit.amountUSDC ?? audit.amount`), never the policy maximum — prevents envelope-level amount expansion | MITIGATED | `intent-fingerprint.ts:8`; `execution-authorization.ts:65` | There is **no external executor** enforcing this envelope — no executor exists. The envelope is evidence for a future adapter, not an enforced limit |
 | T05 | Route / operation / fee substitution | `routeContext` (whole object), `operation`, `spender`, `amountBaseUnits` participate in the fingerprint when present (`intent-fingerprint.ts:14-17`); same-key route change → `replayMismatch:true` → no auth. CRITICAL nuance: `authorizationId` does NOT hash `programmablePaymentContext` fields directly — it is `sha256` over `[intentId ?? idempotencyKey, idempotencyKey, auditId, agentId, recipient, maxAmountUSDC, paymentRail, policyVersion, policyFingerprint, issuedAt, expiresAt]` (`execution-authorization.ts:66-78`). Route binding is TRANSITIVE via the fingerprint gate + `auditId` disambiguation: a changed route fails the gate (no authorization at all), and any other intent gets a different record → different `auditId` → different `authorizationId`. Do not overclaim `authorizationId` integrity | MITIGATED | `intent-fingerprint.ts:14-17`; `evaluate.ts:42-45`; `execution-authorization.ts:66-78` | Documented residual: `authorizationId` is a deterministic evidence ID over audit-level fields, not an independent cryptographic commitment over every route field. A tampered stored record's `programmablePaymentContext` could be carried into a re-issued envelope without changing `authorizationId` (no per-record signature — see T13) |
-| T06 | Policy drift (policy changed between evaluations) | Changed `policyVersion` or `policyFingerprint` → `policyChanged:true` → no authorization; legacy missing attribution → `policyChanged:null` → no authorization. Active `policyVersion` = `"2"` | MITIGATED | `replay-evidence.ts:31-34`; `evaluate.ts:42-45`; `data/policies.default.json` (`policyVersion: "2"`) | None for authorization suppression; drift is reported, not silently absorbed |
+| T06 | Policy drift (policy changed between evaluations) | Changed `policyVersion` or `policyFingerprint` → `policyChanged:true` → no authorization; legacy missing attribution → `policyChanged:null` → no authorization. Active `policyVersion` = `"3"` | MITIGATED | `replay-evidence.ts:31-34`; `evaluate.ts:42-45`; `data/policies.default.json` (`policyVersion: "3"`) | None for authorization suppression; drift is reported, not silently absorbed |
 | T07 | Legacy / incomplete evidence | Missing `intentFingerprint`/`policyVersion`/`policyFingerprint` → `null` → no authorization (fail-closed). Legacy file bytes are never rewritten merely by reading (normalization is in-memory only) | MITIGATED | `replay-evidence.ts:23-24,29-33`; `audit-log.ts:50-79`; `execution-authorization.ts:49-57` | Historical attribution for legacy records remains unavailable by design (never fabricated) |
 | T08 | Authorization scope expansion | `scope: "single_intent"`; `executionScope: ["prepare","simulate"]` exactly — no execute/submit/broadcast/sign/settle; `executionStatus: "not_executed"`; `fundsMoved: false` (literal types) | MITIGATED | `execution-authorization.ts:28-30,101-103`; `audit/types.ts` (`executionStatus: "not_executed"`) | ExecutionAuthorization is evidence for a future adapter, NOT an executable capability or bearer token |
-| T09 | Stale / expired authorization | Expiry is evidence metadata only: `issuedAt` = audit timestamp, `expiresAt` = `issuedAt + policy.authorization.ttlSeconds` (300) | RESIDUAL | `execution-authorization.ts:63-64`; `data/policies.default.json` (`ttlSeconds: 300`). Search-verified: NO runtime wall-clock check of `expiresAt` anywhere in `src/` — `Date.now()`/`Date.parse` appear only in velocity windows (`policy/engine.ts:257`, `policy/spend-controls.ts:45`) | Severity MEDIUM, calibrated to current scope (no executing adapter); future-execution blocker. Exact replay after expiry still re-issues authorization with the original timestamps. Future precondition: adapter MUST reject when `now >= expiresAt` |
+| T09 | Stale / expired authorization | Expiry is evidence metadata only on the issuance path: `issuedAt` = audit timestamp, `expiresAt` = `issuedAt + policy.authorization.ttlSeconds` (300) | PARTIALLY MITIGATED (LOCAL) | `execution-authorization.ts:63-64`; `data/policies.default.json` (`ttlSeconds: 300`). The v1 authorization builder performs no runtime expiry check. I2's execution security gate (`src/domain/x402/execution-security-gate.ts`) now enforces runtime expiry locally: `now < expiresAt` strictly, `now === expiresAt` rejects, unparseable `expiresAt` fails closed — END-TO-END ENFORCEMENT PENDING I4/I6 | Severity REDUCED for the eligibility step (I2 gate rejects expired authorizations locally), but no executing adapter exists yet; exact replay after expiry still re-issues the v1 authorization with the original timestamps. End-to-end expiry enforcement still requires the future external signer adapter (I4) to honor the gate |
 | T10 | Duplicate execution | Duplicate EVALUATION is mitigated (canonical audit idempotency, in-process lock). Duplicate EXECUTION: no execute/broadcast path exists | NOT APPLICABLE YET | `audit-log.ts:86-118` | FUTURE CONTROL REQUIRED before any adapter: consume/check `authorizationId`, single-use semantics where required, idempotent execution key, durable execution state, reject duplicate settlement, bind the transaction to exact authorization constraints. No execution ledger added now |
 | T11 | Spend-limit bypass | Per-request max: BLOCK above `10.00` (`engine.ts` hard-max check vs `policy.limits.maxAmountPerPayment`); daily projected spend: BLOCK above `25.00`/agent/UTC-day from canonical ALLOW records (`spend-controls.ts:26-31`, `engine.ts` daily check); velocity: REVIEW at `>= 5` attempts/60s (`engine.ts:256-260`); decimal-safe BigInt arithmetic — no float money math (`lib/decimal.ts`) | PARTIALLY MITIGATED | `data/policies.default.json` (`maxAmountPerPayment: "10.00"`, `dailyLimitPerAgent: "25.00"`, `velocity 60s/5`); `lib/decimal.ts` | Spend state is canonical policy/audit evidence, NOT real settled funds (correct for the current no-execution product). Limits are keyed by the SELF-ASSERTED `agentId` — rotating `agentId` resets daily/velocity context. No claim of preventing real-world double spending. Future adapter must reconcile authorized vs executed spend |
 | T12 | Policy config tampering | SHA-256 fingerprint over stable-JSON canonical form proves deterministic CONTENT identity — same-version tamper is detected (`policyChanged:true`, no auth) | PARTIALLY MITIGATED | `policy-fingerprint.ts:11-13`; `lib/stable-json.ts` (key-sorted canonicalization); `replay-evidence.ts:31-34`; `evaluate.ts:42-45` | Fingerprint does NOT prove authorship, authenticity, filesystem integrity, or approval provenance — it is content identity/evidence, not a cryptographic trust anchor. Future: signed policy releases, approved policy registry, protected config store, deployment provenance. Signing NOT implemented |
@@ -204,8 +204,10 @@ currently result in fund movement.
    before any execution adapter exists. JSONL is append-only by writer convention
    only; no hash chain, signature, or external anchoring.
 2. **Authorization expiry is not enforced at runtime** (T09) — MEDIUM,
-   future-execution blocker. `expiresAt` is metadata; a future adapter MUST check
-   `now >= expiresAt` before acting.
+   future-execution blocker. `expiresAt` is metadata on the v1 issuance path; the
+   I2 execution security gate now enforces runtime expiry locally (`now >=
+   expiresAt` rejects), but end-to-end enforcement still requires the future
+   external signer adapter (I4) to honor the gate before acting.
 3. **No cross-process concurrency control** (T14) — MEDIUM for the local demo
    (single process is fine), production blocker. Two processes can double-append
    and collide `auditId`s.
@@ -230,10 +232,14 @@ currently result in fund movement.
 
 # Future Execution Preconditions
 
-None of the following are implemented. **This list is intentionally all-unchecked:
-no execution adapter exists in this repository, and every item must be implemented
-and tested before ANY testnet adapter is allowed to move funds.** Marking a
-precondition complete requires both implementation and test evidence.
+I2 now implements **local code** for a subset of these (runtime expiry gate,
+direct requirement binding, Arc Testnet network allowlist, and
+amount/recipient/asset/domain gate) — marked **I2 IMPLEMENTED LOCALLY /
+END-TO-END ENFORCEMENT PENDING I4/I6** below. **This does NOT complete the
+gate**: no execution adapter exists, and the remaining items are still
+unchecked. Every item must still be implemented and tested before ANY testnet
+adapter is allowed to move funds. Marking a precondition complete requires
+both implementation and test evidence.
 
 > I1 note (2026-08-16): the x402 payment-requirement contract and deterministic
 > requirement digest now exist as an I1 artifact
@@ -245,13 +251,36 @@ precondition complete requires both implementation and test evidence.
 > authorization-to-adapter execution binding (preconditions 2 and 3) remains
 > unchecked and unimplemented until I2 (Execution Security Gate) exists.
 
+> I2 note (2026-08-16): the pure, fail-closed execution security gate now
+> exists as an I2 artifact
+> (`src/domain/x402/execution-security-gate.ts`,
+> `src/domain/x402/execution-authorization-v2.ts`,
+> `tests/x402-execution-security-gate.test.ts`,
+> `docs/grants/circle-grants-2026/x402-execution-security-gate.md`), with
+> active `policyVersion` `"3"` and an `x402Execution` allowlist in
+> `data/policies.default.json`. I2 implements **local** code for the runtime
+> authorization expiry gate, direct requirement binding, the Arc Testnet
+> network allowlist, and the amount/recipient/asset/domain gate; it produces
+> eligibility for a FUTURE external signer request only — no signer, no
+> nonce, no settlement, no Gateway call, no funds movement. I2 does **not**
+> complete the preconditions below: duplicate execution, durable cross-process
+> idempotency, executed-spend reconciliation, external signer/key-management
+> proof, durable settlement outcome evidence, and the final pre-broadcast
+> threat-model re-review remain unchecked and unimplemented until I4/I6.
+
 - [ ] **Runtime authorization expiry enforcement** — adapter MUST reject when
-  `now >= expiresAt` (T09).
+  `now >= expiresAt` (T09). **I2 IMPLEMENTED LOCALLY / END-TO-END ENFORCEMENT
+  PENDING I4/I6** (`now < expiresAt` strictly; `now === expiresAt` rejects;
+  unparseable `expiresAt` fails closed).
 - [ ] **Exact authorization-to-adapter input binding** — the adapter consumes the
   validated typed intent / `ExecutionAuthorization`, never raw request fields
-  (T15).
+  (T15). **I2 IMPLEMENTED LOCALLY / END-TO-END ENFORCEMENT PENDING I4/I6**
+  (typed-input-only gate; direct requirement-digest commitment).
 - [ ] **Recipient / amount / asset / chain / route enforcement** — executed
   transaction must match authorization constraints exactly (T03, T04, T05).
+  **I2 IMPLEMENTED LOCALLY / END-TO-END ENFORCEMENT PENDING I4/I6**
+  (recipient → payTo gate, exact 6-decimal decimal→atomic amount, asset/domain
+  gate).
 - [ ] **Single-use / duplicate-execution protection** — consume/check
   `authorizationId`; single-use semantics where required (T10).
 - [ ] **Durable cross-process idempotency** — atomic append / datastore-backed
@@ -265,13 +294,17 @@ precondition complete requires both implementation and test evidence.
 - [ ] **Transaction simulation before signing** — preview remains preview until
   independently simulated.
 - [ ] **Explicit network allowlist** — adapter may only target permitted
-  chains/contracts (T05, engine CCTP pair rules).
+  chains/contracts (T05, engine CCTP pair rules). **I2 IMPLEMENTED LOCALLY /
+  END-TO-END ENFORCEMENT PENDING I4/I6** (Arc Testnet `eip155:5042002` /
+  USDC / Gateway-domain allowlist).
 - [ ] **Adapter-specific fee bounds** — fee caps enforced at execution, not only
   policy preview (T05 fee fields).
 - [ ] **Durable execution outcome evidence** — executed state recorded
   durably, distinct from policy evidence (T10, T13).
 - [ ] **No raw-request bypass around validated typed intent** — downstream
   security logic consumes only the validated `PaymentIntent` (T15).
+  **I2 IMPLEMENTED LOCALLY / END-TO-END ENFORCEMENT PENDING I4/I6** (the gate
+  consumes only validated typed objects, never raw request fields).
 - [ ] **Threat-model re-review before enabling broadcast** — this document must
   be re-verified against the new execution surface.
 

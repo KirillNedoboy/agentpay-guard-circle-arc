@@ -174,7 +174,7 @@ describe("ExecutionAuthorization envelope", () => {
   test("refuses to mix a stored old policy attribution with a changed current policy", () => {
     const record = makeAuditRecord();
 
-    const changedVersion: PolicyConfig = { ...policy, policyVersion: "3" };
+    const changedVersion: PolicyConfig = { ...policy, policyVersion: "4" };
     expect(buildExecutionAuthorization(record, changedVersion)).toBeNull();
 
     const changedLimits: PolicyConfig = { ...policy, limits: { ...policy.limits, maxAmountPerPayment: "10.01" } };
@@ -275,7 +275,7 @@ describe("replay evidence", () => {
     const record = makeAuditRecord();
 
     const changedLimits: PolicyConfig = { ...policy, limits: { ...policy.limits, maxAmountPerPayment: "10.01" } };
-    const changedVersion: PolicyConfig = { ...policy, policyVersion: "3" };
+    const changedVersion: PolicyConfig = { ...policy, policyVersion: "4" };
 
     expect(buildReplayEvidence(record, record.intentFingerprint ?? "", policy, true).policyChanged).toBe(false);
     expect(buildReplayEvidence(record, record.intentFingerprint ?? "", changedLimits, true).policyChanged).toBe(true);

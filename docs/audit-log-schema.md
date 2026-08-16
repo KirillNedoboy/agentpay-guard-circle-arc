@@ -32,7 +32,7 @@ Each line is a complete JSON object. The file is append-only, except that a repe
   "decision": "ALLOW",
   "riskScore": 10,
   "policyId": "default-agentpay-policy-v1",
-  "policyVersion": "2",
+  "policyVersion": "3",
   "policyFingerprint": "sha256:<64-hex-policy-digest>",
   "intentFingerprint": "sha256:<64-hex-intent-digest>",
   "executionStatus": "not_executed",
@@ -161,7 +161,7 @@ migrates `data/audit-log.jsonl`.
 
 New records persist three evidence fields:
 
-- `policyVersion` — the explicit `policyVersion` of the policy that produced the decision (`"2"` for the default policy). It is a revision identifier, never derived from `policyId`.
+- `policyVersion` — the explicit `policyVersion` of the policy that produced the decision (`"3"` for the default policy). It is a revision identifier, never derived from `policyId`.
 - `policyFingerprint` — a deterministic SHA-256 of the canonicalized policy object, formatted as `sha256:<64 lowercase hex>`. Object keys are recursively sorted before hashing so a semantically identical policy with different key order hashes equal; array order and exact values are preserved. The fingerprint is computed from the loaded policy at evaluation time and is never stored in the policy file.
 - `executionStatus` — always the literal `"not_executed"` in this MVP. It means the record is policy/evidence only: no funds moved, no transaction hash, no settlement or finality.
 

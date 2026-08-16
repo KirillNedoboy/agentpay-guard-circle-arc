@@ -43,7 +43,7 @@ grant development branch (`grant/circle-grants-pilot-2026`), evidence checkpoint
   checkpoint `09b400f…`.
 - Latest test baseline: 20 test files / 270 tests, all passing (verified run
   2026-08-14; lint, typecheck, and build also pass).
-- Active `policyVersion`: `"2"` (`data/policies.default.json`; `policyId`
+- Active `policyVersion`: `"3"` (`data/policies.default.json`; `policyId`
   unchanged).
 - Threat-model state: Phase 7 — internal engineering verification (21 threat
   classes, residual-risk register, 14 unchecked future-execution preconditions);
