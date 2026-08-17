@@ -106,7 +106,9 @@ proposed pilot protocol only.
 
 # Safety boundary
 
-- No wallet, no signing, no broadcast, no settlement, no custody. `fundsMoved:
+- No wallet, no signing in Guard `src/`, no broadcast, no settlement, no
+  custody (offline EIP-3009 signing exists only in the external signer tool
+  `scripts/x402-external-signer.mjs`, I4 — never in Guard core). `fundsMoved:
   false` everywhere; the local Arc adapter preview is `broadcast: false` /
   `status: "not_executed"`.
 - `ExecutionAuthorization` is **bounded evidence for a future adapter** — an

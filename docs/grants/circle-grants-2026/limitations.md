@@ -11,7 +11,9 @@ in the [threat model](./threat-model.md); this page is a summary, not a duplicat
 - move funds;
 - hold custody;
 - store private keys;
-- sign transactions;
+- sign transactions in Guard `src/` (offline EIP-3009 signing exists only in
+  the external signer tool `scripts/x402-external-signer.mjs`, I4 — never in
+  Guard core);
 - connect wallets;
 - submit UserOperations;
 - perform RPC execution;
@@ -23,12 +25,16 @@ in the [threat model](./threat-model.md); this page is a summary, not a duplicat
 - confirm settlement or finality;
 - claim official Circle, Arc, or x402 partnership.
 
-## Verified security posture (Phase 7)
+## Verified security posture (Phase 7; current scope I1–I4)
 
-- **No execution surface.** Nothing in `src/` signs, broadcasts, submits
-  transactions, calls blockchain RPC, or moves funds. Dependencies are
-  `next` + `react` only. See the static execution-surface review in the
-  [threat model](./threat-model.md#static-execution-surface-review).
+- **Pre-settlement execution surface (I1–I4).** Nothing in Guard `src/` signs,
+  broadcasts, submits transactions, calls blockchain RPC, or moves funds. The
+  only real signing in the repository is offline in the external signer tool
+  (`scripts/x402-external-signer.mjs`, I4 — key never in `src/`). Dependencies
+  are `next` + `react` + `viem` (`^2.55.16`, offline EIP-712 signing/recovery
+  only). See the static execution-surface review in the
+  [threat model](./threat-model.md#static-execution-surface-review) and the
+  [pre-I5 security re-review](./pre-i5-security-review.md).
 - **Authorization expiry is metadata only.** `expiresAt` is derived from the audit
   timestamp + `policy.authorization.ttlSeconds` (300s). There is NO runtime
   wall-clock enforcement of expiry anywhere in `src/`; a future executing adapter

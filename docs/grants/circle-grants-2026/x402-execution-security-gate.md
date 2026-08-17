@@ -206,11 +206,20 @@ Still unchecked after I2:
 
 I2 implements **local code** for: runtime expiry gate, direct requirement
 binding, Arc Testnet allowlist, and the amount/recipient/asset/domain gate.
-**End-to-end enforcement is pending I4/I6** — I2 proves the gate locally; the
-external signer (I4) and positive+negative proof (I6) are not yet implemented.
+**End-to-end enforcement is pending I5/I6** — I2 proves the gate locally; the
+external signer (I4) is now **implemented** (offline EIP-3009 signing in the
+external signer tool, cryptographic payer recovery via viem
+`recoverTypedDataAddress`); the positive+negative proof (I6) and the I5
+Gateway submission path are not yet implemented.
 
 # Next Step
 
 **I3 — Durable Execution Idempotency.**
 
 Last updated: 2026-08-16
+
+PRE-I5 note (2026-08-17): the PRE-I5 security re-review is complete (decision
+GO WITH BLOCKERS) and the I5 design is frozen — see
+[pre-i5-security-review.md](./pre-i5-security-review.md). The gate remains a
+local pure gate; I5 adds the pre-settle expiry recheck (I5.3) and the
+Gateway submission path. I5/I6 NOT implemented.

@@ -271,6 +271,40 @@ This gate is not a numbered engineering phase.
   `x402-external-signer.md`); I5–I6 not implemented
 - Phase 9: still deferred
 
+**Integration-track status (2026-08-17, PRE-I5 SECURITY RE-REVIEW):**
+
+- Decision: **GO WITH BLOCKERS** (re-confirmed by the PRE-I5 security
+  re-review; see [pre-i5-security-review.md](./pre-i5-security-review.md)).
+- I1 implemented (strict x402 payment-requirement contract + digest +
+  evidence).
+- I2 implemented (local, pure execution security gate + ExecutionAuthorization
+  v2; no signer/network/settlement).
+- I3 implemented (local, durable, restart-safe execution-state store —
+  `prepared/submitted/confirmed/failed`, deterministic nonce registry,
+  O_EXCL transitions; no signer/network/settlement).
+- I4 implemented (offline external EOA signer boundary — real local EIP-3009
+  signature, cryptographic payer recovery via viem
+  `recoverTypedDataAddress`; **no Gateway / no network / no settlement / no
+  funds moved**).
+- **PRE-I5 SECURITY REVIEW completed 2026-08-17 — decision GO WITH BLOCKERS.**
+- **I5 NOT IMPLEMENTED. I6 NOT IMPLEMENTED.**
+- Phase 9: **DEFERRED** (unchanged).
+- The 4 blockers (I5 code changes that MUST land before any real `/settle`,
+  in implementation order):
+  1. I3 state-machine extension — add `remote_outcome_unknown` (distinct from
+     `failed`; a transport timeout after the request left the process is
+     UNKNOWN, not failed).
+  2. SettlementEvidence contract + durable store — immutable, separate
+     directory, keyed by authorizationId + indexed by nonce.
+  3. Executed-spend reconciliation — read-only `ExecutedSpendSummary`
+     (settled/failed/unknown buckets) from durable SettlementEvidence.
+  4. Payload recovery/liveness — persist the EIP-3009 validity window
+     (validAfter/validBefore) in the I3 record OR require a fresh-authorization
+     lineage for crash-after-submitted; never persist private keys or raw
+     signatures.
+- First live payment remains FORBIDDEN in I5 — **the first live payment is
+  I6**. No Phase 10 is created by this roadmap.
+
 ## Phase 9 — Fresh-clone / release readiness (NOT IMPLEMENTED)
 
 - Objective: a new clone can reproduce every claim.

@@ -138,7 +138,8 @@ grant development branch (`grant/circle-grants-pilot-2026`), evidence checkpoint
   intent fingerprints (policy fingerprint output verified byte-identical to
   Phase 2). Validation after Phase 3: 16 test files / 204 tests, lint, typecheck,
   build, and `git diff --check` all passing; `data/policies.default.json`
-  (`policyVersion: "2"`, unchanged), `package.json`, `pnpm-lock.yaml`, and
+  (`policyVersion: "2"` at this Phase 3 checkpoint; current value `"3"` on the
+  grant branch after I2), `package.json`, `pnpm-lock.yaml`, and
   historical `data/audit-log.jsonl` byte-identical.
 - Phase 4 canonical scenario set (commit `test: add canonical grant scenarios`):
   canonical ALLOW / REVIEW / BLOCK decision fixtures

@@ -96,11 +96,14 @@ Arc Testnet as the reference network in the seller quickstart.
 # Current Guard Boundary
 
 From source (threat-model.md, limitations.md, src/domain/*), current Guard
-state:
+state (updated 2026-08-17 for I1–I4):
 
-- **No execution surface.** Nothing in `src/` signs, broadcasts, submits
-  transactions, calls blockchain RPC, or moves funds. Dependencies are
-  `next` + `react` only.
+- **Pre-settlement execution surface (I1–I4).** Nothing in Guard `src/` signs,
+  broadcasts, submits transactions, calls blockchain RPC, or moves funds; the
+  only real signing is offline in the external signer tool
+  (`scripts/x402-external-signer.mjs`, I4; key never in `src/`). Dependencies
+  are `next`, `react`, `react-dom`, plus `viem` (`^2.55.16`, offline EIP-712
+  signing/recovery only).
 - `ALLOW` means only that a separately authorized future adapter could be
   considered; it never means funds moved.
 - `ExecutionAuthorization` is bounded evidence: `scope: "single_intent"`,
@@ -108,8 +111,20 @@ state:
   "not_executed"` (literal), `fundsMoved: false` (literal), `maxAmountUSDC` =
   proposed amount, never the policy cap, deterministic `auth_<sha256>`
   `authorizationId`.
-- `expiresAt` = audit timestamp + `policy.authorization.ttlSeconds` (300 s);
-  **no runtime wall-clock enforcement of expiry exists anywhere** (T09).
+- `expiresAt` = audit timestamp + `policy.authorization.ttlSeconds` (300 s).
+  Runtime wall-clock expiry enforcement now exists **locally** in the I2
+  execution security gate (`now < expiresAt` strictly; I4 rechecks before the
+  signer call); end-to-end enforcement is pending the I5 Gateway submission
+  path (I5.3 pre-settle recheck).
+- The I3 durable execution store (`src/domain/x402/execution-store.ts`)
+  implements single-use v2 authorization consumption, deterministic EIP-3009
+  nonce binding/registry, and cross-process O_EXCL state transitions
+  (`prepared | submitted | confirmed | failed`) — local only, no
+  network/settlement.
+- The I4 offline external EOA signer boundary produces a real local EIP-3009
+  signature, verifies it cryptographically (viem `recoverTypedDataAddress`),
+  and commits only the signed-payload digest via the I3 `submitted`
+  transition.
 - Canonical audit is append-only JSONL, **in-process only** (promise-chain
   lock per path); no hash chain, no signatures, no cross-process protection
   (T13/T14).
@@ -121,8 +136,12 @@ state:
   `to`, `data`, `programmablePaymentContext`) are silently ignored and never
   survive into the validated `PaymentIntent` (T15); `routeContext` unknown
   fields are rejected (strict).
-- All 14 future-execution preconditions in the threat model are **unchecked
-  and unimplemented**.
+- All 14 future-execution preconditions in the threat model are re-classified
+  in the PRE-I5 security re-review (2026-08-17): I1–I4 implement the local
+  subsets; the remaining blockers (executed-spend accounting, durable
+  SettlementEvidence, state-machine unknown-outcome handling, payload
+  recovery/liveness) are I5, and Gateway nonce-enforcement proof is I6. See
+  [pre-i5-security-review.md](./pre-i5-security-review.md).
 
 # Current x402 Flow
 
@@ -198,7 +217,15 @@ reuse at the smart-contract level; authorizations carry explicit validity
 windows; payloads are cryptographically signed (S9 §10.1). Gateway adds
 API-level enforcement: settle error `nonce_already_used`, `/v1/batch/submit`
 returns `409 Nonce has already been used`, and the x402 transfer search
-supports filtering by `nonce` (S15).
+supports filtering by `nonce` (S15). PRE-I5 re-verification (2026-08-17):
+a duplicate nonce causes settlement to FAIL (`success:false`,
+`errorReason:"nonce_already_used"`; SDK recovery "Create a new payment") —
+retry with the identical signed payload is REJECTED, not idempotent, and the
+exact retry response is UNSPECIFIED by Circle (S15, SDK). No timeout or
+at-least-once acceptance semantics are documented by Circle or the x402 spec;
+a timed-out settle is UNKNOWN and must be reconciled via
+`GET /v1/x402/transfers?nonce=`, never assumed failed. The **payment-identifier
+extension is NOT advertised by Circle Gateway** (see section I).
 
 **I. Official idempotency/nonce mechanism bindable to an authorizationId.**
 Yes, two layers: (1) the **EIP-3009 nonce** — a required, protocol-defined,
@@ -207,7 +234,12 @@ and bound by an application; (2) the optional **payment-identifier extension**
 — a client-generated payment ID carried in `PaymentPayload.extensions`, with
 the server caching responses keyed by payment ID (TTL) so retries do not
 re-process payments (S8). Neither is bound to a Guard `authorizationId` today;
-binding is designable (see Duplicate-Settlement Strategy).
+binding is designable (see Duplicate-Settlement Strategy). **CAVEAT
+(2026-08-17):** the payment-identifier extension is documented by the x402
+docs only — Circle Gateway does **not** currently implement/advertise it: the
+live testnet `GET /v1/x402/supported` returned `extensions:[]` on 2026-08-17.
+It MUST NOT be relied on for idempotency; duplicate protection comes from the
+durable EIP-3009 nonce registry + nonce-keyed reconciliation (I3/I5).
 
 # Current Circle Gateway Model
 
@@ -333,6 +365,10 @@ Preferred architecture (protocol-driven, matching the official buyer flow
   (≥ 7 days + buffer per Gateway (S17)), `nonce` (Guard-generated or
   signer-generated and returned). Guard sends **data to sign**, never a request
   to "just pay".
+  Minimum-validity NOTE (2026-08-17): the live API advertises
+  `minValiditySeconds 604800` (7 days) and the SDK/quickstart use 604900
+  (7d + 100 s buffer), but Circle's EIP-3009 howto says "at least 3 days" —
+  internal Circle-docs conflict; **honor 604800**.
 - **What the signer is forbidden to change:** every signed field. Any deviation
   from the exact requirement produces an authorization that Gateway verification
   rejects (`amount_mismatch`, `address_mismatch`, `invalid_signature`,
@@ -490,10 +526,19 @@ explicit validity windows and signatures (S9 §10.1). Circle Gateway enforces
 the nonce at its API layer: settle error `nonce_already_used`, `/v1/batch/submit`
 returns `409 Nonce has already been used`, and x402 transfers expose the
 `nonce` field and support filtering by it (S15). The optional payment-identifier
-extension adds server-side response caching keyed by a client payment ID (S8).
+extension adds server-side response caching keyed by a client payment ID (S8) —
+**NOT implemented/advertised by Circle Gateway as of 2026-08-17 (live testnet
+`/v1/x402/supported` returned `extensions:[]`); do not rely on it.**
 The nonce is therefore a durable, officially defined identifier that the future
 integration can bind to an `authorizationId` (Guard generates/records the
-nonce; the signer signs it; Gateway rejects reuse).
+nonce; the signer signs it; Gateway rejects reuse). Re-verified 2026-08-17:
+Gateway rejects a duplicate nonce with `success:false` /
+`errorReason:"nonce_already_used"` (SDK recovery "Create a new payment")
+rather than returning a prior success; a retry with the identical signed
+payload is NOT idempotent and its exact retry response is UNSPECIFIED by
+Circle. A timed-out settle is UNKNOWN and must be reconciled via
+`GET /v1/x402/transfers?nonce=` — never assumed failed (no timeout or
+at-least-once semantics are documented by Circle or the x402 spec).
 
 **However — the current canonical audit idempotency does NOT solve duplicate
 execution.** The Guard's in-process canonical audit idempotency (one line per
@@ -769,6 +814,21 @@ No Gateway integration, no Arc settlement, and no x402 payment are implemented.
 - **I5 — Settlement Evidence: NOT IMPLEMENTED.**
 - **I6 — Positive + Negative Proof: NOT IMPLEMENTED.**
 
+## Pre-I5 security re-review (2026-08-17)
+
+- Status: **COMPLETED** — decision **GO WITH BLOCKERS**.
+- I1–I4: **IMPLEMENTED**. I5: **NOT IMPLEMENTED**. I6: **NOT IMPLEMENTED**.
+- Full review: [pre-i5-security-review.md](./pre-i5-security-review.md).
+- The review re-verified the official Gateway/x402/Arc facts (2026-08-17,
+  including the live testnet `GET /v1/x402/supported` query), froze the I5
+  design (I3 `remote_outcome_unknown` state-machine extension; SettlementEvidence
+  contract + durable store; read-only `ExecutedSpendSummary`; payload
+  recovery/liveness; Gateway client contract; pre-settle expiry recheck;
+  `confirmed` = official `confirmed` OR `completed`), and recorded the 14
+  preconditions re-classified against the I4 surface.
+- **Gateway integration is NOT verified and NOT implemented; no Arc settlement
+  has occurred; no funds have moved.**
+
 # Explicit Non-Goals
 
 - No custody, no key storage inside AgentPay Guard core, no private keys in
@@ -895,4 +955,7 @@ I1–I6 and criteria A–L), `docs/` (this decision record updated when built).
   matters for grant review — out of scope for this decision, tracked in the
   evidence package.
 
-Last verified: 2026-08-16
+Last verified: 2026-08-17 (PRE-I5 re-review re-verified all S#-cited facts from
+the primary sources on this date, plus one live query of
+`https://gateway-api-testnet.circle.com/v1/x402/supported`; original research
+verification date was 2026-08-16).

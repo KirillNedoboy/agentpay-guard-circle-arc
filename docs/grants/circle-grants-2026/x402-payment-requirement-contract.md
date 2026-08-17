@@ -234,8 +234,11 @@ I1 is only the first step of the integration track. It does not implement:
 Additionally, I1 adds:
 
 - **No API routes.**
-- **No SDKs or new dependencies** (the repo keeps `next`/`react`/`react-dom`
-  only).
+- **No SDKs or new dependencies added in I1** (the repo kept
+  `next`/`react`/`react-dom` only at the time; the `viem` dependency
+  `^2.55.16` was added later in I4 for offline EIP-712 signing in the
+  external signer tool — the x402 contract modules in Guard `src/` remain
+  dependency-free).
 - **No policy changes were made in I1** — `policyVersion` stayed `"2"` at the
   time; the policy config and its fingerprint were unchanged (a network
   allowlist / fee-bound policy change is I2 scope; I2 bumps `policyVersion`
@@ -260,3 +263,9 @@ Only after I2 is implemented and tested may any signer be considered for the
 bounded testnet path.
 
 Last updated: 2026-08-16
+
+PRE-I5 note (2026-08-17): the PRE-I5 security re-review is complete (decision
+GO WITH BLOCKERS) and the I5 design is frozen — see
+[pre-i5-security-review.md](./pre-i5-security-review.md). This I1 record is
+unchanged; I5 (SettlementEvidence + Gateway client) and I6 (first live
+payment) are NOT implemented.
