@@ -55,6 +55,21 @@
  * X402_EXECUTION_STORE_CORRUPT, and the store is NEVER auto-repaired or
  * deleted.
  *
+ * STATE GRAPH (I5 extension):
+ *   prepared                → submitted | failed
+ *   submitted               → confirmed | failed | remote_outcome_unknown
+ *   remote_outcome_unknown  → confirmed | failed
+ *   confirmed / failed      → (terminal; no outgoing transitions)
+ * `remote_outcome_unknown → submitted` NEVER exists. `submitted` keeps its
+ * I3 meaning: the signed payload digest was committed to the LOCAL
+ * execution lifecycle — it is NOT a claim that anything reached Gateway.
+ * `remote_outcome_unknown` records an AMBIGUOUS remote outcome (transport
+ * timeout/reset, 5xx, malformed response, crash after remote acceptance):
+ * reconciliation happens by nonce against official Gateway/transfer data
+ * and NEVER auto-re-signs the deterministic nonce with a fresh validity
+ * window. An unreconciled record stays `remote_outcome_unknown`: at-risk,
+ * never counted as settled and never counted as failed/zero.
+ *
  * LAYOUT:
  *   <store>/
  *     authorizations/
@@ -75,6 +90,8 @@ import { join } from "node:path";
 import { stableSha256 } from "@/lib/stable-json";
 import type { X402ExecutionAuthorizationV2 } from "./execution-authorization-v2";
 import type { X402ExecutionGateResult } from "./execution-security-gate";
+import { X402_GATEWAY_REASON_CODES } from "./gateway-reason-codes";
+import type { X402GatewayReasonCode } from "./gateway-reason-codes";
 
 // ---------------------------------------------------------------------------
 // Stable reason codes — the state-machine contract, not free-form strings.
@@ -108,10 +125,21 @@ export type X402ExecutionReasonCode =
   | typeof X402_EXECUTION_STATE_CONFLICT
   | typeof X402_EXECUTION_NOT_FOUND;
 
-export type X402ExecutionState = "prepared" | "submitted" | "confirmed" | "failed";
+export type X402ExecutionState =
+  | "prepared"
+  | "submitted"
+  | "remote_outcome_unknown"
+  | "confirmed"
+  | "failed";
 export type X402ExecutionFailureStage = "prepare" | "sign" | "submit" | "settle";
 
-export const X402_EXECUTION_STATES = ["prepared", "submitted", "confirmed", "failed"] as const;
+export const X402_EXECUTION_STATES = [
+  "prepared",
+  "submitted",
+  "remote_outcome_unknown",
+  "confirmed",
+  "failed"
+] as const;
 export const X402_EXECUTION_FAILURE_STAGES = ["prepare", "sign", "submit", "settle"] as const;
 
 // ---------------------------------------------------------------------------
@@ -154,20 +182,47 @@ export type X402PreparedExecutionEvent = X402ExecutionStateEvent & {
   nonce: string;
 };
 
-/** prepared → submitted: execution-state claim only; stores ONLY the digest, never the signature/payload. */
+/**
+ * prepared → submitted: execution-state claim only; stores ONLY digests,
+ * never the signature/payload. The four recovery fields (payerAddress,
+ * signingRequestDigest, validAfter, validBefore — decimal Unix-second
+ * strings) are non-secret EIP-3009 metadata: after a crash the signed
+ * validity window CANNOT be reconstructed from the local store, so a
+ * re-sign with a fresh `now` would change the payload; recovery therefore
+ * reconciles by nonce and NEVER auto-re-signs. Pre-I5 legacy records omit
+ * all four together (see parse: partial presence is corrupt).
+ */
 export type X402ExecutionSubmittedEvent = X402ExecutionStateEvent & {
   state: "submitted";
   nonce: string;
   signerPayloadDigest: string;
+  payerAddress?: string;
+  signingRequestDigest?: string;
+  validAfter?: string;
+  validBefore?: string;
 };
 
-/** submitted → confirmed: stores ONLY the future SettlementEvidence digest reference (I5 defines the object). */
+/**
+ * submitted → remote_outcome_unknown: the remote outcome is UNKNOWN (not
+ * failed). Stores ONLY the bound nonce, a stable Gateway reason code, and
+ * an optional transfer UUID (non-null ONLY when a validated Gateway
+ * response produced one). NEVER a signature, private key, raw payload, or
+ * raw Gateway error body.
+ */
+export type X402ExecutionRemoteOutcomeUnknownEvent = X402ExecutionStateEvent & {
+  state: "remote_outcome_unknown";
+  nonce: string;
+  reasonCode: X402GatewayReasonCode;
+  gatewayTransferId: string | null;
+};
+
+/** submitted|remote_outcome_unknown → confirmed: stores ONLY the SettlementEvidence digest reference (I5 defines the object). */
 export type X402ExecutionConfirmedEvent = X402ExecutionStateEvent & {
   state: "confirmed";
   settlementEvidenceDigest: string;
 };
 
-/** prepared|submitted → failed: stable stage + code; never Error.stack or secrets. */
+/** prepared|submitted|remote_outcome_unknown → failed: stable stage + code; never Error.stack or secrets. */
 export type X402ExecutionFailedEvent = X402ExecutionStateEvent & {
   state: "failed";
   failureStage: X402ExecutionFailureStage;
@@ -204,11 +259,35 @@ export type X402PreparedExecutionRecord = {
   preparedAt: string;
 };
 
+/**
+ * submitted-state read record. The four recovery fields are null ONLY for
+ * legacy pre-I5 events that omitted all four together; `
+ * recoveryMetadataComplete` is true iff all four are present. Downstream
+ * I5 recovery MUST fail closed on incomplete metadata instead of
+ * re-deriving a validity window: the EIP-3009 window signed into the
+ * payload cannot be reconstructed after a crash, so re-signing the same
+ * deterministic nonce with a fresh `now` would be unsafe — reconciliation
+ * proceeds by nonce and NEVER auto-re-signs.
+ */
 export type X402SubmittedExecutionRecord = {
   sequence: number;
   occurredAt: string;
   nonce: string;
   signerPayloadDigest: string;
+  payerAddress: string | null;
+  signingRequestDigest: string | null;
+  validAfter: string | null;
+  validBefore: string | null;
+  recoveryMetadataComplete: boolean;
+};
+
+/** remote_outcome_unknown read record: stable reason code + optional validated transfer UUID. */
+export type X402RemoteOutcomeUnknownRecord = {
+  sequence: number;
+  occurredAt: string;
+  nonce: string;
+  reasonCode: X402GatewayReasonCode;
+  gatewayTransferId: string | null;
 };
 
 export type X402TerminalExecutionRecord =
@@ -232,6 +311,7 @@ export type X402ExecutionRecord = {
   state: X402ExecutionState;
   prepared: X402PreparedExecutionRecord;
   submitted?: X402SubmittedExecutionRecord;
+  remoteOutcomeUnknown?: X402RemoteOutcomeUnknownRecord;
   terminal?: X402TerminalExecutionRecord;
 };
 
@@ -287,6 +367,23 @@ export type X402ExecutionSubmittedInput = {
   authorizationId: string;
   nonce: string;
   signerPayloadDigest: string;
+  /** Non-secret recovery metadata (see X402ExecutionSubmittedEvent). */
+  payerAddress: string;
+  signingRequestDigest: string;
+  /** Decimal Unix-second string, as signed into the EIP-3009 payload. */
+  validAfter: string;
+  /** Decimal Unix-second string, as signed into the EIP-3009 payload. */
+  validBefore: string;
+  occurredAt: Date;
+};
+
+export type X402ExecutionRemoteOutcomeUnknownInput = {
+  storePath: string;
+  authorizationId: string;
+  nonce: string;
+  reasonCode: X402GatewayReasonCode;
+  /** Transfer UUID ONLY when a validated Gateway response produced one. */
+  gatewayTransferId: string | null;
   occurredAt: Date;
 };
 
@@ -327,6 +424,10 @@ const EVM_ADDRESS_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const NETWORK_PATTERN = /^eip155:[1-9]\d*$/;
 const AMOUNT_PATTERN = /^[1-9]\d*$/;
 const EVENT_FILE_PATTERN = /^(\d{4})\.json$/;
+/** Decimal Unix-second string (same style as the I4 EIP-3009 validity window). */
+const UNIX_SECONDS_PATTERN = /^[1-9]\d*$/;
+/** Gateway transfer UUID (canonical lowercase 8-4-4-4-12 hex). */
+const TRANSFER_UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 const EVENT_BASE_KNOWN_FIELDS: Record<string, true> = {
   eventType: true,
@@ -356,7 +457,17 @@ const PREPARED_KNOWN_FIELDS: Record<string, true> = {
 const SUBMITTED_KNOWN_FIELDS: Record<string, true> = {
   ...EVENT_BASE_KNOWN_FIELDS,
   nonce: true,
-  signerPayloadDigest: true
+  signerPayloadDigest: true,
+  payerAddress: true,
+  signingRequestDigest: true,
+  validAfter: true,
+  validBefore: true
+};
+const REMOTE_OUTCOME_UNKNOWN_KNOWN_FIELDS: Record<string, true> = {
+  ...EVENT_BASE_KNOWN_FIELDS,
+  nonce: true,
+  reasonCode: true,
+  gatewayTransferId: true
 };
 const CONFIRMED_KNOWN_FIELDS: Record<string, true> = {
   ...EVENT_BASE_KNOWN_FIELDS,
@@ -378,7 +489,8 @@ const KNOWN_NONCE_CLAIM_FIELDS: Record<string, true> = {
 
 const ALLOWED_TRANSITIONS: Record<X402ExecutionState, readonly X402ExecutionState[]> = {
   prepared: ["submitted", "failed"],
-  submitted: ["confirmed", "failed"],
+  submitted: ["confirmed", "failed", "remote_outcome_unknown"],
+  remote_outcome_unknown: ["confirmed", "failed"],
   confirmed: [],
   failed: []
 };
@@ -448,6 +560,50 @@ function requireSequenceField(record: Record<string, unknown>): number {
   const value = record.sequence;
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 1) {
     throw new X402ExecutionStoreError("sequence must be a positive safe integer.");
+  }
+  return value;
+}
+
+/**
+ * All-or-nothing legacy-tolerant recovery block: null ONLY when all four
+ * fields are absent together (pre-I5 record); partial presence is CORRUPT
+ * (fail closed — no auto-repair, no rewrite, nothing fabricated); full
+ * presence is pattern-validated and returned.
+ */
+function parseRecoveryFields(
+  record: Record<string, unknown>
+): {
+  payerAddress: string;
+  signingRequestDigest: string;
+  validAfter: string;
+  validBefore: string;
+} | null {
+  const names = ["payerAddress", "signingRequestDigest", "validAfter", "validBefore"] as const;
+  const present = names.filter((field) => record[field] !== undefined);
+  if (present.length === 0) {
+    return null;
+  }
+  if (present.length < names.length) {
+    throw new X402ExecutionStoreError(
+      `submitted event recovery metadata is partial (${present.join(", ")}); all four fields must be present together.`
+    );
+  }
+  return {
+    payerAddress: requirePatternField(record, "payerAddress", EVM_ADDRESS_PATTERN),
+    signingRequestDigest: requirePatternField(record, "signingRequestDigest", DIGEST_PATTERN),
+    validAfter: requirePatternField(record, "validAfter", UNIX_SECONDS_PATTERN),
+    validBefore: requirePatternField(record, "validBefore", UNIX_SECONDS_PATTERN)
+  };
+}
+
+/** Transfer UUID when non-null; `null` is a first-class legitimate value. */
+function requireNullableTransferIdField(record: Record<string, unknown>, field: string): string | null {
+  const value = record[field];
+  if (value === null) {
+    return null;
+  }
+  if (typeof value !== "string" || !TRANSFER_UUID_PATTERN.test(value)) {
+    throw new X402ExecutionStoreError(`${field} must be a lowercase Gateway transfer UUID or null.`);
   }
   return value;
 }
@@ -613,7 +769,23 @@ function parseExecutionStateEvent(
         ...base,
         state: "submitted",
         nonce: requirePatternField(raw, "nonce", NONCE_PATTERN),
-        signerPayloadDigest: requirePatternField(raw, "signerPayloadDigest", DIGEST_PATTERN)
+        signerPayloadDigest: requirePatternField(raw, "signerPayloadDigest", DIGEST_PATTERN),
+        ...(parseRecoveryFields(raw) ?? {})
+      };
+      return event;
+    }
+    case "remote_outcome_unknown": {
+      rejectUnknownFields(
+        raw,
+        REMOTE_OUTCOME_UNKNOWN_KNOWN_FIELDS,
+        "x402_execution_state remote_outcome_unknown event"
+      );
+      const event: X402ExecutionRemoteOutcomeUnknownEvent = {
+        ...base,
+        state: "remote_outcome_unknown",
+        nonce: requirePatternField(raw, "nonce", NONCE_PATTERN),
+        reasonCode: requireEnumField(raw, "reasonCode", X402_GATEWAY_REASON_CODES),
+        gatewayTransferId: requireNullableTransferIdField(raw, "gatewayTransferId")
       };
       return event;
     }
@@ -798,15 +970,35 @@ function buildExecutionRecord(
   }
   const preparedEvent = first as X402PreparedExecutionEvent;
   let submitted: X402SubmittedExecutionRecord | undefined;
+  let remoteOutcomeUnknown: X402RemoteOutcomeUnknownRecord | undefined;
   let terminal: X402TerminalExecutionRecord | undefined;
   for (const event of events.slice(1)) {
     if (event.state === "submitted") {
       const submittedEvent = event as X402ExecutionSubmittedEvent;
+      const complete =
+        submittedEvent.payerAddress !== undefined &&
+        submittedEvent.signingRequestDigest !== undefined &&
+        submittedEvent.validAfter !== undefined &&
+        submittedEvent.validBefore !== undefined;
       submitted = {
         sequence: submittedEvent.sequence,
         occurredAt: submittedEvent.occurredAt,
         nonce: submittedEvent.nonce,
-        signerPayloadDigest: submittedEvent.signerPayloadDigest
+        signerPayloadDigest: submittedEvent.signerPayloadDigest,
+        payerAddress: submittedEvent.payerAddress ?? null,
+        signingRequestDigest: submittedEvent.signingRequestDigest ?? null,
+        validAfter: submittedEvent.validAfter ?? null,
+        validBefore: submittedEvent.validBefore ?? null,
+        recoveryMetadataComplete: complete
+      };
+    } else if (event.state === "remote_outcome_unknown") {
+      const unknownEvent = event as X402ExecutionRemoteOutcomeUnknownEvent;
+      remoteOutcomeUnknown = {
+        sequence: unknownEvent.sequence,
+        occurredAt: unknownEvent.occurredAt,
+        nonce: unknownEvent.nonce,
+        reasonCode: unknownEvent.reasonCode,
+        gatewayTransferId: unknownEvent.gatewayTransferId
       };
     } else if (event.state === "confirmed") {
       const confirmedEvent = event as X402ExecutionConfirmedEvent;
@@ -833,6 +1025,7 @@ function buildExecutionRecord(
     state: last.state,
     prepared: preparedRecordFromEvent(preparedEvent),
     ...(submitted !== undefined ? { submitted } : {}),
+    ...(remoteOutcomeUnknown !== undefined ? { remoteOutcomeUnknown } : {}),
     ...(terminal !== undefined ? { terminal } : {})
   };
 }
@@ -1165,7 +1358,20 @@ function eventsEquivalent(
       const rightEvent = right as X402ExecutionSubmittedEvent;
       return (
         leftEvent.nonce === rightEvent.nonce &&
-        leftEvent.signerPayloadDigest === rightEvent.signerPayloadDigest
+        leftEvent.signerPayloadDigest === rightEvent.signerPayloadDigest &&
+        (leftEvent.payerAddress ?? null) === (rightEvent.payerAddress ?? null) &&
+        (leftEvent.signingRequestDigest ?? null) === (rightEvent.signingRequestDigest ?? null) &&
+        (leftEvent.validAfter ?? null) === (rightEvent.validAfter ?? null) &&
+        (leftEvent.validBefore ?? null) === (rightEvent.validBefore ?? null)
+      );
+    }
+    case "remote_outcome_unknown": {
+      const leftEvent = left as X402ExecutionRemoteOutcomeUnknownEvent;
+      const rightEvent = right as X402ExecutionRemoteOutcomeUnknownEvent;
+      return (
+        leftEvent.nonce === rightEvent.nonce &&
+        leftEvent.reasonCode === rightEvent.reasonCode &&
+        leftEvent.gatewayTransferId === rightEvent.gatewayTransferId
       );
     }
     case "confirmed": {
@@ -1218,14 +1424,25 @@ async function appliedResult(
 
 /**
  * prepared → submitted (execution-state claim only). Requires the stored
- * nonce and a `sha256:<64 hex>` signerPayloadDigest; stores ONLY the digest,
- * never the signature or payload. No statement that Gateway accepted
- * anything.
+ * nonce, a `sha256:<64 hex>` signerPayloadDigest, and the four non-secret
+ * recovery fields (payerAddress, signingRequestDigest, validAfter/validBefore
+ * as decimal Unix-second strings); stores ONLY digests/metadata, never the
+ * signature or payload. No statement that Gateway accepted anything.
  */
 export async function markX402ExecutionSubmitted(
   input: X402ExecutionSubmittedInput
 ): Promise<X402ExecutionTransitionResult> {
-  const { storePath, authorizationId, nonce, signerPayloadDigest, occurredAt } = input;
+  const {
+    storePath,
+    authorizationId,
+    nonce,
+    signerPayloadDigest,
+    payerAddress,
+    signingRequestDigest,
+    validAfter,
+    validBefore,
+    occurredAt
+  } = input;
   if (typeof storePath !== "string" || storePath.length === 0) {
     return invalidTransitionResult();
   }
@@ -1236,6 +1453,18 @@ export async function markX402ExecutionSubmitted(
     return invalidTransitionResult();
   }
   if (!DIGEST_PATTERN.test(signerPayloadDigest)) {
+    return invalidTransitionResult();
+  }
+  if (!EVM_ADDRESS_PATTERN.test(payerAddress)) {
+    return invalidTransitionResult();
+  }
+  if (!DIGEST_PATTERN.test(signingRequestDigest)) {
+    return invalidTransitionResult();
+  }
+  if (!UNIX_SECONDS_PATTERN.test(validAfter) || !UNIX_SECONDS_PATTERN.test(validBefore)) {
+    return invalidTransitionResult();
+  }
+  if (Number(validBefore) <= Number(validAfter)) {
     return invalidTransitionResult();
   }
   if (Number.isNaN(occurredAt.getTime())) {
@@ -1260,7 +1489,14 @@ export async function markX402ExecutionSubmitted(
   if (current.state !== "prepared") {
     if (current.state === "submitted") {
       const existing = current as X402ExecutionSubmittedEvent;
-      if (existing.nonce === nonce && existing.signerPayloadDigest === signerPayloadDigest) {
+      if (
+        existing.nonce === nonce &&
+        existing.signerPayloadDigest === signerPayloadDigest &&
+        (existing.payerAddress ?? null) === payerAddress &&
+        (existing.signingRequestDigest ?? null) === signingRequestDigest &&
+        (existing.validAfter ?? null) === validAfter &&
+        (existing.validBefore ?? null) === validBefore
+      ) {
         return replayedResult();
       }
       return conflictResult();
@@ -1280,7 +1516,11 @@ export async function markX402ExecutionSubmitted(
     authorizationId,
     occurredAt: occurredAtIso,
     nonce,
-    signerPayloadDigest
+    signerPayloadDigest,
+    payerAddress,
+    signingRequestDigest,
+    validAfter,
+    validBefore
   };
   const outcome = await createEventFileExclusive(storePath, authorizationId, event);
   if (outcome === "exists") {
@@ -1290,11 +1530,12 @@ export async function markX402ExecutionSubmitted(
 }
 
 /**
- * submitted → confirmed. Requires a `sha256:<64 hex>` settlementEvidenceDigest
- * — a naked confirmed is impossible without this future durable
- * settlement-evidence commitment. No transaction hashes or fake outcome data
- * are ever stored (I5 defines the actual SettlementEvidence object; I3 stores
- * only its digest reference).
+ * submitted|remote_outcome_unknown → confirmed. Requires a `sha256:<64 hex>`
+ * settlementEvidenceDigest — a naked confirmed is impossible without this
+ * durable settlement-evidence commitment, and a reconciled remote outcome may
+ * only confirm with the same evidence reference. No transaction hashes or
+ * fake outcome data are ever stored (I5 defines the actual SettlementEvidence
+ * object; I3 stores only its digest reference).
  */
 export async function markX402ExecutionConfirmed(
   input: X402ExecutionConfirmedInput
@@ -1328,7 +1569,7 @@ export async function markX402ExecutionConfirmed(
   }
   const events = loaded.events;
   const current = events[events.length - 1];
-  if (current.state !== "submitted") {
+  if (current.state !== "submitted" && current.state !== "remote_outcome_unknown") {
     if (current.state === "confirmed") {
       const existing = current as X402ExecutionConfirmedEvent;
       if (existing.settlementEvidenceDigest === settlementEvidenceDigest) {
@@ -1356,10 +1597,12 @@ export async function markX402ExecutionConfirmed(
 }
 
 /**
- * prepared|submitted → failed (terminal). failureStage ∈
- * "prepare" | "sign" | "submit" | "settle"; failureCode is a stable string.
- * Error.stack and secrets are NEVER stored. Failure stays terminal; the
- * authorization remains non-reusable.
+ * prepared|submitted|remote_outcome_unknown → failed (terminal).
+ * failureStage ∈ "prepare" | "sign" | "submit" | "settle"; failureCode is a
+ * stable string. Error.stack and secrets are NEVER stored. Failure stays
+ * terminal; the authorization remains non-reusable. Reaching `failed` from
+ * `remote_outcome_unknown` is only legitimate after reconciliation PROVES a
+ * known deterministic rejection (see the I5 design).
  */
 export async function markX402ExecutionFailed(
   input: X402ExecutionFailedInput
@@ -1396,7 +1639,11 @@ export async function markX402ExecutionFailed(
   }
   const events = loaded.events;
   const current = events[events.length - 1];
-  if (current.state !== "prepared" && current.state !== "submitted") {
+  if (
+    current.state !== "prepared" &&
+    current.state !== "submitted" &&
+    current.state !== "remote_outcome_unknown"
+  ) {
     if (current.state === "failed") {
       const existing = current as X402ExecutionFailedEvent;
       if (existing.failureStage === failureStage && existing.failureCode === failureCode) {
@@ -1422,4 +1669,126 @@ export async function markX402ExecutionFailed(
     return resolveTransitionRace(storePath, authorizationId, event);
   }
   return appliedResult(storePath, authorizationId);
+}
+
+/**
+ * submitted → remote_outcome_unknown (I5): an AMBIGUOUS remote outcome
+ * (transport timeout/reset, 5xx, malformed response, crash after remote
+ * acceptance) is UNKNOWN, never `failed`. The stored submitted nonce must
+ * equal the requested nonce (fail closed, no write). `gatewayTransferId`
+ * is a transfer UUID ONLY when a validated Gateway response produced one,
+ * else null. NEVER stores a signature, private key, raw payload, or raw
+ * Gateway error body. An identical repeat while already
+ * `remote_outcome_unknown` is REPLAYED; a different repeat is a
+ * STATE_CONFLICT. `remote_outcome_unknown → submitted` NEVER exists:
+ * recovery reconciles by nonce and never re-signs.
+ */
+export async function markX402ExecutionRemoteOutcomeUnknown(
+  input: X402ExecutionRemoteOutcomeUnknownInput
+): Promise<X402ExecutionTransitionResult> {
+  const { storePath, authorizationId, nonce, reasonCode, gatewayTransferId, occurredAt } = input;
+  if (typeof storePath !== "string" || storePath.length === 0) {
+    return invalidTransitionResult();
+  }
+  if (!AUTHORIZATION_ID_PATTERN.test(authorizationId)) {
+    return invalidTransitionResult();
+  }
+  if (!NONCE_PATTERN.test(nonce)) {
+    return invalidTransitionResult();
+  }
+  if (!(X402_GATEWAY_REASON_CODES as readonly string[]).includes(reasonCode)) {
+    return invalidTransitionResult();
+  }
+  if (gatewayTransferId !== null && !TRANSFER_UUID_PATTERN.test(gatewayTransferId)) {
+    return invalidTransitionResult();
+  }
+  if (Number.isNaN(occurredAt.getTime())) {
+    return invalidTransitionResult();
+  }
+  let occurredAtIso: string;
+  try {
+    occurredAtIso = occurredAt.toISOString();
+  } catch {
+    return invalidTransitionResult();
+  }
+
+  const loaded = await loadEventsForTransition(storePath, authorizationId);
+  if (loaded.kind === "missing") {
+    return notFoundResult();
+  }
+  if (loaded.kind === "corrupt") {
+    return corruptResult();
+  }
+  const events = loaded.events;
+  const current = events[events.length - 1];
+  if (current.state !== "submitted") {
+    if (current.state === "remote_outcome_unknown") {
+      const existing = current as X402ExecutionRemoteOutcomeUnknownEvent;
+      if (
+        existing.nonce === nonce &&
+        existing.reasonCode === reasonCode &&
+        existing.gatewayTransferId === gatewayTransferId
+      ) {
+        return replayedResult();
+      }
+      return conflictResult();
+    }
+    return invalidTransitionResult();
+  }
+  const submitted = current as X402ExecutionSubmittedEvent;
+  const prepared = events[0] as X402PreparedExecutionEvent;
+  if (submitted.nonce !== nonce || prepared.nonce !== nonce) {
+    return invalidTransitionResult();
+  }
+
+  const event: X402ExecutionRemoteOutcomeUnknownEvent = {
+    eventType: "x402_execution_state",
+    version: "v1",
+    sequence: current.sequence + 1,
+    state: "remote_outcome_unknown",
+    authorizationId,
+    occurredAt: occurredAtIso,
+    nonce,
+    reasonCode,
+    gatewayTransferId
+  };
+  const outcome = await createEventFileExclusive(storePath, authorizationId, event);
+  if (outcome === "exists") {
+    return resolveTransitionRace(storePath, authorizationId, event);
+  }
+  return appliedResult(storePath, authorizationId);
+}
+
+/**
+ * Read-only enumeration of authorization ids present in the store (used by
+ * the I5 executed-spend reconciliation walker). Missing store → []. ANY
+ * entry that is not a valid `auth_<64hex>` directory fails closed with
+ * X402ExecutionStoreError — nothing is silently skipped, nothing is
+ * mutated. Never follows or constructs paths from unvalidated names.
+ */
+export async function listX402ExecutionAuthorizations(storePath: string): Promise<string[]> {
+  if (typeof storePath !== "string" || storePath.length === 0) {
+    throw new X402ExecutionStoreError("storePath must be a non-empty string.");
+  }
+  const authRoot = join(storePath, "authorizations");
+  let entries: Dirent[];
+  try {
+    entries = await readdir(authRoot, { withFileTypes: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") {
+      return [];
+    }
+    throw error;
+  }
+  const ids: string[] = [];
+  for (const entry of entries) {
+    if (!entry.isDirectory() || !AUTHORIZATION_ID_PATTERN.test(entry.name)) {
+      throw new X402ExecutionStoreError(
+        `unexpected entry in execution store authorizations directory: ${entry.name}.`
+      );
+    }
+    ids.push(entry.name);
+  }
+  ids.sort();
+  return ids;
 }

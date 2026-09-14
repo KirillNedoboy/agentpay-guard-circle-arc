@@ -57,9 +57,13 @@ import { recoverTypedDataAddress, type Hex, type TypedDataDomain } from "viem";
  * raw payload). Failure stays terminal; a fresh Guard authorization lineage
  * is required for retry.
  *
- * The I3 submitted transition stores ONLY `nonce` + `signerPayloadDigest` —
- * the raw signature and payload are never written to the execution store
- * (I3 enforces this; this module does not bypass it).
+ * The I3 submitted transition stores `nonce` + `signerPayloadDigest` plus
+ * the four non-secret recovery fields (payerAddress, signingRequestDigest,
+ * validAfter, validBefore) — the raw signature and payload are never
+ * written to the execution store (I3 enforces this; this module does not
+ * bypass it). Persisting the signed EIP-3009 validity window is what lets
+ * crash recovery reconcile by nonce and decide against re-signing the
+ * deterministic nonce with a fresh `now`.
  *
  * GUARD EXPIRY vs EIP-3009 VALIDITY (documented): the Guard authorization TTL
  * (prepared.authorizationExpiresAt, 300 s local) and the Gateway signature
@@ -382,14 +386,23 @@ export async function signPreparedX402Execution(
   //     (INCLUDES the signature; changed signature/field → different digest).
   const submittedDigest = signerPayloadDigest(payload);
 
-  // 12. Persist ONLY nonce + signerPayloadDigest via the I3 primitive. Applied
-  //     OR exact safe replay of the SAME digest → ready. Any other transition
-  //     outcome (conflict/invalid/corrupt/not-found) → fail closed.
+  // 12. Persist via the I3 primitive: nonce + signerPayloadDigest + the four
+  //     non-secret recovery fields (payerAddress, signingRequestDigest, and
+  //     the signed EIP-3009 validity window as decimal Unix-second strings).
+  //     NEVER the signature, NEVER the payload. Applied OR exact safe replay
+  //     of the SAME digest → ready. Any other transition outcome
+  //     (conflict/invalid/corrupt/not-found) → fail closed. Durable
+  //     validAfter/validBefore are what make crash recovery reconcile-by-nonce
+  //     possible without re-signing the deterministic nonce.
   const transition = await markX402ExecutionSubmitted({
     storePath,
     authorizationId,
     nonce: prepared.nonce,
     signerPayloadDigest: submittedDigest,
+    payerAddress,
+    signingRequestDigest: expectedRequestDigest,
+    validAfter: request.eip712.message.validAfter,
+    validBefore: request.eip712.message.validBefore,
     occurredAt: now
   });
   if (

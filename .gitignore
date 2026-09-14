@@ -34,3 +34,6 @@ data/evaluation-observations.jsonl
 
 # local generated execution state store (single-use execution claims) — never commit populated execution state
 data/execution-store/
+
+# local generated settlement evidence store (immutable settlement-outcome snapshots) — never commit populated settlement evidence
+data/settlement-evidence/

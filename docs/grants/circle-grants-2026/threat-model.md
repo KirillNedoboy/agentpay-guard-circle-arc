@@ -1,4 +1,4 @@
-# Threat Model — Circle Grants Pilot (Phase 7; current scope: I1–I4)
+# Threat Model — Circle Grants Pilot (Phase 7; current scope: I1–I5)
 
 Engineering threat model for the AgentPay Guard pilot boundary on branch
 `grant/circle-grants-pilot-2026`. Every control claim below was verified against the
@@ -6,13 +6,17 @@ current source before being written; file:line citations point at the evidence.
 This is an internal engineering verification, not an independent external security
 audit.
 
-**Current scope: I1–I4** (2026-08-17). This document was originally written at the
+**Current scope: I1–I5** (2026-09-15). This document was originally written at the
 Phase 7 no-execution checkpoint and has been updated in place as the integration
 track landed I1 (payment-requirement contract), I2 (execution security gate), I3
-(durable execution store), and I4 (offline external EOA signer). The execution
-surface today is PRE-SETTLEMENT: real local EIP-3009 signing exists in the external
-signer tool only; Guard `src/` remains keyless and performs no network/RPC/settlement.
-The PRE-I5 security re-review (2026-08-17) is recorded in
+(durable execution store), I4 (offline external EOA signer), and I5 (bounded
+Circle Gateway settlement layer — testnet-capable, MOCK-VERIFIED; the
+authoritative record is
+[x402-gateway-settlement.md](./x402-gateway-settlement.md) and the status note
+is under "Future Execution Preconditions" below). Guard `src/` remains keyless;
+its only outward network path is the operator-gated, host-pinned Gateway
+testnet HTTPS client. NO live payment has been executed and no funds have
+moved (I6). The PRE-I5 security re-review (2026-08-17) is recorded in
 [pre-i5-security-review.md](./pre-i5-security-review.md).
 
 # Scope
@@ -44,11 +48,14 @@ Excluded from scope because the capabilities DO NOT exist in this repository —
 with one I4 qualification: **transaction signing now exists, but ONLY offline
 in `scripts/x402-external-signer.mjs`** (the external signer process, I4), never
 in Guard `src/` core. Still absent: custody, private-key security in `src/`,
-wallet connection, RPC transaction submission, live x402 settlement, CCTP
-burn/mint, Circle Gateway settlement, UserOperation submission, and a
-production authorization service.
+wallet connection, RPC transaction submission, LIVE x402 settlement (no real
+payment has ever been executed), CCTP burn/mint, UserOperation submission, and
+a production authorization service. I5 qualification (2026-09-15): **Circle
+Gateway settlement code now exists** in `src/integrations/circle-gateway/*` +
+`src/domain/x402/gateway-*.ts` — testnet-capable, host-pinned, operator-gated,
+MOCK-VERIFIED only, never wired into `src/app/**`, and never exercised live.
 
-## I1–I4 pre-settlement execution surface (current scope)
+## I1–I4 pre-settlement execution surface (surface as of 2026-08-17; I5 changes noted below)
 
 The current repository contains a bounded, PRE-SETTLEMENT execution surface
 that did not exist at the Phase 7 checkpoint. It is in scope for this threat
@@ -63,9 +70,10 @@ model:
   only the `X402ExternalSigner` interface and never sees key material
   (`src/domain/x402/external-signer.ts`,
   `src/domain/x402/sign-prepared-x402-execution.ts`).
-- **Execution store (I3 durable state)** — `src/domain/x402/execution-store.ts`
-  persists `prepared | submitted | confirmed | failed` events, the
-  deterministic EIP-3009 nonce registry, and the signed-payload digest
+- **Execution store (I3 durable state, extended in I5)** —
+  `src/domain/x402/execution-store.ts` persists
+  `prepared | submitted | remote_outcome_unknown | confirmed | failed` events,
+  the deterministic EIP-3009 nonce registry, and the signed-payload digest
   (`signerPayloadDigest`) — never the signature or the key.
 - **Transient signed x402 `PaymentPayload` (I4)** — built in memory at signing
   time; only its `sha256:<64 hex>` digest is committed to the execution store;
@@ -74,10 +82,15 @@ model:
   signature with viem `recoverTypedDataAddress` against the exact locally
   constructed typed data; the recovered address must equal the trusted
   `X402PayerBinding.payerAddress`.
-- **STILL ABSENT (unchanged):** Gateway HTTP calls, Arc RPC calls,
-  settlement, and any funds movement. I5 (Gateway client + SettlementEvidence)
-  and I6 (first live payment) are NOT implemented; see
-  [pre-i5-security-review.md](./pre-i5-security-review.md).
+- **STILL ABSENT (pre-I5 statement, dated 2026-08-17):** Gateway HTTP calls,
+  Arc RPC calls, settlement, and any funds movement; I5 (Gateway client +
+  SettlementEvidence) and I6 (first live payment) were NOT implemented; see
+  [pre-i5-security-review.md](./pre-i5-security-review.md). **SUPERSEDED for
+  I5 by the 2026-09-15 I5 note below:** the Gateway testnet client,
+  settlement orchestration, and durable SettlementEvidence now exist
+  (mock-verified, operator-gated). **UNCHANGED:** no Arc RPC call path exists
+  in `src/`, and funds movement remains absent — it requires I6 (first live
+  payment), which has not happened.
 
 ## Static execution-surface review
 
@@ -108,10 +121,15 @@ and key-management capabilities:
   - **UI text** — demo copy such as "No wallet signing" / "No private keys"
     (`src/app/demo-client.tsx:574-576`) and the authorization safety line
     (`src/app/demo-client.tsx:513`).
-- Network calls are limited to same-origin `fetch()` against the app's own
-  `/api` routes (`src/app/demo-client.tsx:129,149,169,257`) and the local smoke
-  script's `fetch(baseUrl + "/api/payment-intents/evaluate")`
-  (`scripts/smoke.mjs:53`).
+- Network calls in the app path are limited to same-origin `fetch()` against
+  the app's own `/api` routes (`src/app/demo-client.tsx:129,149,169,257`) and
+  the local smoke script's `fetch(baseUrl + "/api/payment-intents/evaluate")`
+  (`scripts/smoke.mjs:53`). I5 adds exactly one outward network capability:
+  the host-pinned Gateway **testnet** HTTPS client
+  (`src/integrations/circle-gateway/testnet-client.ts`,
+  `gateway-api-testnet.circle.com` compile-pinned, no URL option), reachable
+  only through the operator gate (`--live` + exact-string env); it is not
+  imported by `src/app/**` and has never been exercised live.
 
 Docs, strings, types, and previews are explicitly distinguished from runtime
 execution code above. There is no execution code in `src/` to distinguish them
@@ -179,16 +197,20 @@ An attacker is anyone or anything that can:
 - Cause the observation writer to fail (e.g. read-only filesystem, full disk).
 - Supply malformed local files (corrupt JSONL lines).
 
-Stated plainly: there is now a **PRE-SETTLEMENT execution surface**: real local
-EIP-3009 signing exists in the external signer tool
-(`scripts/x402-external-signer.mjs`), and the I3 execution store holds durable
-execution state. Guard `src/` remains keyless and performs no network/RPC/
-settlement; nothing in `src/` broadcasts or moves funds. The strongest attacker
-outcome today is corrupted or misleading local evidence, a withheld
-authorization, or a malicious/misconfigured external signer being caught by
-cryptographic payer recovery — never fund movement. Fund movement requires I5
-(Gateway client + SettlementEvidence) and I6 (first live payment), both still
-absent.
+Stated plainly (2026-08-17 wording, updated 2026-09-15 for I5): there is a
+**settlement-capable execution surface**: real local EIP-3009 signing exists in
+the external signer tool (`scripts/x402-external-signer.mjs`), the I3
+execution store holds durable execution state, and I5 adds durable
+settlement-evidence + executed-spend stores plus a host-pinned,
+operator-gated Gateway testnet client. Guard `src/` remains keyless; nothing
+in `src/` broadcasts or moves funds, and the Gateway client is unreachable
+without the explicit `--live` + exact-string env operator authorization (no
+CI or app path enables it). The strongest attacker outcome today remains
+corrupted or misleading local evidence, a withheld authorization, or a
+malicious/misconfigured external signer being caught by cryptographic payer
+recovery — never fund movement. Fund movement still requires I6 (first live
+payment): I5's settlement layer is implemented but has NEVER executed a real
+`POST /v1/x402/settle`.
 
 # Threat Matrix
 
@@ -261,11 +283,11 @@ currently result in fund movement.
 1. **Audit log is not tamper-evident** (T13) — MEDIUM now; would become CRITICAL
    before any execution adapter exists. JSONL is append-only by writer convention
    only; no hash chain, signature, or external anchoring.
-2. **Authorization expiry is not enforced at runtime** (T09) — MEDIUM,
-   future-execution blocker. `expiresAt` is metadata on the v1 issuance path; the
-   I2 execution security gate now enforces runtime expiry locally (`now >=
-   expiresAt` rejects), but end-to-end enforcement still requires the future
-   external signer adapter (I4) to honor the gate before acting.
+2. **Authorization expiry is not enforced at runtime on the LIVE path**
+   (T09) — reduced post-I5: all three checks are now implemented locally (I2
+   eligibility gate, I4 pre-signer recheck, I5 pre-settle recheck — `now >=
+   expiresAt` rejects at each). End-to-end enforcement against a real Gateway
+   remains PENDING I6 (no live settle has occurred).
 3. **No cross-process concurrency control** (T14) — MEDIUM for the local demo
    (single process is fine), production blocker. Two processes can double-append
    and collide `auditId`s.
@@ -397,56 +419,95 @@ both implementation and test evidence.
 > (first live payment is I6). This note updates only the threat model and
 > docs; no runtime code changed.
 
-- [ ] **Runtime authorization expiry enforcement** — adapter MUST reject when
+> I5 note (2026-09-15): **the bounded Circle Gateway settlement layer (I5) is
+> now IMPLEMENTED.** The Gateway/x402 testnet client
+> (`src/integrations/circle-gateway/contracts.ts`,
+> `src/integrations/circle-gateway/testnet-client.ts`), the settlement
+> orchestration (`src/domain/x402/gateway-settlement.ts`: submit / reconcile /
+> finish), the durable `SettlementEvidence` contract + immutable store
+> (`src/domain/x402/settlement-evidence.ts`,
+> `src/domain/x402/settlement-evidence-store.ts`), the read-only
+> executed-spend reconciliation (`src/domain/x402/executed-spend.ts`), the
+> operator-gated live transport (`src/domain/x402/gateway-live-transport.ts`,
+> `scripts/x402-gateway-testnet.mjs`), and the I3 state-machine extension
+> (`remote_outcome_unknown`) now exist. The authoritative record is
+> [x402-gateway-settlement.md](./x402-gateway-settlement.md). Everything
+> verified in I5 is **IMPLEMENTED LOCALLY / MOCK-VERIFIED**: unknown-remote
+> -outcome handling (a `remote_outcome_unknown` state distinct from `failed`),
+> durable SettlementEvidence (immutable store; evidence digest persisted
+> BEFORE the `confirmed` transition), executed-spend reconciliation, Gateway
+> testnet host pinning, strict response validation, NO automatic retry, the
+> final expiry pre-send check (third Guard recheck, immediately before
+> `settle`), the nonce-keyed reconciliation path (reconcile by nonce, never
+> re-sign), and the operator-gated live transport (`--live` + exact-string
+> env authorization; tested only on its refusal branch). Explicitly: **NO
+> live payment proof yet** — no `POST /v1/x402/settle` has ever been
+> executed, no testnet payment was made, no funds moved, and no live
+> transfer UUID exists. **Gateway nonce behaviour is NOT PROVEN END-TO-END
+> until I6** — the durable nonce registry and reconcile path prove LOCAL
+> single-use only. Phase 9 remains **DEFERRED**; the first live payment is
+> **I6**. Honest residuals: `vitest.config.ts` has **no global fetch
+> sandbox** — test isolation is a per-test-file convention plus each file's
+> own guard, not a runner-level guarantee; and the SettlementEvidence store
+> is **immutable-by-convention** (O_EXCL + strict parsing + never rewriting)
+> inside the same filesystem trust boundary — **NOT tamper-proof, NOT WORM**.
+
+- [x] **Runtime authorization expiry enforcement** — adapter MUST reject when
   `now >= expiresAt` (T09). **IMPLEMENTED LOCALLY (I2 gate + I4 pre-signer
-  recheck) / END-TO-END ENFORCEMENT PENDING I5/I6** (`now < expiresAt`
-  strictly; `now === expiresAt` rejects; unparseable `expiresAt` fails
-  closed). **PRE-I5: I5 MUST add the pre-settle expiry recheck (I5.3: after
-  loading durable state, immediately before send).**
-- [ ] **Exact authorization-to-adapter input binding** — the adapter consumes the
+  recheck + I5 pre-settle recheck) / END-TO-END ENFORCEMENT PENDING I6**
+  (`now < expiresAt` strictly; `now === expiresAt` rejects; unparseable
+  `expiresAt` fails closed; the I5.3 pre-settle recheck is implemented as a
+  guard of `submitX402GatewaySettlement` immediately before the single
+  `settle` call, rejecting with zero transport calls).
+- [x] **Exact authorization-to-adapter input binding** — the adapter consumes the
   validated typed intent / `ExecutionAuthorization`, never raw request fields
-  (T15). **IMPLEMENTED LOCALLY (I2 gate typed-objects-only) / END-TO-END
-  ENFORCEMENT PENDING I5/I6** (typed-input-only gate; direct
-  requirement-digest commitment). **PRE-I5: I5 consumes only I3
-  prepared-record evidence + the typed contract.**
-- [ ] **Recipient / amount / asset / chain / route enforcement** — executed
+  (T15). **IMPLEMENTED LOCALLY / END-TO-END ENFORCEMENT PENDING I6**
+  (typed-input-only gate; I5 consumes only I3 prepared-record evidence + the
+  typed contract, with digest guards on the payload and requirement).
+- [x] **Recipient / amount / asset / chain / route enforcement** — executed
   transaction must match authorization constraints exactly (T03, T04, T05).
-  **IMPLEMENTED LOCALLY (I2 gate) / END-TO-END ENFORCEMENT PENDING I5/I6**
+  **IMPLEMENTED LOCALLY / END-TO-END ENFORCEMENT PENDING I6**
   (recipient → payTo gate, exact 6-decimal decimal→atomic amount, asset/domain
-  gate). **PRE-I5: the Gateway request is built only from the validated
-  requirement; SettlementEvidence must equal the authorized amount.**
-- [ ] **Single-use / duplicate-execution protection** — consume/check
+  gate; the I5 pre-send binding guard compares requirement
+  network/asset/payTo/amount against the durable prepared record, and
+  SettlementEvidence amounts derive exclusively from durable evidence).
+- [x] **Single-use / duplicate-execution protection** — consume/check
   `authorizationId`; single-use semantics where required (T10).
-  **IMPLEMENTED LOCALLY (I3 single-use + nonce registry) / END-TO-END
-  PENDING** (the NEW execution-state store: first prepared event permanently
-  consumes the v2 authorization; duplicate prepare →
-  `X402_EXECUTION_ALREADY_CONSUMED`; retry after terminal failure requires a
-  fresh Guard lineage). **PRE-I5: reconcile by nonce; never re-sign an
-  accepted nonce. Gateway nonce-enforcement PROOF = I6.**
-- [ ] **Durable cross-process idempotency** — atomic append / datastore-backed
-  audit writes; no `auditId` collisions (T14). **IMPLEMENTED LOCALLY for the
-  NEW execution-state store (I3 O_EXCL); canonical audit T14 cross-process
-  still RESIDUAL** (`fs.open(path, "wx")` O_CREAT|O_EXCL exclusive creation
-  of numbered events and nonce claims; restart-safe reconstruction from
-  persisted immutable events; deterministic EIP-3009 nonce binding/registry).
-  **PRE-I5: the SettlementEvidence store uses the same write-exclusive
-  pattern; the canonical audit log remains in-process (T14 residual).**
-- [ ] **Actual executed-spend accounting** — reconcile authorized vs executed
-  spend; daily limits reflect settled funds (T11). **NOT IMPLEMENTED —
-  BLOCKER 3: requires I5 SettlementEvidence + read-only
-  `ExecutedSpendSummary` (settled/failed/unknown buckets).** Separate from
-  proposed-intent policy spend accounting.
+  **IMPLEMENTED LOCALLY / GATEWAY NONCE-ENFORCEMENT PROOF PENDING I6** (the
+  execution-state store: first prepared event permanently consumes the v2
+  authorization; duplicate prepare → `X402_EXECUTION_ALREADY_CONSUMED`; retry
+  after terminal failure requires a fresh Guard lineage; I5 reconciles by
+  nonce and NEVER re-signs an accepted nonce — `nonce_already_used` triggers
+  reconcile-required, not blind failure or retry). **Gateway's own nonce
+  enforcement is NOT proven until the I6 live negative test.**
+- [x] **Durable cross-process idempotency** — atomic append / datastore-backed
+  audit writes; no `auditId` collisions (T14). **IMPLEMENTED LOCALLY (I3
+  execution store + I5 SettlementEvidence store, both O_EXCL); canonical
+  audit T14 cross-process remains RESIDUAL** (`fs.open(path, "wx")`
+  O_CREAT|O_EXCL exclusive creation of numbered events, nonce claims, and
+  evidence snapshots; restart-safe reconstruction from persisted immutable
+  events; deterministic EIP-3009 nonce binding/registry; the canonical audit
+  log still uses the in-process promise lock).
+- [x] **Actual executed-spend accounting** — reconcile authorized vs executed
+  spend; daily limits reflect settled funds (T11). **IMPLEMENTED LOCALLY FOR
+  BOUNDED TESTNET MODEL** (read-only `ExecutedSpendSummary` in
+  `src/domain/x402/executed-spend.ts`; settled/failed/unknown/pending buckets
+  derived from durable SettlementEvidence + I3 state, zero writes, zero
+  network). Separate from proposed-intent policy spend accounting. Making
+  daily limits REFLECT settled funds in production remains I6+ work.
 - [ ] **Authenticated principal / agent identity model** — no self-asserted
   `agentId` as a security boundary (ADD-1). **RESIDUAL PRODUCTION CONTROL —
   self-asserted `agentId`; acceptable for the bounded testnet proof; do not
   block I5/I6 on it. Cryptographic identity on the payment path is the payer
   EOA (`recoverTypedDataAddress`, I4).**
-- [ ] **Protected key-management boundary outside AgentPay Guard core** — no
-  private keys in this repository. **IMPLEMENTED LOCALLY (bounded reference
-  test signer: key only in `scripts/x402-external-signer.mjs` process env,
-  never in `src/`) — NOT production key management.** I5 adds no key
-  handling; SettlementEvidence stores no keys/signatures.
-- [ ] **Transaction simulation before signing** — **PROTOCOL-ADAPTED
+- [x] **Protected key-management boundary outside AgentPay Guard core** — no
+  private keys in this repository. **IMPLEMENTED FOR REFERENCE TEST SIGNER —
+  NOT production key management** (key only in
+  `scripts/x402-external-signer.mjs` process env, never in `src/`). I5 added
+  no key handling; the live transport is keyless (the Gateway client
+  receives only the signed payload + requirement + non-secret metadata);
+  SettlementEvidence stores no keys/signatures.
+- [x] **Transaction simulation before signing** — **PROTOCOL-ADAPTED
   REQUIREMENT (PRE-I5 re-review, 2026-08-17): "transaction simulation before
   signing" is PROTOCOL-INCORRECT for the x402 Gateway** (EIP-3009 is an
   offchain signature; no gas; no onchain simulation before signing; the
@@ -454,46 +515,71 @@ both implementation and test evidence.
   irreversible settlement submission": I1 strict requirement validation + I2
   gate + EIP-712 domain match + viem `recoverTypedDataAddress` payer recovery
   (already in I4). Official seller quickstart: use `settle()` directly rather
-  than `verify()` then `settle()`.
-- [ ] **Explicit network allowlist** — adapter may only target permitted
-  chains/contracts (T05, engine CCTP pair rules). **IMPLEMENTED LOCALLY (I2
-  Arc Testnet allowlist) / END-TO-END ENFORCEMENT PENDING I5/I6** (Arc
-  Testnet `eip155:5042002` / USDC / Gateway-domain allowlist). **PRE-I5: the
-  Gateway client is host-allowlisted to `gateway-api-testnet.circle.com`
-  only.**
+  than `verify()` then `settle()`. **IMPLEMENTED LOCALLY (protocol-adapted:
+  I1 validation + I2 gate + EIP-712 domain match + payer recovery) / LIVE
+  PROOF PENDING I6.**
+- [x] **Explicit network allowlist** — adapter may only target permitted
+  chains/contracts (T05, engine CCTP pair rules). **IMPLEMENTED LOCALLY**
+  (compile-pinned host-only testnet client —
+  `gateway-api-testnet.circle.com`, no `baseUrl` option — plus Arc Testnet
+  `eip155:5042002` / USDC / Gateway-domain allowlist enforced at the I2 gate
+  and re-checked against the CURRENT policy allowlist before every settle).
 - [ ] **Adapter-specific fee bounds** — fee caps enforced at execution, not only
   policy preview (T05 fee fields). **NOT APPLICABLE TO BOUNDED PATH — the
   exact nanopayment path has no per-payment execution fee: the payer
   authorizes exactly `PaymentRequirements.amount` and the facilitator absorbs
   gas via batched settlement.** (One-time onchain deposit gas and seller
   withdrawal fees are separate documented costs, out of scope.)
-- [ ] **Durable execution outcome evidence** — executed state recorded
-  durably, distinct from policy evidence (T10, T13). **NOT IMPLEMENTED —
-  BLOCKER 2: requires the I5 SettlementEvidence contract + durable store
-  (immutable, keyed by authorizationId, nonce index, distinct from canonical
-  policy audit); digest persisted BEFORE the I3 `confirmed` transition.**
-- [ ] **No raw-request bypass around validated typed intent** — downstream
+- [x] **Durable execution outcome evidence** — executed state recorded
+  durably, distinct from policy evidence (T10, T13). **IMPLEMENTED LOCALLY**
+  (immutable SettlementEvidence store — separate directory, keyed by
+  authorizationId with nonce/transfer indexes, O_EXCL appends; evidence
+  digest persisted BEFORE the I3 `confirmed` transition, with
+  evidence-first ordering on the failed/unknown paths too). Tamper-proofing
+  remains out of scope (same filesystem trust boundary, not WORM).
+- [x] **No raw-request bypass around validated typed intent** — downstream
   security logic consumes only the validated `PaymentIntent` (T15).
-  **IMPLEMENTED LOCALLY (I2 gate) / END-TO-END ENFORCEMENT PENDING I5/I6**
-  (the gate consumes only validated typed objects, never raw request
-  fields). **PRE-I5: I5 derives execution identity from I3 evidence only.**
+  **IMPLEMENTED LOCALLY** (the gate consumes only validated typed objects,
+  never raw request fields; I5 derives execution identity from I3 durable
+  evidence only — all 12 SettlementEvidence base-linkage fields come
+  exclusively from durable evidence, never from a Gateway response).
 - [ ] **Threat-model re-review before enabling broadcast** — this document must
-  be re-verified against the new execution surface. **COMPLETED for I5
-  (2026-08-17 — PRE-I5 SECURITY RE-REVIEW, decision GO WITH BLOCKERS, see
-  pre-i5-security-review.md). Final operator security review sign-off on the
-  pre-broadcast checklist remains REQUIRED before any live testnet
-  submission (I6).**
+  be re-verified against the new execution surface. **COMPLETED for I5; final
+  operator sign-off on the pre-broadcast checklist still REQUIRED before the
+  first live testnet submission (I6).** (2026-08-17 — PRE-I5 SECURITY
+  RE-REVIEW, decision GO WITH BLOCKERS, see pre-i5-security-review.md; the
+  I5 implementation record is
+  [x402-gateway-settlement.md](./x402-gateway-settlement.md).)
+
+**Live remote enforcement / proof — I6 PENDING.** Every I5 status above is
+implemented-locally / mock-verified; no precondition carrying an "END-TO-END
+/ LIVE / GATEWAY-PROOF PENDING I6" clause may be marked fully complete until
+the first operator-authorized live testnet run (I6).
 
 # Verification Evidence
 
 - **Security regression suite** — `tests/security-boundaries.test.ts`
   (22 tests, all passing).
-- **Existing suites** — 25 test files / 563 tests, all passing
-  (current baseline at I4, verified 2026-08-16: post-I1 21 files / 360
-  tests, post-I2 22 files / 445 tests, post-I3 23 files / 494 tests,
-  post-I4 25 files / 563 tests — incl. I1 90, I2 85, I3 47 + paths +2,
-  I4 63 + external-signer-cli 6). The earlier Phase 7 baseline was
-  20 files / 270 tests (19 files / 248 + 22 security-boundary tests).
+- **Existing suites** — the pre-I5 baseline was 25 test files / 563 tests, all
+  passing (verified 2026-08-16 at I4: post-I1 21 files / 360 tests, post-I2
+  22 files / 445 tests, post-I3 23 files / 494 tests, post-I4 25 files / 563
+  tests — incl. I1 90, I2 85, I4 63 + external-signer-cli 6). The earlier
+  Phase 7 baseline was 20 files / 270 tests (19 files / 248 + 22
+  security-boundary tests). Updated for I5: the execution state machine
+  gained `remote_outcome_unknown`, and `tests/x402-execution-store.test.ts`
+  now has 63 tests (verified 2026-09-15, 63 passed); the I4 external-signer
+  suite stands at 63 tests + CLI 6 (verified 2026-09-15). No global
+  file/count total is restated here — the post-I5 totals belong to
+  `evidence.md` and the final validation run.
+- **New I5 suites (mock/fixture-only, NO live network)** —
+  `tests/x402-gateway-client.test.ts`,
+  `tests/x402-settlement-evidence.test.ts`,
+  `tests/x402-settlement-evidence-store.test.ts`,
+  `tests/x402-executed-spend.test.ts`,
+  `tests/x402-gateway-settlement.test.ts` (settlement orchestration),
+  `tests/x402-gateway-operator-script.test.ts` — every transport is an
+  injected mock/stub fetch; none contacts the Gateway testnet host or any
+  Arc RPC; the operator script is exercised only on its refusal branch.
 - **Dependency note** — `package.json` now includes `viem ^2.55.16`
   (I4, offline EIP-712 signing/recovery only); no other network/signing
   dependency is present.
@@ -501,6 +587,9 @@ both implementation and test evidence.
   `pnpm build`, `git diff --check` (all green at Phase 6; re-run for Phase 7
   delivery). A separate worker owns validation for the PRE-I5 review; this
   review changes docs only.
-- **Git evidence** — this phase adds `tests/security-boundaries.test.ts` and changes
-  `docs/` only; `src/domain`, `src/app`, `data/`, and `package.json` are
-  unchanged.
+- **Git evidence** — the Phase 7 checkpoint added
+  `tests/security-boundaries.test.ts` and changed `docs/` only. I5 changes
+  `src/domain/x402/*`, `src/integrations/circle-gateway/*`, `src/lib/paths.ts`,
+  `scripts/x402-gateway-testnet*` + operator loader, `tests/x402-gateway-*` /
+  settlement-evidence / executed-spend suites, and `docs/`; `src/app/**` is
+  unchanged and no live settlement has been executed.

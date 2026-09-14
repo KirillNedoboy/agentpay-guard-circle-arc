@@ -50,8 +50,10 @@ import {
 import type { X402ExecutionAuthorizationV2 } from "@/domain/x402/execution-authorization-v2";
 import {
   deriveX402ExecutionNonce,
+  listX402ExecutionAuthorizations,
   markX402ExecutionConfirmed,
   markX402ExecutionFailed,
+  markX402ExecutionRemoteOutcomeUnknown,
   markX402ExecutionSubmitted,
   prepareX402ExecutionAttempt,
   readX402ExecutionRecord,
@@ -69,6 +71,11 @@ import {
   X402_EXECUTION_TRANSITION_REPLAYED,
   X402ExecutionStoreError
 } from "@/domain/x402/execution-store";
+import {
+  X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+  X402_GATEWAY_TRANSFER_FAILED,
+  type X402GatewayReasonCode
+} from "@/domain/x402/gateway-reason-codes";
 
 const root = process.cwd();
 const policy = loadPolicyConfig(join(root, "data", "policies.default.json"));
@@ -315,6 +322,12 @@ function serializeStore(storePath: string): string {
 const SUBMITTED_DIGEST = `sha256:${"c".repeat(64)}`;
 const SETTLEMENT_DIGEST = `sha256:${"d".repeat(64)}`;
 const FAILURE_CODE = "GATEWAY_REJECTED";
+// Non-secret I5 recovery metadata (test-only deterministic values).
+const TEST_PAYER = "0x2222222222222222222222222222222222222222";
+const REQUEST_DIGEST = `sha256:${"e".repeat(64)}`;
+const VALID_AFTER = "1751883510";
+const VALID_BEFORE = "1752488410";
+const TRANSFER_UUID = "0f5c7f2a-3b1e-4c8d-9a6f-1d2e3c4b5a69";
 
 describe("prepare: first preparation consumes an eligible v2 exactly once (real chain)", () => {
   test("canonical ALLOW → v1 → I1 requirement → I2 PASS → v2 → I3 prepare: one event, one nonce, record matches v2", async () => {
@@ -766,6 +779,10 @@ describe("state machine", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
 
@@ -788,6 +805,10 @@ describe("state machine", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
 
@@ -842,6 +863,10 @@ describe("state machine", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
 
@@ -889,6 +914,10 @@ describe("state machine", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     await markX402ExecutionConfirmed({
@@ -925,6 +954,10 @@ describe("state machine", () => {
       authorizationId: v2.authorizationId,
       nonce: deriveX402ExecutionNonce(v2.authorizationId, v2.paymentRequirementDigest),
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:40.000Z")
     });
     expect(result).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_INVALID_TRANSITION, record: null });
@@ -959,6 +992,10 @@ describe("state machine", () => {
       authorizationId: v2Confirmed.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     await markX402ExecutionConfirmed({
@@ -972,6 +1009,10 @@ describe("state machine", () => {
       authorizationId: v2Confirmed.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:40.000Z")
     });
     expect(confirmedSubmitted.reasonCode).toBe(X402_EXECUTION_INVALID_TRANSITION);
@@ -987,6 +1028,10 @@ describe("state machine", () => {
       authorizationId: v2.authorizationId,
       nonce: `0x${"f".repeat(64)}`,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     expect(result).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_INVALID_TRANSITION, record: null });
@@ -1002,6 +1047,10 @@ describe("state machine", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: "not-a-digest",
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     expect(result).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_INVALID_TRANSITION, record: null });
@@ -1017,6 +1066,10 @@ describe("state machine", () => {
       authorizationId: missingAuth,
       nonce: `0x${"f".repeat(64)}`,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     const confirmed = await markX402ExecutionConfirmed({
@@ -1047,6 +1100,10 @@ describe("transition retry and conflict", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
 
@@ -1055,6 +1112,10 @@ describe("transition retry and conflict", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:45.000Z")
     });
     expect(retry).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_TRANSITION_REPLAYED, record: null });
@@ -1069,6 +1130,10 @@ describe("transition retry and conflict", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
 
@@ -1077,6 +1142,10 @@ describe("transition retry and conflict", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: `sha256:${"9".repeat(64)}`,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:45.000Z")
     });
     expect(conflict).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_STATE_CONFLICT, record: null });
@@ -1106,6 +1175,593 @@ describe("transition retry and conflict", () => {
   });
 });
 
+
+describe("I5 remote_outcome_unknown state machine", () => {
+  async function submittedOnRealChain(storePath: string) {
+    const { v2, record } = await prepareOnRealChain(storePath);
+    const submitted = await markX402ExecutionSubmitted({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce: record.nonce,
+      signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
+      occurredAt: new Date("2026-07-07T10:18:30.000Z")
+    });
+    expect(submitted.applied).toBe(true);
+    return { v2, nonce: record.nonce };
+  }
+
+  test("submitted → remote_outcome_unknown: applied; event stores ONLY nonce/reasonCode/gatewayTransferId", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, nonce } = await submittedOnRealChain(storePath);
+
+    const result = await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: TRANSFER_UUID,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+    expect(result.applied).toBe(true);
+    if (!result.applied) {
+      throw new Error("remote_outcome_unknown transition unexpectedly rejected");
+    }
+    expect(result.record.state).toBe("remote_outcome_unknown");
+    expect(result.record.remoteOutcomeUnknown).toEqual({
+      sequence: 3,
+      occurredAt: "2026-07-07T10:18:35.000Z",
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: TRANSFER_UUID
+    });
+    expect(result.record.terminal).toBeUndefined();
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual(["0001.json", "0002.json", "0003.json"]);
+
+    const event = readEvent(storePath, v2.authorizationId, 3);
+    expect(Object.keys(event).sort()).toEqual([
+      "authorizationId",
+      "eventType",
+      "gatewayTransferId",
+      "nonce",
+      "occurredAt",
+      "reasonCode",
+      "sequence",
+      "state",
+      "version"
+    ]);
+    expect(JSON.stringify(event)).not.toMatch(
+      /privateKey|mnemonic|seedPhrase|"signature"|"payload"|signedPayload|transactionHash|txHash|rpcUrl|broadcast/i
+    );
+  });
+
+  test("remote_outcome_unknown → confirmed requires a valid settlementEvidenceDigest; terminal stays terminal", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, nonce } = await submittedOnRealChain(storePath);
+    await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: null,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+
+    const invalid = await markX402ExecutionConfirmed({
+      storePath,
+      authorizationId: v2.authorizationId,
+      settlementEvidenceDigest: "not-a-digest",
+      occurredAt: new Date("2026-07-07T10:18:40.000Z")
+    });
+    expect(invalid).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_INVALID_TRANSITION, record: null });
+    const missing = await markX402ExecutionConfirmed({
+      storePath,
+      authorizationId: v2.authorizationId,
+      settlementEvidenceDigest: "",
+      occurredAt: new Date("2026-07-07T10:18:40.000Z")
+    });
+    expect(missing).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_INVALID_TRANSITION, record: null });
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual(["0001.json", "0002.json", "0003.json"]);
+
+    const confirmed = await markX402ExecutionConfirmed({
+      storePath,
+      authorizationId: v2.authorizationId,
+      settlementEvidenceDigest: SETTLEMENT_DIGEST,
+      occurredAt: new Date("2026-07-07T10:18:45.000Z")
+    });
+    expect(confirmed.applied).toBe(true);
+    if (!confirmed.applied) {
+      throw new Error("confirmed after reconciliation unexpectedly rejected");
+    }
+    expect(confirmed.record.state).toBe("confirmed");
+    expect(confirmed.record.remoteOutcomeUnknown?.nonce).toBe(nonce); // reconciliation evidence stays visible
+    expect(confirmed.record.terminal).toMatchObject({ sequence: 4, state: "confirmed" });
+
+    // confirmed is terminal: no further transition, no new event.
+    const late = await markX402ExecutionFailed({
+      storePath,
+      authorizationId: v2.authorizationId,
+      failureStage: "settle",
+      failureCode: FAILURE_CODE,
+      occurredAt: new Date("2026-07-07T10:18:50.000Z")
+    });
+    expect(late).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_INVALID_TRANSITION, record: null });
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual([
+      "0001.json",
+      "0002.json",
+      "0003.json",
+      "0004.json"
+    ]);
+  });
+
+  test("remote_outcome_unknown → failed: applied with a settle-stage failure; failed stays terminal", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, nonce } = await submittedOnRealChain(storePath);
+    await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: X402_GATEWAY_TRANSFER_FAILED,
+      gatewayTransferId: null,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+
+    const failed = await markX402ExecutionFailed({
+      storePath,
+      authorizationId: v2.authorizationId,
+      failureStage: "settle",
+      failureCode: FAILURE_CODE,
+      occurredAt: new Date("2026-07-07T10:18:40.000Z")
+    });
+    expect(failed.applied).toBe(true);
+    if (!failed.applied) {
+      throw new Error("failed after reconciliation unexpectedly rejected");
+    }
+    expect(failed.record.state).toBe("failed");
+    expect(failed.record.terminal).toMatchObject({ failureStage: "settle", failureCode: FAILURE_CODE });
+
+    const again = await markX402ExecutionConfirmed({
+      storePath,
+      authorizationId: v2.authorizationId,
+      settlementEvidenceDigest: SETTLEMENT_DIGEST,
+      occurredAt: new Date("2026-07-07T10:18:45.000Z")
+    });
+    expect(again).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_INVALID_TRANSITION, record: null });
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual([
+      "0001.json",
+      "0002.json",
+      "0003.json",
+      "0004.json"
+    ]);
+  });
+
+  test("remote_outcome_unknown → submitted NEVER exists: late submitted rejected; hand-written history is corrupt", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, nonce } = await submittedOnRealChain(storePath);
+    await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: null,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+
+    const late = await markX402ExecutionSubmitted({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
+      occurredAt: new Date("2026-07-07T10:18:40.000Z")
+    });
+    expect(late).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_INVALID_TRANSITION, record: null });
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual(["0001.json", "0002.json", "0003.json"]);
+
+    // A hand-written remote_outcome_unknown → submitted history fails closed on read.
+    const backlinkEvent = {
+      eventType: "x402_execution_state",
+      version: "v1",
+      sequence: 4,
+      state: "submitted",
+      authorizationId: v2.authorizationId,
+      occurredAt: "2026-07-07T10:18:45.000Z",
+      nonce,
+      signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE
+    };
+    writeFileSync(
+      join(storePath, "authorizations", v2.authorizationId, "0004.json"),
+      `${JSON.stringify(backlinkEvent)}\n`,
+      "utf8"
+    );
+    await expect(readX402ExecutionRecord(storePath, v2.authorizationId)).rejects.toThrow(
+      X402ExecutionStoreError
+    );
+  });
+
+  test("duplicate identical unknown transition → REPLAYED; no extra event file", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, nonce } = await submittedOnRealChain(storePath);
+    const input = {
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN as X402GatewayReasonCode,
+      gatewayTransferId: TRANSFER_UUID,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    };
+    await markX402ExecutionRemoteOutcomeUnknown(input);
+
+    const retry = await markX402ExecutionRemoteOutcomeUnknown({
+      ...input,
+      occurredAt: new Date("2026-07-07T10:18:45.000Z")
+    });
+    expect(retry).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_TRANSITION_REPLAYED, record: null });
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual(["0001.json", "0002.json", "0003.json"]);
+  });
+
+  test("conflicting unknown repeats (reasonCode / gatewayTransferId / nonce) → STATE_CONFLICT; no extra event", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, nonce } = await submittedOnRealChain(storePath);
+    await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: TRANSFER_UUID,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+
+    const codes: string[] = [];
+    codes.push(
+      (
+        await markX402ExecutionRemoteOutcomeUnknown({
+          storePath,
+          authorizationId: v2.authorizationId,
+          nonce,
+          reasonCode: X402_GATEWAY_TRANSFER_FAILED,
+          gatewayTransferId: TRANSFER_UUID,
+          occurredAt: new Date("2026-07-07T10:18:45.000Z")
+        })
+      ).reasonCode
+    );
+    codes.push(
+      (
+        await markX402ExecutionRemoteOutcomeUnknown({
+          storePath,
+          authorizationId: v2.authorizationId,
+          nonce,
+          reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+          gatewayTransferId: "11111111-2222-3333-4444-555555555555",
+          occurredAt: new Date("2026-07-07T10:18:45.000Z")
+        })
+      ).reasonCode
+    );
+    codes.push(
+      (
+        await markX402ExecutionRemoteOutcomeUnknown({
+          storePath,
+          authorizationId: v2.authorizationId,
+          nonce: `0x${"f".repeat(64)}`,
+          reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+          gatewayTransferId: TRANSFER_UUID,
+          occurredAt: new Date("2026-07-07T10:18:45.000Z")
+        })
+      ).reasonCode
+    );
+    expect(codes).toEqual([
+      X402_EXECUTION_STATE_CONFLICT,
+      X402_EXECUTION_STATE_CONFLICT,
+      X402_EXECUTION_STATE_CONFLICT
+    ]);
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual(["0001.json", "0002.json", "0003.json"]);
+  });
+
+  test("two concurrent identical unknown writers → one APPLIED, deterministic REPLAYED loser, one event file", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, nonce } = await submittedOnRealChain(storePath);
+    const input = {
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN as X402GatewayReasonCode,
+      gatewayTransferId: null,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    };
+
+    const [first, second] = await Promise.all([
+      markX402ExecutionRemoteOutcomeUnknown(input),
+      markX402ExecutionRemoteOutcomeUnknown(input)
+    ]);
+    const applied = [first, second].filter((result) => result.applied === true);
+    const rejected = [first, second].filter((result) => result.applied === false);
+    expect(applied).toHaveLength(1);
+    expect(rejected).toHaveLength(1);
+    // Identical requests: the race loser resolves to REPLAYED deterministically (eventsEquivalent).
+    expect(rejected[0].reasonCode).toBe(X402_EXECUTION_TRANSITION_REPLAYED);
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual(["0001.json", "0002.json", "0003.json"]);
+  });
+
+  test("unknown transition guards: nonce mismatch / bad reason code / bad transfer id / missing auth all fail closed without a write", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, nonce } = await submittedOnRealChain(storePath);
+
+    const wrongNonce = await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce: `0x${"a".repeat(64)}`,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: null,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+    expect(wrongNonce).toMatchObject({
+      applied: false,
+      reasonCode: X402_EXECUTION_INVALID_TRANSITION,
+      record: null
+    });
+
+    const badCode = await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: "NOT_A_GATEWAY_CODE" as X402GatewayReasonCode,
+      gatewayTransferId: null,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+    expect(badCode.reasonCode).toBe(X402_EXECUTION_INVALID_TRANSITION);
+
+    const badTransferId = await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: "0F5C7F2A-3B1E-4C8D-9A6F-1D2E3C4B5A69", // uppercase rejected
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+    expect(badTransferId.reasonCode).toBe(X402_EXECUTION_INVALID_TRANSITION);
+
+    const missing = await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: `auth_${"e".repeat(64)}`,
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: null,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+    expect(missing.reasonCode).toBe(X402_EXECUTION_NOT_FOUND);
+
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual(["0001.json", "0002.json"]);
+  });
+
+  test("strict parsing rejects corrupt unknown events: bad nonce shape, unknown fields", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, nonce } = await submittedOnRealChain(storePath);
+    await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: null,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+
+    const corruptPath = join(storePath, "authorizations", v2.authorizationId, "0003.json");
+    const good = readEvent(storePath, v2.authorizationId, 3);
+    good.signature = "0xdeadbeef";
+    writeFileSync(corruptPath, `${JSON.stringify(good)}\n`, "utf8");
+    await expect(readX402ExecutionRecord(storePath, v2.authorizationId)).rejects.toThrow(
+      X402ExecutionStoreError
+    );
+
+    const badNonce = readEvent(storePath, v2.authorizationId, 3);
+    delete badNonce.signature;
+    badNonce.nonce = "0xnope";
+    writeFileSync(corruptPath, `${JSON.stringify(badNonce)}\n`, "utf8");
+    await expect(readX402ExecutionRecord(storePath, v2.authorizationId)).rejects.toThrow(
+      X402ExecutionStoreError
+    );
+
+    const badCode = readEvent(storePath, v2.authorizationId, 3);
+    badCode.nonce = nonce;
+    badCode.reasonCode = "NOT_A_GATEWAY_CODE";
+    writeFileSync(corruptPath, `${JSON.stringify(badCode)}\n`, "utf8");
+    await expect(readX402ExecutionRecord(storePath, v2.authorizationId)).rejects.toThrow(
+      X402ExecutionStoreError
+    );
+
+    const badTransfer = readEvent(storePath, v2.authorizationId, 3);
+    badTransfer.reasonCode = X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN;
+    badTransfer.gatewayTransferId = "not-a-uuid";
+    writeFileSync(corruptPath, `${JSON.stringify(badTransfer)}\n`, "utf8");
+    const transition = await markX402ExecutionConfirmed({
+      storePath,
+      authorizationId: v2.authorizationId,
+      settlementEvidenceDigest: SETTLEMENT_DIGEST,
+      occurredAt: new Date("2026-07-07T10:18:40.000Z")
+    });
+    expect(transition.reasonCode).toBe(X402_EXECUTION_STORE_CORRUPT);
+  });
+});
+
+describe("I5 submitted recovery metadata (legacy + fail-closed)", () => {
+  test("recovery metadata round-trips with recoveryMetadataComplete: true", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, record } = await prepareOnRealChain(storePath);
+    await markX402ExecutionSubmitted({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce: record.nonce,
+      signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
+      occurredAt: new Date("2026-07-07T10:18:30.000Z")
+    });
+
+    const loaded = await readX402ExecutionRecord(storePath, v2.authorizationId);
+    expect(loaded?.submitted).toEqual({
+      sequence: 2,
+      occurredAt: "2026-07-07T10:18:30.000Z",
+      nonce: record.nonce,
+      signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
+      recoveryMetadataComplete: true
+    });
+  });
+
+  test("submitted with a missing/malformed recovery field on input → INVALID_TRANSITION; no event written", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, record } = await prepareOnRealChain(storePath);
+    const base = {
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce: record.nonce,
+      signerPayloadDigest: SUBMITTED_DIGEST,
+      occurredAt: new Date("2026-07-07T10:18:30.000Z")
+    };
+    const bad = [
+      { ...base, payerAddress: "not-an-address", signingRequestDigest: REQUEST_DIGEST, validAfter: VALID_AFTER, validBefore: VALID_BEFORE },
+      { ...base, payerAddress: TEST_PAYER, signingRequestDigest: "sha256:short", validAfter: VALID_AFTER, validBefore: VALID_BEFORE },
+      { ...base, payerAddress: TEST_PAYER, signingRequestDigest: REQUEST_DIGEST, validAfter: "0", validBefore: VALID_BEFORE },
+      { ...base, payerAddress: TEST_PAYER, signingRequestDigest: REQUEST_DIGEST, validAfter: VALID_AFTER, validBefore: "12.5" },
+      { ...base, payerAddress: TEST_PAYER, signingRequestDigest: REQUEST_DIGEST, validAfter: VALID_BEFORE, validBefore: VALID_AFTER }
+    ];
+    for (const input of bad) {
+      const result = await markX402ExecutionSubmitted(input);
+      expect(result).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_INVALID_TRANSITION, record: null });
+    }
+    expect(eventFiles(storePath, v2.authorizationId)).toEqual(["0001.json"]);
+  });
+
+  test("LEGACY submitted event (nonce + signerPayloadDigest only) parses with nulls and recoveryMetadataComplete: false; read never rewrites", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, record } = await prepareOnRealChain(storePath);
+    const legacyEvent = {
+      eventType: "x402_execution_state",
+      version: "v1",
+      sequence: 2,
+      state: "submitted",
+      authorizationId: v2.authorizationId,
+      occurredAt: "2026-07-07T10:18:30.000Z",
+      nonce: record.nonce,
+      signerPayloadDigest: SUBMITTED_DIGEST
+    };
+    const legacyPath = join(storePath, "authorizations", v2.authorizationId, "0002.json");
+    writeFileSync(legacyPath, `${JSON.stringify(legacyEvent)}\n`, "utf8");
+    const before = readFileSync(legacyPath);
+
+    const loaded = await readX402ExecutionRecord(storePath, v2.authorizationId);
+    expect(loaded?.state).toBe("submitted");
+    expect(loaded?.submitted).toEqual({
+      sequence: 2,
+      occurredAt: "2026-07-07T10:18:30.000Z",
+      nonce: record.nonce,
+      signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: null,
+      signingRequestDigest: null,
+      validAfter: null,
+      validBefore: null,
+      recoveryMetadataComplete: false
+    });
+    expect(readFileSync(legacyPath)).toEqual(before); // legacy read NEVER rewrites the file
+
+    // Legacy submitted still transitions normally (graph unchanged for old fields).
+    const confirmed = await markX402ExecutionConfirmed({
+      storePath,
+      authorizationId: v2.authorizationId,
+      settlementEvidenceDigest: SETTLEMENT_DIGEST,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+    expect(confirmed.applied).toBe(true);
+    expect(serializeStore(storePath)).toContain('"signerPayloadDigest"');
+  });
+
+  test("PARTIAL recovery metadata (1–3 of the four) is CORRUPT: reads throw, transitions fail closed, file untouched", async () => {
+    const partials: Array<Record<string, unknown>> = [
+      { payerAddress: TEST_PAYER },
+      { validAfter: VALID_AFTER, validBefore: VALID_BEFORE },
+      { payerAddress: TEST_PAYER, signingRequestDigest: REQUEST_DIGEST, validAfter: VALID_AFTER }
+    ];
+    for (const partial of partials) {
+      const storePath = makeTempStorePath();
+      const { v2, record } = await prepareOnRealChain(storePath);
+      const event = {
+        eventType: "x402_execution_state",
+        version: "v1",
+        sequence: 2,
+        state: "submitted",
+        authorizationId: v2.authorizationId,
+        occurredAt: "2026-07-07T10:18:30.000Z",
+        nonce: record.nonce,
+        signerPayloadDigest: SUBMITTED_DIGEST,
+        ...partial
+      };
+      const path = join(storePath, "authorizations", v2.authorizationId, "0002.json");
+      writeFileSync(path, `${JSON.stringify(event)}\n`, "utf8");
+      const before = readFileSync(path);
+
+      await expect(readX402ExecutionRecord(storePath, v2.authorizationId)).rejects.toThrow(
+        X402ExecutionStoreError
+      );
+      const confirmed = await markX402ExecutionConfirmed({
+        storePath,
+        authorizationId: v2.authorizationId,
+        settlementEvidenceDigest: SETTLEMENT_DIGEST,
+        occurredAt: new Date("2026-07-07T10:18:35.000Z")
+      });
+      expect(confirmed).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_STORE_CORRUPT, record: null });
+      expect(readFileSync(path)).toEqual(before); // no auto-repair, no rewrite
+    }
+  });
+});
+
+describe("listX402ExecutionAuthorizations (read-only)", () => {
+  test("missing store → []; valid auth_<64hex> directories returned sorted", async () => {
+    const storePath = join(makeTempStorePath(), "absent");
+    expect(await listX402ExecutionAuthorizations(storePath)).toEqual([]);
+
+    const realStore = makeTempStorePath();
+    const authRoot = join(realStore, "authorizations");
+    const ids = [`auth_${"f".repeat(64)}`, `auth_${"0".repeat(64)}`, `auth_${"a".repeat(64)}`];
+    for (const id of ids) {
+      mkdirSync(join(authRoot, id), { recursive: true });
+    }
+    expect(await listX402ExecutionAuthorizations(realStore)).toEqual([...ids].sort());
+  });
+
+  test("fails closed on ANY unexpected entry (bad name, stray file, file named like an id); never mutates", async () => {
+    const storePath = makeTempStorePath();
+    const authRoot = join(storePath, "authorizations");
+    mkdirSync(join(authRoot, `auth_${"a".repeat(64)}`), { recursive: true });
+
+    mkdirSync(join(authRoot, "not_an_auth"));
+    await expect(listX402ExecutionAuthorizations(storePath)).rejects.toThrow(X402ExecutionStoreError);
+    expect(existsSync(join(authRoot, "not_an_auth"))).toBe(true); // failed closed WITHOUT deleting
+
+    writeFileSync(join(authRoot, "readme.txt"), "hi", "utf8");
+    await expect(listX402ExecutionAuthorizations(storePath)).rejects.toThrow(X402ExecutionStoreError);
+
+    writeFileSync(join(authRoot, `auth_${"b".repeat(64)}`), "x", "utf8"); // valid name, NOT a directory
+    await expect(listX402ExecutionAuthorizations(storePath)).rejects.toThrow(X402ExecutionStoreError);
+    expect(existsSync(join(authRoot, "readme.txt"))).toBe(true);
+    expect(existsSync(join(authRoot, `auth_${"b".repeat(64)}`))).toBe(true);
+    expect(existsSync(join(authRoot, `auth_${"a".repeat(64)}`))).toBe(true);
+  });
+});
 describe("concurrent terminal", () => {
   test("from submitted, Promise.all([confirmed, failed]) → exactly one next event; loser gets conflict; history valid", async () => {
     const storePath = makeTempStorePath();
@@ -1115,6 +1771,10 @@ describe("concurrent terminal", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
 
@@ -1174,6 +1834,10 @@ describe("corruption fails closed", () => {
       authorizationId: v2.authorizationId,
       nonce: `0x${"f".repeat(64)}`,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     expect(submitted).toMatchObject({ applied: false, reasonCode: X402_EXECUTION_STORE_CORRUPT, record: null });
@@ -1248,6 +1912,10 @@ describe("corruption fails closed", () => {
       authorizationId: v2.authorizationId,
       nonce: `0x${"f".repeat(64)}`,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     expect(submitted.reasonCode).toBe(X402_EXECUTION_STORE_CORRUPT);
@@ -1296,6 +1964,10 @@ describe("corruption fails closed", () => {
       authorizationId: v2.authorizationId,
       nonce: `0x${"f".repeat(64)}`,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     expect(submitted.reasonCode).toBe(X402_EXECUTION_STORE_CORRUPT);
@@ -1313,6 +1985,10 @@ describe("secret-free store", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     await markX402ExecutionConfirmed({
@@ -1328,7 +2004,7 @@ describe("secret-free store", () => {
     );
   });
 
-  test("submitted event stores only signerPayloadDigest, never the payload or signature", async () => {
+  test("submitted event stores digests + non-secret recovery metadata, never the payload or signature", async () => {
     const storePath = makeTempStorePath();
     const { v2, record } = await prepareOnRealChain(storePath);
     await markX402ExecutionSubmitted({
@@ -1336,6 +2012,10 @@ describe("secret-free store", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
 
@@ -1345,15 +2025,50 @@ describe("secret-free store", () => {
       "eventType",
       "nonce",
       "occurredAt",
+      "payerAddress",
       "sequence",
       "signerPayloadDigest",
+      "signingRequestDigest",
       "state",
+      "validAfter",
+      "validBefore",
       "version"
     ]);
     expect(submitted.signerPayloadDigest).toBe(SUBMITTED_DIGEST);
+    expect(submitted.payerAddress).toBe(TEST_PAYER);
     expect(JSON.stringify(submitted)).not.toMatch(
-      /"signature"|"authorization"|"payload"|signedPayload|validBefore|validAfter/i
+      /"signature"|"authorization"|"payload"|signedPayload|privateKey|mnemonic|seedPhrase/i
     );
+  });
+
+  test("remote_outcome_unknown event never carries a signature/private key/raw payload/raw error body", async () => {
+    const storePath = makeTempStorePath();
+    const { v2, record } = await prepareOnRealChain(storePath);
+    await markX402ExecutionSubmitted({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce: record.nonce,
+      signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
+      occurredAt: new Date("2026-07-07T10:18:30.000Z")
+    });
+    await markX402ExecutionRemoteOutcomeUnknown({
+      storePath,
+      authorizationId: v2.authorizationId,
+      nonce: record.nonce,
+      reasonCode: X402_GATEWAY_REMOTE_OUTCOME_UNKNOWN,
+      gatewayTransferId: null,
+      occurredAt: new Date("2026-07-07T10:18:35.000Z")
+    });
+    const serialized = serializeStore(storePath);
+    expect(serialized).not.toMatch(
+      /privateKey|mnemonic|seedPhrase|"signature"|"payload"|signedPayload|errorBody|rawError|rpcUrl|broadcast|transactionHash|txHash/i
+    );
+    const event = readEvent(storePath, v2.authorizationId, 3);
+    expect(event.gatewayTransferId).toBeNull(); // no validated remote response → null
   });
 
   test("confirmed event stores only settlementEvidenceDigest, no fake settlement fields", async () => {
@@ -1364,6 +2079,10 @@ describe("secret-free store", () => {
       authorizationId: v2.authorizationId,
       nonce: record.nonce,
       signerPayloadDigest: SUBMITTED_DIGEST,
+      payerAddress: TEST_PAYER,
+      signingRequestDigest: REQUEST_DIGEST,
+      validAfter: VALID_AFTER,
+      validBefore: VALID_BEFORE,
       occurredAt: new Date("2026-07-07T10:18:30.000Z")
     });
     await markX402ExecutionConfirmed({

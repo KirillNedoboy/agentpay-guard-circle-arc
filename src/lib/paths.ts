@@ -32,3 +32,19 @@ export function executionStorePath(): string {
   }
   return join(dirname(auditLogPath()), "execution-store");
 }
+
+/**
+ * I5 — root directory of the durable SettlementEvidence store (immutable,
+ * write-exclusive settlement-outcome snapshots keyed by authorizationId,
+ * indexed by nonce/transfer id). Explicit `AGENTPAY_SETTLEMENT_EVIDENCE_PATH`
+ * wins; otherwise the store lives next to the audit log
+ * (`<dir of auditLogPath()>/settlement-evidence`) so runtime artifacts stay
+ * together while remaining a separate evidence boundary from the canonical
+ * policy/audit evidence and the I3 execution store.
+ */
+export function settlementEvidencePath(): string {
+  if (process.env.AGENTPAY_SETTLEMENT_EVIDENCE_PATH) {
+    return process.env.AGENTPAY_SETTLEMENT_EVIDENCE_PATH;
+  }
+  return join(dirname(auditLogPath()), "settlement-evidence");
+}

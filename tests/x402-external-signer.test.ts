@@ -1027,7 +1027,7 @@ describe("signed payload digest", () => {
     expect(signerPayloadDigest(changed)).not.toBe(signerPayloadDigest(payload));
   });
 
-  test("persisted I3 submitted event stores ONLY the digest (nonce + signerPayloadDigest), never signature/payload", async () => {
+  test("persisted I3 submitted event stores digest + non-secret recovery metadata, never signature/payload", async () => {
     const storePath = makeTempStorePath();
     const { v2 } = await prepareOnRealChain(storePath);
     const payer = makeEphemeralAccount();
@@ -1048,11 +1048,32 @@ describe("signed payload digest", () => {
     expect(submitted.signerPayloadDigest).toBe(
       result.signerReady ? result.signerPayloadDigest : null
     );
+    // Non-secret recovery metadata equals the signed request (formulas mirror
+    // the official Builder: validAfter = now − 600 s, validBefore = now +
+    // the 7-day+100 s Gateway window; the fixture maxTimeoutSeconds == window).
+    expect(submitted.payerAddress).toBe(payer.address);
+    expect(submitted.signingRequestDigest).toMatch(/^sha256:[0-9a-f]{64}$/);
+    expect(submitted.validAfter).toBe(
+      String(Math.floor(DEFAULT_NOW.getTime() / 1000) - GATEWAY_VALID_AFTER_BACKDATING_SECONDS)
+    );
+    expect(submitted.validBefore).toBe(
+      String(Math.floor(DEFAULT_NOW.getTime() / 1000) + GATEWAY_AUTH_VALIDITY_WINDOW_SECONDS)
+    );
     expect(submitted).not.toHaveProperty("signature");
     expect(submitted).not.toHaveProperty("payload");
 
+    const loaded = await readX402ExecutionRecord(storePath, v2.authorizationId);
+    expect(loaded?.submitted?.recoveryMetadataComplete).toBe(true);
+    expect(loaded?.submitted?.payerAddress).toBe(payer.address);
+    expect(loaded?.submitted?.signingRequestDigest).toBe(submitted.signingRequestDigest);
+    expect(loaded?.submitted?.validAfter).toBe(submitted.validAfter);
+    expect(loaded?.submitted?.validBefore).toBe(submitted.validBefore);
+
     const serialized = serializeStore(storePath);
-    expect(serialized).not.toMatch(/signature|signedPayload|PaymentPayload|privateKey|seedPhrase|mnemonic/i);
+    // digests only: no signature bytes (65-byte = 130 hex after 0x), no payload, no secrets
+    expect(serialized).not.toMatch(
+      /signature|signedPayload|PaymentPayload|privateKey|seedPhrase|mnemonic|0x[0-9a-f]{130,}/i
+    );
   });
 });
 
@@ -1082,6 +1103,18 @@ describe("submitted transition", () => {
     expect(result.record.state).toBe("submitted");
     expect(result.record.submitted?.nonce).toBe(record.nonce);
     expect(result.record.submitted?.signerPayloadDigest).toBe(result.signerPayloadDigest);
+    expect(result.record.submitted?.recoveryMetadataComplete).toBe(true);
+    // The durable recovery metadata must match the EXACT signed request.
+    const expectedRequest = buildX402Eip3009SigningRequest({
+      prepared: record,
+      requirement: makeValidRequirement({ amount: "80000" }),
+      payerAddress: payer.address,
+      now: DEFAULT_NOW
+    });
+    expect(result.record.submitted?.payerAddress).toBe(payer.address);
+    expect(result.record.submitted?.signingRequestDigest).toBe(signingRequestDigest(expectedRequest));
+    expect(result.record.submitted?.validAfter).toBe(expectedRequest.eip712.message.validAfter);
+    expect(result.record.submitted?.validBefore).toBe(expectedRequest.eip712.message.validBefore);
 
     // event history: prepared (0001) → submitted (0002)
     expect(eventFiles(storePath, v2.authorizationId)).toEqual(["0001.json", "0002.json"]);
@@ -1095,6 +1128,12 @@ describe("submitted transition", () => {
     });
     expect(submittedEvent.nonce).toBe(record.nonce);
     expect(submittedEvent.signerPayloadDigest).toBe(result.signerPayloadDigest);
+    // Raw persisted bytes carry the four non-secret recovery values as they
+    // were signed (decimal Unix-second strings; payer; request digest).
+    expect(submittedEvent.payerAddress).toBe(payer.address);
+    expect(submittedEvent.signingRequestDigest).toBe(signingRequestDigest(expectedRequest));
+    expect(submittedEvent.validAfter).toBe(expectedRequest.eip712.message.validAfter);
+    expect(submittedEvent.validBefore).toBe(expectedRequest.eip712.message.validBefore);
     expect(submittedEvent.occurredAt).toBe(DEFAULT_NOW.toISOString());
     expect(submittedEvent).not.toHaveProperty("signature");
     expect(submittedEvent).not.toHaveProperty("payload");
@@ -1108,7 +1147,7 @@ describe("submitted transition", () => {
     // the store never contains the signature, the payload, or any secret
     const serialized = serializeStore(storePath);
     expect(serialized).not.toMatch(
-      /privateKey|signature|signedPayload|PaymentPayload|transactionHash|txHash|seedPhrase|mnemonic/i
+      /privateKey|signature|signedPayload|PaymentPayload|transactionHash|txHash|seedPhrase|mnemonic|0x[0-9a-f]{130,}/i
     );
   });
 

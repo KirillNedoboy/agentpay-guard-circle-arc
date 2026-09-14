@@ -3,18 +3,18 @@
 I3 is the durable, restart-safe, filesystem-backed execution state store. It
 turns an ELIGIBLE v2 authorization into a durable single-use execution claim: a
 prepared execution record plus a bound EIP-3009 nonce, written durably, then
-STOP. I3 still has no signer and no payment.
+STOP. The store itself signs nothing and settles nothing; I4/I5 drive it.
 
 I3 is the third step of the approved pre-Phase-9 integration track (decision
 record `integration-feasibility.md`, **GO WITH BLOCKERS**), following I1 (the
 x402 payment-requirement contract + deterministic requirement digest) and I2
 (the pure, fail-closed execution security gate that produces the v2
-authorization). It sits between I2 and any future external signer adapter (I4).
-
-I3 is a local, keyless, non-executing persistence layer: no signer, no Gateway
-call, no network, no funds movement. It exists so that a single-use execution
-claim and its bound nonce survive a process restart and are exclusively owned
-across processes sharing the same filesystem.
+authorization). It sits between I2 and the external signer adapter (I4, now
+implemented); the I5 Gateway settlement layer is its remote-outcome consumer.
+I3 is a local, keyless, non-executing persistence layer: the store itself has
+no signer, makes no Gateway call, and has moved no funds. It exists so that a
+single-use execution claim and its bound nonce survive a process restart and
+are exclusively owned across processes sharing the same filesystem.
 
 # Store Layout
 
@@ -77,8 +77,8 @@ beside the active audit log:
 - **Same v2 → same nonce; different v2 → different nonce.** The nonce is a pure
   deterministic function of the authorization id and its requirement digest.
 - This gives a **one-to-one authorizationId ↔ nonce** mapping that is auditable
-  end-to-end: the same nonce is what a future external signer (I4) signs and
-  what Gateway enforces at settle time.
+  end-to-end: the same nonce is what the external signer (I4) signs and what
+  a future live Gateway settlement (I6) will exercise at settle time.
 - The nonce registry (`nonces/0x<64hex>.json`) claims nonces with **exclusive
   creation**. On a claim collision:
   - a claim for the **same authorization** is treated as **recovery** (the
@@ -88,7 +88,8 @@ beside the active audit log:
 
 # State Machine
 
-States: `prepared | submitted | confirmed | failed`.
+States: `prepared | submitted | remote_outcome_unknown | confirmed | failed`
+(`remote_outcome_unknown` added in I5).
 
 Allowed transitions:
 
@@ -98,6 +99,9 @@ prepared   -> submitted
 prepared   -> failed
 submitted  -> confirmed
 submitted  -> failed
+submitted  -> remote_outcome_unknown
+remote_outcome_unknown -> confirmed
+remote_outcome_unknown -> failed
 ```
 
 Forbidden transitions (rejected deterministically):
@@ -106,15 +110,31 @@ Forbidden transitions (rejected deterministically):
 prepared   -> confirmed
 confirmed  -> anything   (terminal)
 failed     -> anything   (terminal)
+remote_outcome_unknown -> submitted  (NEVER exists: recovery reconciles by
+                                       nonce and never re-signs)
 submitted  -> submitted
 prepared   -> prepared
 ```
 
 - `confirmed` and `failed` are **terminal** — no transition out of either.
 - No sequence skipping is allowed (e.g. `NO RECORD -> submitted` is rejected).
-- The `submitted` / `confirmed` transitions are **storage primitives for
-  I4/I5**, not claims that real submission or real confirmation happened. They
-  persist a state label only; real evidence arrives with I4/I5.
+- `submitted → remote_outcome_unknown` is idempotent ONLY for the exact same
+  `(nonce, reasonCode, gatewayTransferId)` triple (an identical repeat is
+  REPLAYED; anything else is a state conflict).
+- `remote_outcome_unknown` records an AMBIGUOUS remote outcome (transport
+  timeout/reset, 5xx, malformed response, crash after send) — it is at-risk
+  accounting, NOT `failed`: the funds may or may not have been accepted
+  remotely. Exit is ONLY via reconciliation to `confirmed`/`failed`.
+- `confirmed` requires a `settlementEvidenceDigest` — the I5 SettlementEvidence
+  reference persisted BEFORE the transition.
+- The `submitted` / `confirmed` transitions began as **storage primitives for
+  I4/I5**; since I5 they are actually driven: I4 commits the `submitted`
+  digest, and the I5 settlement orchestration
+  (`src/domain/x402/gateway-settlement.ts`) is the only code path that
+  produces `confirmed` / `failed` / `remote_outcome_unknown` from a real
+  (or ambiguous) remote outcome. `submitted` still does NOT mean Gateway
+  accepted anything; `confirmed` means official `confirmed`/`completed` was
+  observed and evidenced durably.
 
 # Cross-Process Exclusivity
 
@@ -174,11 +194,36 @@ The **prepared** event commits:
 - `authorizationExpiresAt`
 - `nonce`
 
-The **submitted** event stores only `nonce` + `signerPayloadDigest` (the bound
-nonce is echoed; the digest is committed, never the signature or payload).
+The **submitted** event stores `nonce` + `signerPayloadDigest` plus the four
+**non-secret recovery fields** added in I5: `payerAddress` (EVM address),
+`signingRequestDigest` (`sha256:<64 hex>`), and the signed EIP-3009 validity
+window `validAfter` / `validBefore` (decimal Unix-second strings). The bound
+nonce is echoed; the digest is committed — never the signature or the payload.
+The recovery fields exist so a crash-recovery path can reconcile an
+uncertain remote outcome **by nonce** (identity filtering requires the durable
+payer) WITHOUT re-signing: the signed validity window cannot be reconstructed
+locally after a crash, so re-signing the same deterministic nonce with a
+fresh `now` would produce a different payload bound to the same nonce —
+forbidden.
 
-The **confirmed** event stores only `settlementEvidenceDigest` (a future I5
-evidence reference, not the evidence itself).
+**Legacy rule:** pre-I5 `submitted` records that omit ALL FOUR recovery
+fields together still parse (the store never declares valid history corrupt
+because of the upgrade) and are reported with
+`recoveryMetadataComplete === false` — readable, but I5 refuses to settle or
+reconcile them (`X402_GATEWAY_RECOVERY_METADATA_MISSING`). PARTIAL presence of
+the four fields is CORRUPT: the store throws and fails closed (no auto-repair,
+no rewrite, nothing fabricated).
+
+The **remote_outcome_unknown** event carries ONLY `nonce`, a stable
+`reasonCode` (validated against the shared `X402_GATEWAY_REASON_CODES` list —
+free-form HTTP text is never security state), and an OPTIONAL
+already-validated `gatewayTransferId` (non-null ONLY when a validated Gateway
+response produced one). Never a signature, key, raw payload, or raw Gateway
+body.
+
+The **confirmed** event stores only `settlementEvidenceDigest` (the durable
+I5 SettlementEvidence reference; the evidence object itself lives in the
+separate evidence store).
 
 The **failed** event stores `failureStage` (`"prepare" | "sign" | "submit" |
 "settle"`) and `failureCode`.
@@ -193,23 +238,31 @@ The execution store **never** stores:
 - signed payload
 - `PaymentPayload`
 - transaction hash / `txHash`
-- Gateway transfer ID
 - fake settlement status
 
 These are deliberately outside the store's contract. Nothing in I3 introduces a
-key, a signature, or a fabricated settlement result.
+key, a signature, or a fabricated settlement result. The only exception I5
+added is narrow and non-secret: the `remote_outcome_unknown` event may carry
+an **already-validated Gateway transfer UUID** (`gatewayTransferId`,
+non-null ONLY when a validated Gateway response produced one) — a reference
+for reconciliation, never an on-chain tx hash, never raw response bodies, and
+never a locally invented status.
 
 # Current Non-Execution Boundary
 
-State explicitly:
+State explicitly (the store module itself):
 
-> I3 does not sign. I3 does not contact Gateway. I3 does not submit. I3 does
-> not confirm a real payment.
+> The store does not sign. The store does not contact Gateway. The store does
+> not submit. The store does not confirm a real payment.
 
-I3's `submitted` / `confirmed` transitions are **persistence capabilities
-only** until I4/I5 invoke them with real evidence. Until then they are state
-labels in a durable store, not claims that a submission or a settlement
-occurred.
+History: as shipped in I3, the `submitted` / `confirmed` transitions were
+**persistence capabilities only**. I4 now invokes `submitted` with a real
+locally-signed payload digest, and I5 invokes `confirmed` / `failed` /
+`remote_outcome_unknown` from interpreted remote outcomes — always backed by
+durable SettlementEvidence written BEFORE the transition. The states are
+still labels about what the LOCAL process committed; the actual settlement
+proof lives in the evidence store and, ultimately, in Gateway's own data.
+**No live settlement has occurred** — the first real payment is I6.
 
 # Residual Risks
 
@@ -223,12 +276,18 @@ occurred.
 - **T14 canonical-audit cross-process concurrency remains unfixed** — I3 fixes
   only the NEW execution-state store; the canonical audit log still uses the
   in-process promise-lock pattern.
-- **Gateway nonce-enforcement proof is pending I4/I6** — the deterministic
-  nonce registry is local; proof that Gateway actually enforces the bound nonce
-  at settle time requires the signer and a live submission.
+- **Gateway nonce-enforcement proof is pending I6** — the deterministic
+  nonce registry, the single-use claim, and the reconcile-by-nonce path are
+  local (and since I5 exercised against mock transports only); proof that
+  Gateway actually enforces the bound nonce at settle time requires a live
+  submission + a live nonce-reuse negative test.
 
 # Next Step
 
-**I4 — External Signer Adapter.**
+I4 (external signer) and I5 (bounded Gateway settlement layer driving this
+store) are implemented; see
+[x402-external-signer.md](./x402-external-signer.md) and
+[x402-gateway-settlement.md](./x402-gateway-settlement.md). **I6 — the
+operator-authorized first live testnet payment** — is the next step.
 
-Last updated: 2026-08-16
+Last updated: 2026-09-15

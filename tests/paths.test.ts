@@ -1,7 +1,7 @@
 import { dirname, join } from "node:path";
 import { tmpdir } from "node:os";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { auditLogPath, executionStorePath } from "@/lib/paths";
+import { auditLogPath, executionStorePath, settlementEvidencePath } from "@/lib/paths";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -26,5 +26,18 @@ describe("execution store path", () => {
 
   test("defaults to the audit-log directory with an execution-store suffix", () => {
     expect(executionStorePath()).toBe(join(dirname(auditLogPath()), "execution-store"));
+  });
+});
+
+describe("settlement evidence store path", () => {
+  test("uses AGENTPAY_SETTLEMENT_EVIDENCE_PATH when set", () => {
+    const temporaryStorePath = join(tmpdir(), "agentpay-guard-smoke", "settlement-evidence");
+    vi.stubEnv("AGENTPAY_SETTLEMENT_EVIDENCE_PATH", temporaryStorePath);
+
+    expect(settlementEvidencePath()).toBe(temporaryStorePath);
+  });
+
+  test("defaults to the audit-log directory with a settlement-evidence suffix", () => {
+    expect(settlementEvidencePath()).toBe(join(dirname(auditLogPath()), "settlement-evidence"));
   });
 });

@@ -1,9 +1,11 @@
 # Circle Grants 2026 — Roadmap
 
-Phases 0–8 are complete on this branch. Phase 9 is NOT yet implemented.
+Phases 0–8 are complete on this branch. Phase 9: **DEFERRED** — not started.
 Each phase lists objective, main deliverable, dependencies, and Definition of
-Done. This roadmap is planning documentation only; no phase beyond 8 is
-implemented here.
+Done. This roadmap is planning documentation only; no numbered phase beyond 8 is
+implemented here. On the Pre-Phase-9 integration gate track: I1–I4 IMPLEMENTED,
+PRE-I5 SECURITY REVIEW COMPLETED (GO WITH BLOCKERS), **I5 IMPLEMENTED /
+MOCK-VERIFIED** (never executed live), **I6 NOT IMPLEMENTED — the next step**.
 
 ## Phase 0 — Grant isolation and source of truth (IMPLEMENTED)
 
@@ -236,7 +238,7 @@ implemented here.
 
 ## Pre-Phase-9 Integration Feasibility Gate
 
-Status at the START of this task: IN PROGRESS. Current status: DECISION RECORDED — GO WITH BLOCKERS (see integration-feasibility.md).
+Status at the START of this task: IN PROGRESS. Current status (2026-09-15): DECISION RECORDED — GO WITH BLOCKERS (see integration-feasibility.md); the four pre-I5 blockers landed with I5 (mock-verified); I6 live proof remains. Authoritative I5 record: [x402-gateway-settlement.md](./x402-gateway-settlement.md).
 
 Purpose:
 determine whether a bounded real Circle Gateway/x402 → Arc Testnet integration can be implemented without violating the documented execution-security boundary.
@@ -245,7 +247,9 @@ Phase 9 remains:
 NOT IMPLEMENTED
 
 and:
-DEFERRED until this gate produces a decision.
+DEFERRED — the gate produced its decision (GO WITH BLOCKERS, 2026-08-16;
+re-confirmed by the PRE-I5 review 2026-08-17); Phase 9 remains deferred and is
+NOT started by I5.
 
 After the research in this task is complete, this gate may become:
 DECISION RECORDED — GO
@@ -256,7 +260,8 @@ DECISION RECORDED — NO-GO
 
 This gate is not a numbered engineering phase.
 
-**Integration-track status (2026-08-16):**
+**Integration-track status (2026-08-16; historical — superseded by the
+2026-09-15 post-I5 block below):**
 
 - Decision: GO WITH BLOCKERS
 - Implementation track: I1 implemented (x402 payment requirement contract +
@@ -302,10 +307,68 @@ This gate is not a numbered engineering phase.
      (validAfter/validBefore) in the I3 record OR require a fresh-authorization
      lineage for crash-after-submitted; never persist private keys or raw
      signatures.
-- First live payment remains FORBIDDEN in I5 — **the first live payment is
-  I6**. No Phase 10 is created by this roadmap.
+- **Update (2026-09-15) — I5 IMPLEMENTED / MOCK-VERIFIED.** The four blockers
+  above landed exactly as frozen: `remote_outcome_unknown` added to the I3
+  state machine; the SettlementEvidence contract + durable immutable store
+  (separate directory, keyed by authorizationId, indexed by nonce) persist
+  BEFORE the `confirmed` transition; the read-only `ExecutedSpendSummary`
+  reconciles settled/failed/unknown/pending from the two durable stores; the
+  `submitted` event now carries non-secret recovery metadata (`payerAddress`,
+  `signingRequestDigest`, `validAfter`, `validBefore` — never the signature or
+  raw payload). First live payment remains FORBIDDEN in I5 — **the first live
+  payment is I6**. No Phase 10 is created by this roadmap.
 
-## Phase 9 — Fresh-clone / release readiness (NOT IMPLEMENTED)
+**Integration-track status (2026-09-15, post-I5):**
+
+- Decision: **GO WITH BLOCKERS** (unchanged; the remaining blockers are now the
+  I6 live-proof items — see [x402-gateway-settlement.md](./x402-gateway-settlement.md),
+  "Remaining I6 Preconditions").
+- I1 IMPLEMENTED · I2 IMPLEMENTED · I3 IMPLEMENTED · I4 IMPLEMENTED ·
+  PRE-I5 SECURITY REVIEW COMPLETED (GO WITH BLOCKERS) · **I5 IMPLEMENTED /
+  MOCK-VERIFIED** · **I6 NOT IMPLEMENTED — NEXT STEP**.
+- Phase 9: **DEFERRED** (unchanged).
+- Status distinctions (keep separate; never collapse):
+  - Gateway adapter: IMPLEMENTED / MOCK-VERIFIED
+  - Real Gateway settlement: NOT YET EXECUTED
+  - Real Arc Testnet payment: NOT YET EXECUTED
+  - Funds moved: NO
+- **I5 deliverables** (all local / mock-verified; never executed against the
+  live network):
+  - Gateway wire contract + host-pinned testnet client:
+    `src/integrations/circle-gateway/contracts.ts`,
+    `src/integrations/circle-gateway/testnet-client.ts` (compile-pinned
+    `https://gateway-api-testnet.circle.com`, no retry, bounded timeout,
+    256 KiB streaming response bound, strict unknown-field rejection).
+  - Settlement orchestration (pre-submit guard chain + third Guard-expiry
+    recheck; outcome classification; nonce-keyed reconciliation):
+    `src/domain/x402/gateway-settlement.ts`,
+    `src/domain/x402/gateway-reason-codes.ts`.
+  - Durable SettlementEvidence contract + immutable store:
+    `src/domain/x402/settlement-evidence.ts`,
+    `src/domain/x402/settlement-evidence-store.ts`,
+    `src/lib/paths.ts` (`settlementEvidencePath()`,
+    `AGENTPAY_SETTLEMENT_EVIDENCE_PATH`).
+  - Executed-spend reconciliation (read-only `ExecutedSpendSummary`):
+    `src/domain/x402/executed-spend.ts`.
+  - State-machine extension: `remote_outcome_unknown` in
+    `src/domain/x402/execution-store.ts`.
+  - Operator-gated live entry point that REFUSES by default:
+    `src/domain/x402/gateway-live-transport.ts`,
+    `scripts/x402-gateway-testnet.mjs` (+ `scripts/x402-operator-loader.mjs`,
+    `scripts/x402-gateway-testnet-runner.ts`).
+  - Test suites (by path): `tests/x402-gateway-client.test.ts`,
+    `tests/x402-settlement-evidence.test.ts`,
+    `tests/x402-settlement-evidence-store.test.ts`,
+    `tests/x402-executed-spend.test.ts`,
+    `tests/x402-gateway-operator-script.test.ts`,
+    `tests/x402-gateway-settlement.test.ts`.
+  - Bounded scope as designed: one network (Arc Testnet `eip155:5042002`), one
+    scheme (`exact`), no custody, no private key inside Guard core (the key
+    boundary stays in the I4 external signer), operator-gated live path, **no
+    live execution**. `policyVersion` remains `"3"`; Guard `src/app/**`
+    unchanged — no public route can sign, settle, or move funds.
+
+## Phase 9 — Fresh-clone / release readiness (NOT IMPLEMENTED — DEFERRED)
 
 - Objective: a new clone can reproduce every claim.
 - Main deliverable: install, test, lint, typecheck, build green on a fresh clone.

@@ -22,9 +22,12 @@ State explicitly:
 
 I4 produces a locally generated, cryptographically verified EIP-3009
 authorization signature and the derived signed `PaymentPayload` digest. It is
-an **offline, non-network** slice: the signature is never submitted to Gateway
-or any RPC endpoint, no payment is proved, and no funds move. Real Gateway
-submission remains a later step (I5).
+an **offline, non-network** slice: the signing step itself makes no Gateway or
+RPC call, no payment is proved, and no funds move. Real Gateway settlement
+now exists as a SEPARATE, later layer — I5
+([x402-gateway-settlement.md](./x402-gateway-settlement.md)) — which consumes
+the transient payload **in the same process run** as the signing orchestrator;
+no live settlement has occurred (first live payment is I6).
 
 # Trust Boundary
 
@@ -192,9 +195,11 @@ payer EVM validity → Guard expiry recheck (no signer call on failure) → buil
 round-trip-validate the signing request → `signer.sign(request)` → response
 digest + payer checks → viem `recoverTypedDataAddress` over the **exact locally
 constructed typed data** → build the signed payload → `signerPayloadDigest`
-(includes the signature) → `markX402ExecutionSubmitted({ nonce, signerPayloadDigest,
-occurredAt })` — applied OR exact safe replay of the same digest →
-`X402_SIGNER_READY` with the transient payload; any other outcome → fail closed.
+(includes the signature) →
+`markX402ExecutionSubmitted({ nonce, signerPayloadDigest, payerAddress,
+signingRequestDigest, validAfter, validBefore, occurredAt })` — applied OR
+exact safe replay of the same digest → `X402_SIGNER_READY` with the transient
+payload; any other outcome → fail closed.
 
 The full stable reason-code contract (`src/domain/x402/sign-prepared-x402-execution.ts`):
 
@@ -281,13 +286,31 @@ After verification succeeds, I4 invokes the I3 store transition:
 markX402ExecutionSubmitted({
   nonce: prepared.nonce,
   signerPayloadDigest,
+  payerAddress,
+  signingRequestDigest,
+  validAfter,
+  validBefore,
   occurredAt: now
 })
 ```
 
+Alongside `nonce` and `signerPayloadDigest`, I4 now also commits the four
+**non-secret recovery fields** (`payerAddress`, `signingRequestDigest`, and
+the signed EIP-3009 `validAfter` / `validBefore` as decimal Unix-second
+strings). They exist so a crash can be reconciled **by nonce without
+re-signing** (identity filtering of Gateway transfers requires the durable
+payer, and the signed validity window cannot be reconstructed locally after a
+crash). The signature and the signed payload are STILL never persisted.
+
 The state name `"submitted"` means the **signed payload commitment entered the
 execution lifecycle** — it does **NOT** prove Circle Gateway accepted anything.
-Actual Gateway submission begins only in **I5**.
+Gateway settlement is the separate I5 layer
+([x402-gateway-settlement.md](./x402-gateway-settlement.md)):
+`submitX402GatewaySettlement` consumes the transient payload **in the same
+process run** as this orchestrator (matched by digest against the durable
+`submitted` event); if the process dies and the payload is lost, recovery is
+nonce-keyed reconciliation — **re-signing the same deterministic nonce is
+forbidden**.
 
 # Secret Handling
 
@@ -295,7 +318,9 @@ Actual Gateway submission begins only in **I5**.
 - **Ephemeral test keys only** — generated at test runtime, passed via
   child-process env, never persisted or printed.
 - The execution store never receives the signature, the raw payload, or the
-  private key — it receives only the `signerPayloadDigest`.
+  private key — it receives the `signerPayloadDigest` plus the four non-secret
+  recovery fields (`payerAddress`, `signingRequestDigest`, `validAfter`,
+  `validBefore`).
 
 # Expiry Boundary
 
@@ -305,9 +330,10 @@ Actual Gateway submission begins only in **I5**.
 - **Guard expiry and EIP-3009 `validBefore` are SEPARATE controls.** A long
   Gateway signature validity window must **NOT** extend the Guard
   authorization window.
-- **Mandatory future I5 invariant:** recheck `now <
-  prepared.authorizationExpiresAt` immediately before any Gateway `/settle`
-  request.
+- **I5 invariant (IMPLEMENTED):** the same `now <
+  prepared.authorizationExpiresAt` check is re-applied immediately before any
+  Gateway `/settle` request (guard 7 of `submitX402GatewaySettlement`;
+  rejection → zero transport calls).
 
 # Crash / Recovery Residual
 
@@ -315,11 +341,17 @@ Actual Gateway submission begins only in **I5**.
   that lineage; a retry requires a fresh Guard authorization lineage).
 - **Crash after signing but before durable `submitted`** → a fresh Guard
   authorization may be required depending on the recovery path.
-- **Crash after durable `submitted` but before I5 receives the transient
+- **Crash after durable `submitted` but before I5 consumes the transient
   payload** → the raw signature is intentionally **NOT** stored (a liveness
-  residual, not a duplicate-payment safety failure).
+  residual, not a duplicate-payment safety failure): the I5 layer reconciles
+  the execution **by nonce** (`--reconcile` /
+  `reconcileX402GatewayOutcome`) using the durable recovery fields committed
+  on `submitted`; it never re-signs the deterministic nonce with a fresh
+  validity window. An expired, unresolved authorization requires a fresh
+  Guard authorization lineage.
 - I4 does **not** add encrypted-secret storage.
-- This residual is recorded for the I5/I6 orchestration design.
+- This residual is operationally handled by the implemented I5
+  reconcile-by-nonce path; live proof remains I6.
 
 # Current Non-Network Boundary
 
@@ -332,19 +364,28 @@ URLs appear in docs/comments only; nothing in I4 opens a connection.
 
 # Remaining Preconditions
 
-Still **NOT COMPLETE** after I4:
+Status after the I5 implementation (2026-09-15):
 
-- real Gateway submission;
-- Gateway nonce enforcement in a real call;
-- SettlementEvidence;
-- executed-spend reconciliation;
-- production authenticated agent identity;
-- pre-broadcast security re-review;
-- full testnet positive proof.
+- real Gateway submission — **implemented locally / mock-verified (I5)**; never
+  exercised live (I6);
+- Gateway nonce enforcement in a real call — **PENDING I6** (local single-use
+  registry + reconcile-by-nonce path exist; Gateway's own behaviour is not
+  proven end-to-end);
+- SettlementEvidence — **implemented locally (I5)**: immutable durable store,
+  digest persisted BEFORE the `confirmed` transition;
+- executed-spend reconciliation — **implemented locally (I5)**: read-only
+  `ExecutedSpendSummary`, zero writes/zero network;
+- production authenticated agent identity — still OPEN (RESIDUAL PRODUCTION
+  CONTROL, deliberately not blocking the bounded testnet proof);
+- pre-broadcast security re-review — the PRE-I5 re-review is COMPLETED
+  (2026-08-17, GO WITH BLOCKERS); final operator sign-off remains REQUIRED
+  before the first live submission;
+- full testnet positive proof — **PENDING I6**.
 
 # Next Step
 
-**PRE-I5 threat-model re-review** before any Gateway network submission (and
-then **I5 — Gateway Submission + Settlement Evidence**).
+**I6** — the operator-authorized first live Arc Testnet x402/Gateway payment
+(positive + nonce-reuse negative proof), per
+[x402-gateway-settlement.md](./x402-gateway-settlement.md).
 
-Last updated: 2026-08-16
+Last updated: 2026-09-15

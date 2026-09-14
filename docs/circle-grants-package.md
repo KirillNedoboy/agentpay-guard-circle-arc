@@ -37,7 +37,44 @@ Facts below are directly supported by the current code, tests, and assets on the
 grant development branch (`grant/circle-grants-pilot-2026`), evidence checkpoint
 `09b400fbc5919aff13ce27c2d6ceb685916c80ec`.
 
-### Current grant-track state (2026-08-16)
+### Current grant-track state (2026-09-15, post-I5)
+
+- Integration track: I1–I4 IMPLEMENTED; PRE-I5 SECURITY REVIEW COMPLETED (GO
+  WITH BLOCKERS); **I5 IMPLEMENTED / MOCK-VERIFIED**; I6 NOT IMPLEMENTED — the
+  next step. Phase 9 remains DEFERRED.
+- **A real testnet-capable Circle Gateway/x402 adapter is implemented and
+  locally/mock-verified (host-pinned testnet client, strict response validation,
+  durable settlement evidence, executed-spend reconciliation, operator-gated
+  live path that refuses by default); no live testnet settlement has been
+  executed yet — the first live payment is I6.** Authoritative record:
+  [x402-gateway-settlement.md](./grants/circle-grants-2026/x402-gateway-settlement.md).
+- Status distinctions (keep separate; never collapse):
+  - Gateway adapter: IMPLEMENTED / MOCK-VERIFIED
+  - Real Gateway settlement: NOT YET EXECUTED
+  - Real Arc Testnet payment: NOT YET EXECUTED
+  - Funds moved: NO
+- No `POST /v1/x402/settle` call has ever been executed; no testnet payment; no
+  funds moved; no live transfer UUID exists (every UUID in tests is a visibly
+  fixture-only value). The only contact with Circle infrastructure is two
+  read-only `GET /v1/x402/supported` capability probes (2026-08-17 and
+  2026-09-14) — not settlements.
+- Guard `src/app/**` is unchanged: no public API/UI route can sign, settle, or
+  move funds; live submission is reachable only through the operator-gated
+  script, which refuses by default. Active `policyVersion` remains `"3"`.
+- Test baselines: the pre-I5 global baseline stands at 25 test files / 563
+  tests (verified run at I4); the I5 additions are recorded by path in
+  [evidence.md](./grants/circle-grants-2026/evidence.md) —
+  `tests/x402-gateway-client.test.ts`, `tests/x402-settlement-evidence.test.ts`,
+  `tests/x402-settlement-evidence-store.test.ts`,
+  `tests/x402-executed-spend.test.ts`,
+  `tests/x402-gateway-operator-script.test.ts`,
+  `tests/x402-gateway-settlement.test.ts`. The final post-I5 global total is
+  recorded separately after the full validation run.
+- This block supersedes the 2026-08-16 summary below as the authoritative
+  current-state statement; the 2026-08-16 lines are kept as dated historical
+  record.
+
+### Current grant-track state (2026-08-16 — historical; superseded by the 2026-09-15 block above)
 
 - Phases 0–8 implemented on `grant/circle-grants-pilot-2026`; Phase 8 evidence
   checkpoint `09b400f…`.
@@ -232,7 +269,10 @@ Future grant/pilot targets only. None of these are current traction:
   (a PROPOSED pilot protocol — exact replay consistency is not the same claim as
   reproducing a historical policy decision), integration time for a new policy
   context, and policy-gap signals from REVIEW/BLOCK outcomes (targets).
-- Future controlled testnet work (proposal only; requires separate authorization).
+- Future controlled testnet work: the I5 adapter path is implemented and
+  mock-verified (see "Current grant-track state (2026-09-15, post-I5)"); the
+  first live payment (I6) is a future target, requires explicit operator
+  authorization, and has NOT been executed.
 - Proposed grant budget (proposal only; amount to be defined with the grant program —
   verify against official sources).
 
@@ -261,13 +301,18 @@ External facts requiring verification:
 ## 5. Product safety boundary
 
 AgentPay Guard does not: move funds; hold custody; store private keys; sign
-transactions; connect wallets; submit UserOperations; perform RPC execution; execute
-CCTP burn/mint; verify Iris attestations; perform live x402, Gateway, or other live
-settlement; produce transaction hashes; confirm settlement or finality; or claim
-official Circle, Arc, or x402 partnership. Every AgentPay Receipt records
-`fundsMoved: false`; the Arc adapter evidence is `broadcast: false` /
-`status: "not_executed"`. An `ALLOW` decision means only that a separately authorised
-future adapter could be considered — it never means funds moved.
+transactions; connect wallets; submit UserOperations; perform RPC execution;
+execute CCTP burn/mint; verify Iris attestations; perform live x402, Gateway,
+or other live settlement; produce transaction hashes; confirm settlement or
+finality; or claim official Circle, Arc, or x402 partnership. Every AgentPay
+Receipt records `fundsMoved: false`; the Arc adapter evidence is
+`broadcast: false` / `status: "not_executed"`. An `ALLOW` decision means only
+that a separately authorised future adapter could be considered — it never
+means funds moved. **Post-I5 precision (2026-09-15):** the boundary refers to
+the Guard product surface (`src/app/**` unchanged — no route can sign, settle,
+or move funds); the I5 Gateway/settlement code exists behind the operator gate
+and has NEVER been executed against the live network; the key boundary stays in
+the offline I4 external signer process.
 
 ## 6. Claim hygiene rules
 

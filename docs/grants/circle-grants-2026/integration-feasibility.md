@@ -1,12 +1,26 @@
 # Integration Feasibility — AgentPay Guard → ExecutionAuthorization → Circle Gateway / x402 → Arc Testnet
 
-Status: **PROPOSED / NOT IMPLEMENTED**. This document is a research and
-architecture decision record. No integration exists in this repository. Nothing
-in this document was executed; no payment was sent; no wallet was created; no
-private key was handled. Research findings are labeled VERIFIED EXTERNAL
-TECHNICAL FACT where they come from the official sources listed in
-[Verified Official Sources](#verified-official-sources); the AgentPay
-integration itself is PROPOSED only.
+Status: **RESEARCH / ARCHITECTURE DECISION RECORD — integration track updated
+2026-09-15: I1 IMPLEMENTED / I2 IMPLEMENTED / I3 IMPLEMENTED / I4 IMPLEMENTED /
+PRE-I5 REVIEW COMPLETED (GO WITH BLOCKERS) / I5 IMPLEMENTED (Circle Gateway/x402
+adapter + settlement orchestration + durable SettlementEvidence store +
+executed-spend reconciliation + operator-gated live transport — mock-verified,
+never executed) / I6 NOT IMPLEMENTED. Phase 9: DEFERRED.** The authoritative I5
+record is [x402-gateway-settlement.md](./x402-gateway-settlement.md).
+
+Status distinctions (keep separate; never collapse):
+
+- Gateway adapter: IMPLEMENTED / MOCK-VERIFIED
+- Real Gateway settlement: NOT YET EXECUTED
+- Real Arc Testnet payment: NOT YET EXECUTED
+- Funds moved: NO
+
+Nothing was executed against a live network; no payment was sent; no wallet was
+created. Guard core holds no private key (the only key handling is the offline
+I4 external signer tool, exercised in tests with ephemeral keys only). Research
+findings are labeled VERIFIED EXTERNAL TECHNICAL FACT where they come from the
+official sources listed in [Verified Official Sources](#verified-official-sources);
+the external facts below keep their own verification dates.
 
 # Decision Summary
 
@@ -23,6 +37,15 @@ in the threat model, a durable execution/idempotency record, an exact
 payment-requirement binding, an external-signer adapter, and settlement
 evidence capture — none of which require turning AgentPay Guard into a custody
 or payment platform.
+
+Update (2026-09-15): the implementation blockers named above landed as I1–I5 —
+the execution security gate and requirement binding (I2), the durable execution
+store and nonce registry (I3), the external-signer adapter (I4), and the
+Gateway adapter + settlement orchestration + durable SettlementEvidence +
+executed-spend reconciliation (I5) — all local/mock-verified. The remaining
+blockers are the I6 live-proof items: the first real bounded Arc Testnet
+settlement and Gateway-side nonce enforcement. None of this required turning
+AgentPay Guard into a custody or payment platform.
 
 External grant-strengthening work in parallel: 1–2 design-partner conversations.
 This is a manual/user activity. It is not an implementation result.
@@ -96,7 +119,7 @@ Arc Testnet as the reference network in the seller quickstart.
 # Current Guard Boundary
 
 From source (threat-model.md, limitations.md, src/domain/*), current Guard
-state (updated 2026-08-17 for I1–I4):
+state (updated 2026-08-17 for I1–I4; I5 deltas noted inline, 2026-09-15):
 
 - **Pre-settlement execution surface (I1–I4).** Nothing in Guard `src/` signs,
   broadcasts, submits transactions, calls blockchain RPC, or moves funds; the
@@ -112,19 +135,29 @@ state (updated 2026-08-17 for I1–I4):
   proposed amount, never the policy cap, deterministic `auth_<sha256>`
   `authorizationId`.
 - `expiresAt` = audit timestamp + `policy.authorization.ttlSeconds` (300 s).
-  Runtime wall-clock expiry enforcement now exists **locally** in the I2
-  execution security gate (`now < expiresAt` strictly; I4 rechecks before the
-  signer call); end-to-end enforcement is pending the I5 Gateway submission
-  path (I5.3 pre-settle recheck).
+  Runtime wall-clock expiry enforcement exists in the I2 execution security
+  gate (`now < expiresAt` strictly; I4 rechecks before the signer call); the
+  THIRD, pre-settle recheck (I5.3) is implemented in
+  `src/domain/x402/gateway-settlement.ts` (guard 7 of
+  `submitX402GatewaySettlement`, immediately before the single `client.settle`
+  call). The settle path exists but has never been executed live.
 - The I3 durable execution store (`src/domain/x402/execution-store.ts`)
   implements single-use v2 authorization consumption, deterministic EIP-3009
   nonce binding/registry, and cross-process O_EXCL state transitions
-  (`prepared | submitted | confirmed | failed`) — local only, no
-  network/settlement.
+  (`prepared | submitted | confirmed | failed`, extended in I5 with
+  `remote_outcome_unknown`) — durable local state; no live settlement executed.
 - The I4 offline external EOA signer boundary produces a real local EIP-3009
   signature, verifies it cryptographically (viem `recoverTypedDataAddress`),
   and commits only the signed-payload digest via the I3 `submitted`
   transition.
+- The I5 Gateway settlement layer (`src/domain/x402/gateway-settlement.ts`,
+  `src/integrations/circle-gateway/`, `settlement-evidence.ts`,
+  `settlement-evidence-store.ts`, `executed-spend.ts`,
+  `gateway-live-transport.ts`) implements the fail-closed pre-submit check
+  chain + final Guard-expiry recheck, strict settle-response interpretation,
+  durable SettlementEvidence, read-only executed-spend reconciliation, and the
+  operator-gated live transport — **mock-verified only; no live settlement has
+  been executed; no funds moved.**
 - Canonical audit is append-only JSONL, **in-process only** (promise-chain
   lock per path); no hash chain, no signatures, no cross-process protection
   (T13/T14).
@@ -141,7 +174,9 @@ state (updated 2026-08-17 for I1–I4):
   subsets; the remaining blockers (executed-spend accounting, durable
   SettlementEvidence, state-machine unknown-outcome handling, payload
   recovery/liveness) are I5, and Gateway nonce-enforcement proof is I6. See
-  [pre-i5-security-review.md](./pre-i5-security-review.md).
+  [pre-i5-security-review.md](./pre-i5-security-review.md). **Post-I5 update
+  (2026-09-15): those four I5 blockers have since landed — mock-verified;
+  Gateway nonce-enforcement proof remains open for I6.**
 
 # Current x402 Flow
 
@@ -460,11 +495,15 @@ inputs.
 # Threat-Model Preconditions
 
 All 14 preconditions from `docs/grants/circle-grants-2026/threat-model.md`
-("Future Execution Preconditions") are currently **unchecked and
-unimplemented** in this repository. The table below maps each to the bounded
-testnet slice. "Where implemented" refers to the PROPOSED future design; per
-the constraint, nothing is marked implemented because no source proves any
-implementation today.
+("Future Execution Preconditions") were **unchecked and unimplemented** in
+this repository at research time (2026-08-16). The table below maps each to the
+bounded testnet slice. "Where implemented" refers to the PROPOSED future design;
+nothing was marked implemented because no source proved any implementation as
+of 2026-08-16. **Update (2026-09-15): I1–I5 have since implemented the local
+subsets of these preconditions — see [threat-model.md](./threat-model.md) and
+[pre-i5-security-review.md](./pre-i5-security-review.md) for the re-classified
+matrix; the Gateway-side proofs (live nonce enforcement, real settlement
+evidence) remain I6 scope.**
 
 | Existing precondition | Needed for bounded testnet slice? | Where implemented (proposed) | Proposed mechanism | Evidence required |
 | --- | --- | --- | --- | --- |
@@ -554,13 +593,20 @@ integration introduces its own durable execution record keyed by
 (+ `rejected` for gates that refused to sign), recording the bound nonce and
 requirement digest. The signing path runs only when the record is in
 `prepared` with a fresh nonce; `submitted`/`confirmed` blocks re-signing;
-Gateway's nonce enforcement is the final independent backstop. Do not
-implement now.
+Gateway's nonce enforcement is the final independent backstop. **Update
+(2026-09-15): this durable state now exists** — the I3 store (single-use
+prepared claim + deterministic nonce registry) was extended in I5 with
+`remote_outcome_unknown`, the settlement orchestration guards, nonce-keyed
+reconciliation (`reconcileX402GatewayOutcome`), and durable SettlementEvidence;
+the identical signed payload is never retried and `nonce_already_used` routes
+to reconcile-required, not failure. Gateway's OWN nonce enforcement remains
+unproven until the I6 live negative test.
 
 # Settlement Evidence Model
 
-Proposed type (NOT implemented), fields constrained to what the official APIs
-actually return (S9 §5.3 `SettlementResponse`; S15 `X402TransferResponse`):
+Proposed at research time (2026-08-16; NOT implemented then), fields
+constrained to what the official APIs actually return (S9 §5.3
+`SettlementResponse`; S15 `X402TransferResponse`):
 
 ```ts
 type SettlementEvidence = {
@@ -587,6 +633,18 @@ type SettlementEvidence = {
 };
 ```
 
+**Update (2026-09-15): the I5.5 contract is IMPLEMENTED** —
+`src/domain/x402/settlement-evidence.ts` keeps these source constraints and
+refines them into a strict versioned contract (12 durable base-linkage fields
+plus the official interpretation fields preserved verbatim, cross-field
+consistency rules), with the durable store in
+`src/domain/x402/settlement-evidence-store.ts`. Implemented field names differ
+from this research sketch (`gatewayTransferId`, `batchTxHash`, `outcome`,
+`source`); the authoritative shape is
+[x402-gateway-settlement.md](./x402-gateway-settlement.md). The sketch above is
+kept as the original design record. All evidence so far is mock/fixture-
+generated — no live evidence from Gateway exists.
+
 - **Explorer-verifiable:** Yes, when `txHash` is present (batch-level
   settlement transaction hash on Arc Testnet, `https://testnet.arcscan.app`
   (S23/S24)). Caveat: the hash is batch-level (shared by all transfers in the
@@ -598,7 +656,10 @@ type SettlementEvidence = {
   "never overwrite policy evidence" invariant).
 
 **HTTP 402 resource-server slice — minimum credible demo (preferred
-conceptual flow, adapted to the real architecture; NOT implemented):**
+conceptual flow, adapted to the real architecture; as of 2026-09-15 the
+guard/signing/settlement/evidence steps 3–6 and 8–9 are implemented locally and
+mock-verified (I1–I5); the live end-to-end run — real 402 resource server, real
+Gateway settlement, explorer link, step 7 live — remains I6 scope):**
 
 1. Agent (buyer client) requests a paid resource from a resource server
    (test API, can be ours).
@@ -635,7 +696,11 @@ official APIs support it — no architecture bending required.
 
 # Positive Acceptance Criteria
 
-Smallest possible proof (design target for the future slice; NOT performed):
+Smallest possible proof (design target for the slice; **NOT PERFORMED against
+the live network as of 2026-09-15** — I5 delivered the local plumbing
+(orchestration, evidence store, duplicate protection, reconciliation —
+implemented and mock-verified; the live items — real settlement, real
+`SettlementEvidence` from Gateway, explorer link — are exactly the I6 scope):
 
 1. 1 paid resource (our test x402 resource server);
 2. 1 externally controlled test signer (test EOA, outside Guard);
@@ -656,11 +721,18 @@ Smallest possible proof (design target for the future slice; NOT performed):
 Chain: `PaymentIntent → ALLOW → ExecutionAuthorization → exact requirement
 binding → external signing boundary → one settlement → durable outcome
 evidence → no duplicate settlement`. This chain is the grant-strengthening
-claim ONLY if and when it is actually executed; until then it is PROPOSED.
+claim ONLY if and when it is actually executed on the live testnet. As of
+2026-09-15 the chain is IMPLEMENTED and MOCK-VERIFIED locally (I1–I5) but NOT
+EXECUTED: no live settlement, no live evidence from Circle/Arc, no funds moved.
+The first live execution is I6.
 
 # Negative Acceptance Criteria
 
-Mandatory tests for any future integration (define now; DO NOT implement):
+Mandatory tests for any future integration (defined 2026-08-16; the local,
+mocked/offline counterparts of these criteria are now covered by the I1–I5 test
+suites — see [x402-gateway-settlement.md](./x402-gateway-settlement.md) and the
+suites listed in [evidence.md](./evidence.md); the live-network proofs remain
+I6 scope):
 
 - **A** REVIEW → no signing / no settlement.
 - **B** BLOCK → no signing / no settlement.
@@ -707,8 +779,14 @@ no preserved incorrect assumptions.)
 
 ## Implementation status
 
-Updated 2026-08-16. This records what is actually built in this repository.
-No Gateway integration, no Arc settlement, and no x402 payment are implemented.
+Updated 2026-09-15 (I5); initial record 2026-08-16. This records what is
+actually built in this repository. As of 2026-09-15 the Circle Gateway/x402
+adapter, settlement orchestration, durable SettlementEvidence store, and
+executed-spend reconciliation are IMPLEMENTED (mock-verified); no real Gateway
+settlement call and no Arc Testnet payment have ever been executed; no funds
+moved. (The 2026-08-16 record read: "No Gateway integration, no Arc settlement,
+and no x402 payment are implemented" — superseded for the adapter by I5; the
+no-live-execution part remains true.)
 
 - **I1 — Payment Requirement Contract: IMPLEMENTED.** Artifacts:
   `src/domain/x402/payment-requirement.ts` (exports
@@ -811,8 +889,42 @@ No Gateway integration, no Arc settlement, and no x402 payment are implemented.
   `docs/grants/circle-grants-2026/x402-external-signer.md`. Full suite after
   I4: 25 test files / 563 tests, all passing (baseline 22 / 445; +3 files —
   `tests/x402-external-signer.test.ts` 63 + `tests/x402-external-signer-cli.test.ts` 6 + other I4-adjacent additions — verified by the implementation worker).
-- **I5 — Settlement Evidence: NOT IMPLEMENTED.**
-- **I6 — Positive + Negative Proof: NOT IMPLEMENTED.**
+- **I5 — Gateway Settlement + Evidence: IMPLEMENTED (MOCK-VERIFIED).** A real
+  testnet-capable Circle Gateway/x402 adapter, settlement orchestration,
+  durable SettlementEvidence store, executed-spend reconciliation, and an
+  operator-gated live transport are in the repository, verified only against
+  injected mock transports / fixtures. **No `POST /v1/x402/settle` call has
+  ever been executed; no testnet payment; no funds moved; no live transfer
+  UUID exists — every UUID in tests is a visibly fixture-only value.** The
+  authoritative record:
+  `docs/grants/circle-grants-2026/x402-gateway-settlement.md`. Artifacts:
+  `src/domain/x402/gateway-settlement.ts`, `gateway-live-transport.ts`,
+  `gateway-reason-codes.ts`, `settlement-evidence.ts`,
+  `settlement-evidence-store.ts`, `executed-spend.ts`,
+  `src/integrations/circle-gateway/contracts.ts`, `testnet-client.ts`,
+  `src/lib/paths.ts` (`settlementEvidencePath()`, env override
+  `AGENTPAY_SETTLEMENT_EVIDENCE_PATH`, default beside the audit log),
+  `.gitignore` + `.env.example` entries, and the operator entry point
+  `scripts/x402-gateway-testnet.mjs` (+ `scripts/x402-operator-loader.mjs`,
+  `scripts/x402-gateway-testnet-runner.ts`). The I3 store was extended with
+  `remote_outcome_unknown`. New test suites (by path):
+  `tests/x402-gateway-client.test.ts` (60),
+  `tests/x402-settlement-evidence.test.ts` (64),
+  `tests/x402-settlement-evidence-store.test.ts` (23),
+  `tests/x402-executed-spend.test.ts` (20),
+  `tests/x402-gateway-operator-script.test.ts` (19),
+  `tests/x402-gateway-settlement.test.ts`. `policyVersion` remains `"3"` (no
+  policy rules changed — the Arc Testnet allowlist already existed); Guard
+  `src/app/**` is unchanged — no public API/UI route can sign, settle, or move
+  funds. Per-worker suite counts are listed by path; the final post-I5 global
+  total is recorded separately after the full validation run (the pre-I5
+  baseline of 25 test files / 563 tests stands as the last recorded global
+  count).
+- **I6 — Positive + Negative Proof: NOT IMPLEMENTED — NEXT STEP.** Exactly one
+  tiny live Arc Testnet payment through the operator gate, positive proof
+  (settle → reconcile → official `confirmed`/`completed` → durable evidence)
+  and negative proof (consumed-nonce reuse refused and reconciled). Live
+  execution remains FORBIDDEN until I6 with explicit operator authorization.
 
 ## Pre-I5 security re-review (2026-08-17)
 
@@ -829,6 +941,13 @@ No Gateway integration, no Arc settlement, and no x402 payment are implemented.
 - **Gateway integration is NOT verified and NOT implemented; no Arc settlement
   has occurred; no funds have moved.**
 
+- **Post-I5 update (2026-09-15):** the four review blockers above landed as the
+  I5 implementation — Gateway adapter, settlement orchestration, durable
+  SettlementEvidence, executed-spend reconciliation, `remote_outcome_unknown`,
+  payload-recovery fields, operator-gated live transport — MOCK-VERIFIED only.
+  The lines above record the 2026-08-17 state. Real Gateway settlement: NOT YET
+  EXECUTED; funds moved: NO.
+
 # Explicit Non-Goals
 
 - No custody, no key storage inside AgentPay Guard core, no private keys in
@@ -836,11 +955,15 @@ No Gateway integration, no Arc settlement, and no x402 payment are implemented.
 - No live mainnet settlement (Arc is testnet-only today anyway, S23).
 - No AML/KYC claims; no compliance product claims.
 - No official Arc/Circle partnership claim; no "verified product capability"
-  claim for Gateway/x402/Arc — integration remains PROPOSED until built.
+  claim for Gateway/x402/Arc — the integration is now built (I1–I5) but
+  LOCALLY/MOCK-VERIFIED ONLY: implementation does not make it a verified
+  product capability; Gateway-side behavior is proven only by I6 live
+  execution.
 - No invented grant claims: no grant amount, deadline, eligibility, or
   milestone commitments (the official Circle Grants page states none of
   these as of 2026-08-16).
-- Phase 9 (payment execution) is NOT started; this document does not start it.
+- Phase 9 (payment execution) remains **DEFERRED**; this document does not
+  start it. No live payment has been executed; the first live payment is I6.
 - No changes to the canonical audit log semantics, policy evidence, or the
   existing `ExecutionAuthorization` v1 envelope beyond the versioned addition
   described.
@@ -875,12 +998,20 @@ Verified against the required preconditions for GO/GO-WITH-BLOCKERS:
 8. **Implementation would materially change the grant story** — YES: from
    proposal-only integration (executionScope `["prepare","simulate"]`,
    `not_executed`) to one real, controlled testnet settlement with durable,
-   explorer-verifiable evidence.
+   explorer-verifiable evidence. **(2026-09-15 note:** "proposal-only" no
+   longer describes the repository — I1–I5 built the adapter path and it is
+   mock-verified; the material change completes only when I6 executes the
+   first real settlement, which has not happened.**)**
 
-Blocker framing: GO WITH BLOCKERS, not GO, because every one of the 14
-preconditions is currently unchecked and unimplemented, and the durable
-execution store, requirement binding, external-signer adapter, and settlement
-evidence are concrete implementation work that does not exist yet. None of the
+Blocker framing (as recorded 2026-08-16, re-confirmed 2026-08-17): GO WITH
+BLOCKERS, not GO, because at that time every one of the 14 preconditions was
+unchecked and unimplemented, and the durable execution store, requirement
+binding, external-signer adapter, and settlement evidence were concrete
+implementation work that did not exist yet. **Update (2026-09-15):** that work
+has landed as I1–I5 (mock-verified); the decision's remaining blockers are now
+the live-proof items — the first real bounded Arc Testnet settlement and
+Gateway-side nonce enforcement (I6 preconditions, see
+[x402-gateway-settlement.md](./x402-gateway-settlement.md)). None of the
 blockers requires changing AgentPay Guard into a custody or payment platform.
 
 **Scope estimate: MEDIUM** (complexity, not hours). Reasons: bounded to one
@@ -890,12 +1021,28 @@ adapter pair (security gate + external signer), settlement evidence, new API
 surface, and new tests — but no custody, no multi-rail support, no production
 durability, no new payment primitives inside Guard core.
 
-Likely changed areas: `src/domain/` (new `payment-requirement` /
-`execution-security-gate` / `settlement-evidence` / `execution-store`
-modules; versioned `ExecutionAuthorization`), `src/integrations/` (new
-`gateway-x402` adapter + external-signer adapter), `src/app/api/` (new routes
-for requirement normalization and execution status), `tests/` (new suites for
-I1–I6 and criteria A–L), `docs/` (this decision record updated when built).
+Likely changed areas (research-time estimate): `src/domain/` (new
+`payment-requirement` / `execution-security-gate` / `settlement-evidence` /
+`execution-store` modules; versioned `ExecutionAuthorization`),
+`src/integrations/` (new gateway-x402 adapter + external-signer adapter),
+`src/app/api/` (possible routes for requirement normalization and execution
+status), `tests/` (new suites for I1–I6 and criteria A–L), `docs/` (this
+decision record updated when built).
+
+**What actually changed (through I5, 2026-09-15):** `src/domain/x402/`
+(requirement contract + evidence, security gate + v2 authorization, durable
+execution store extended with `remote_outcome_unknown`, external-signer
+boundary, settlement orchestration, `settlement-evidence.ts` /
+`settlement-evidence-store.ts`, `executed-spend.ts`,
+`gateway-live-transport.ts`, `gateway-reason-codes.ts`),
+`src/integrations/circle-gateway/` (Gateway wire contracts + host-pinned
+testnet client), `src/lib/paths.ts` (store-path resolution), `scripts/`
+(offline external signer + operator-gated testnet entry point), `tests/` (new
+per-phase suites, listed by path in [evidence.md](./evidence.md)),
+`docs/grants/circle-grants-2026/` (per-phase records). `src/app/**` was NOT
+changed: no public API/UI route for settlement or execution status exists —
+live submission is reachable only through the operator-gated script, which
+refuses by default and has never been executed.
 
 # Reasons
 
@@ -921,8 +1068,11 @@ I1–I6 and criteria A–L), `docs/` (this decision record updated when built).
   model, cross-process audit) are documented production items that do not gate
   a bounded testnet slice.
 - Claim hygiene: nothing here is a verified product capability. The
-  integration remains NOT IMPLEMENTED until actually built; research findings
-  are VERIFIED EXTERNAL TECHNICAL FACT only.
+  integration is now BUILT (I1–I5, mock-verified) but NOT EXECUTED —
+  implementation status never upgrades an external claim; research findings
+  remain VERIFIED EXTERNAL TECHNICAL FACT only, and Gateway-side behavior
+  (nonce enforcement, timing, confirmation semantics) remains NOT YET
+  VALIDATED until I6.
 
 # Open External Questions
 
@@ -955,7 +1105,14 @@ I1–I6 and criteria A–L), `docs/` (this decision record updated when built).
   matters for grant review — out of scope for this decision, tracked in the
   evidence package.
 
-Last verified: 2026-08-17 (PRE-I5 re-review re-verified all S#-cited facts from
-the primary sources on this date, plus one live query of
-`https://gateway-api-testnet.circle.com/v1/x402/supported`; original research
-verification date was 2026-08-16).
+Last verified: 2026-09-15 (documentation update for the I5 implementation; no
+external fact re-verification was performed in this edit). The official Gateway
+contract facts behind I5 were re-verified on 2026-09-14 against
+`https://developers.circle.com/openapi/gateway.yaml`, accompanied by one
+read-only capability probe (`GET
+https://gateway-api-testnet.circle.com/v1/x402/supported`, 2026-09-14 — not a
+settlement, no funds moved) — see
+[x402-gateway-settlement.md](./x402-gateway-settlement.md). The PRE-I5
+re-review re-verified all S#-cited facts from the primary sources on 2026-08-17
+(plus one live query of `https://gateway-api-testnet.circle.com/v1/x402/supported`
+that date); original research verification date was 2026-08-16.
